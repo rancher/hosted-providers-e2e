@@ -6,6 +6,7 @@ import (
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
+	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
@@ -16,8 +17,10 @@ import (
 var _ = Describe("P0Importing", func() {
 
 	When("a cluster is created", func() {
+		var cluster *management.Cluster
 
 		BeforeEach(func() {
+			var err error
 			err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
 			Expect(err).To(BeNil())
 
@@ -65,6 +68,7 @@ var _ = Describe("P0Importing", func() {
 			initialNodeCount := *cluster.GKEConfig.NodePools[0].InitialNodeCount
 
 			By("scaling up the nodepool", func() {
+				var err error
 				cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount+1)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -75,6 +79,7 @@ var _ = Describe("P0Importing", func() {
 			})
 
 			By("scaling down the nodepool", func() {
+				var err error
 				cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -85,6 +90,7 @@ var _ = Describe("P0Importing", func() {
 			})
 
 			By("adding a nodepool", func() {
+				var err error
 				cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherClient)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -92,6 +98,7 @@ var _ = Describe("P0Importing", func() {
 				Expect(len(cluster.GKEConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 			})
 			By("deleting the nodepool", func() {
+				var err error
 				cluster, err = helper.DeleteNodePool(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -112,6 +119,7 @@ var _ = Describe("P0Importing", func() {
 
 			It("should be able to upgrade k8s version of the cluster", func() {
 				By("upgrading the Controlplane & NodePools", func() {
+					var err error
 					cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient, true)
 					Expect(err).To(BeNil())
 					err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)

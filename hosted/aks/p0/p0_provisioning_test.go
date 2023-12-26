@@ -4,6 +4,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
 	"github.com/rancher/rancher/tests/framework/extensions/workloads/pods"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
@@ -18,8 +19,10 @@ import (
 var _ = Describe("P0Provisioning", func() {
 
 	When("a cluster is created", func() {
+		var cluster *management.Cluster
 
 		BeforeEach(func() {
+			var err error
 			aksConfig := new(aks.ClusterConfig)
 			config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
 				aksConfig.ResourceGroup = clusterName
@@ -63,6 +66,7 @@ var _ = Describe("P0Provisioning", func() {
 			initialNodeCount := *cluster.AKSConfig.NodePools[0].Count
 
 			By("adding a nodepool", func() {
+				var err error
 				cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherClient)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -70,6 +74,7 @@ var _ = Describe("P0Provisioning", func() {
 				Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 			})
 			By("deleting the nodepool", func() {
+				var err error
 				cluster, err = helper.DeleteNodePool(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -78,6 +83,7 @@ var _ = Describe("P0Provisioning", func() {
 			})
 
 			By("scaling up the nodepool", func() {
+				var err error
 				cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount+1)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -88,6 +94,7 @@ var _ = Describe("P0Provisioning", func() {
 			})
 
 			By("scaling down the nodepool", func() {
+				var err error
 				cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -110,6 +117,7 @@ var _ = Describe("P0Provisioning", func() {
 
 			It("should be able to upgrade k8s version of the cluster", func() {
 				By("upgrading the ControlPlane", func() {
+					var err error
 					cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient)
 					Expect(err).To(BeNil())
 					cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
@@ -121,6 +129,7 @@ var _ = Describe("P0Provisioning", func() {
 				})
 
 				By("upgrading the NodePools", func() {
+					var err error
 					cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient)
 					Expect(err).To(BeNil())
 					err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)

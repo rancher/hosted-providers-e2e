@@ -4,6 +4,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
 	"github.com/rancher/rancher/tests/framework/extensions/workloads/pods"
@@ -13,10 +14,12 @@ import (
 )
 
 var _ = Describe("P0Importing", func() {
+	var cluster *management.Cluster
 
 	When("a cluster is imported", func() {
 
 		BeforeEach(func() {
+			var err error
 			err = helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1")
 			Expect(err).To(BeNil())
 			cluster, err = helper.ImportEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
@@ -60,6 +63,7 @@ var _ = Describe("P0Importing", func() {
 			initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
 
 			By("scaling up the NodeGroup", func() {
+				var err error
 				cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount+1)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -70,6 +74,7 @@ var _ = Describe("P0Importing", func() {
 			})
 
 			By("scaling down the NodeGroup", func() {
+				var err error
 				cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -80,6 +85,7 @@ var _ = Describe("P0Importing", func() {
 			})
 
 			By("adding a NodeGroup/s", func() {
+				var err error
 				cluster, err = helper.AddNodeGroup(cluster, increaseBy, ctx.RancherClient)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -87,6 +93,7 @@ var _ = Describe("P0Importing", func() {
 				Expect(len(cluster.EKSConfig.NodeGroups)).To(BeNumerically("==", currentNodeGroupNumber+1))
 			})
 			By("deleting the NodeGroup", func() {
+				var err error
 				cluster, err = helper.DeleteNodeGroup(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -108,6 +115,7 @@ var _ = Describe("P0Importing", func() {
 
 			It("should be able to upgrade k8s version of the cluster", func() {
 				By("upgrading the ControlPlane", func() {
+					var err error
 					cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient)
 					Expect(err).To(BeNil())
 					err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
@@ -116,6 +124,7 @@ var _ = Describe("P0Importing", func() {
 				})
 
 				By("upgrading the NodeGroups", func() {
+					var err error
 					cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient)
 					Expect(err).To(BeNil())
 					// TODO Does not upgrades version, since using custom LT
