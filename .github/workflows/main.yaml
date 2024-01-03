@@ -84,7 +84,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
       - name: Create runner
         run: |
-          REGION=${{ inputs.zone }} | sed 's/-[abcdef]$//'
+          REGION=$(echo ${{ inputs.zone }} | sed 's/-[abcdef]$//')
           gcloud compute instances create ${{ steps.generator.outputs.runner }} \
             --zone ${{ inputs.zone }} \
             --source-instance-template projects/${{ env.GKE_PROJECT_ID }}/regions/${REGION}/instanceTemplates/${{ inputs.runner_template }}
