@@ -1,10 +1,10 @@
 # HOSTED PROVIDERS E2E
 
-## How to run a test:
+## How to run a test locally:
 
 ### Environment Variables:
 Following are the common environment variables that need to be exported for running a test:
-1. RANCHER_HOSTNAME - Public DNS where rancher is running. E.g. ec2-3-110-187-31.ap-south-1.compute.amazonaws.com or 12.13.0.1.sslip.io
+1. RANCHER_HOSTNAME - Public DNS where rancher is running. E.g. ec2-1-2-3-4.ap-south-1.compute.amazonaws.com or 1.2.3.4.sslip.io
 2. RANCHER_PASSWORD - Admin Password for login. We currently only test with 'admin' user.
 3. CATTLE_TEST_CONFIG: Config file containing cluster and cloud credential information, for e.g. cattle-config-provisioning.yaml and cattle-config-import.yaml in the root directory.
 4. PROVIDER: Type of the hosted provider you want to test. Acceptable values - gke, eks, aks
@@ -40,5 +40,5 @@ Run `make help` to know about other targets.
 
 ### Example
 ```shell
-PROVIDER=gke RANCHER_HOSTNAME=ec2-3-110-187-31.ap-south-1.compute.amazonaws.com CATTLE_TEST_CONFIG=/home/pvala/go/src/github.com/rancher/hosted-providers-e2e/hosted/gke/config make e2e-provisioning-tests
+PROVIDER=gke RANCHER_HOSTNAME=ec2-1-2-3-4.ap-south-1.compute.amazonaws.com CATTLE_TEST_CONFIG=/home/pvala/go/src/github.com/rancher/hosted-providers-e2e/hosted/gke/config make e2e-provisioning-tests
 ```
