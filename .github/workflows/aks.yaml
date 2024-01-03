@@ -45,7 +45,7 @@ on:
         type: string
       zone:
         description: GCP zone to host the runner
-        default: us-west1-b
+        default: asia-south2-c
         type: string
 jobs:
   aks-e2e:

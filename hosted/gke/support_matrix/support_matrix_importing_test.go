@@ -30,7 +30,7 @@ var _ = Describe("SupportMatrixImporting", func() {
 				clusterName string
 				cluster     *management.Cluster
 				project     = os.Getenv("GKE_PROJECT_ID")
-				zone        = "us-central1-c"
+				zone        = "asia-south2-c"
 			)
 			BeforeEach(func() {
 				clusterName = namegen.AppendRandomString("gkehostcluster")
