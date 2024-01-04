@@ -43,10 +43,7 @@ on:
         description: Runner template to use
         default: hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v1
         type: string
-      zone:
-        description: GCP zone to host the runner
-        default: asia-south2-c
-        type: string
+
 jobs:
   aks-e2e:
     uses: ./.github/workflows/main.yaml
@@ -62,4 +59,3 @@ jobs:
       run_support_matrix_importing_tests: ${{ inputs.run_support_matrix_importing_tests == true }}
       destroy_runner: ${{ inputs.destroy_runner == true }}
       runner_template: ${{ inputs.runner_template }}
-      zone: ${{inputs.zone}}
