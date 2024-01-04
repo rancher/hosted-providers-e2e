@@ -12,7 +12,7 @@ import (
 var (
 	ctx         helpers.Context
 	clusterName string
-	location    = "eastus"
+	location    = "centralindia"
 	k8sVersion  = "1.26.6"
 	increaseBy  = 1
 )

@@ -21,8 +21,8 @@ aksClusterConfig:
     vmSize: Standard_DS2_v2
   privateCluster: false
   resourceGroup: ""
-  resourceLocation: eastus
-  tags: {}
+  resourceLocation: centralindia
+tags: {}
 awsCredentials:
 azureCredentials:
   environment: AzurePublicCloud

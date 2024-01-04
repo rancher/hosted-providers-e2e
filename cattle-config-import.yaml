@@ -15,7 +15,7 @@ aksClusterConfig:
     osType: Linux
     vmSize: Standard_DS2_v2
   resourceGroup: ""
-  resourceLocation: eastus
+  resourceLocation:  centralindia
 awsCredentials:
 azureCredentials:
   environment: AzurePublicCloud
@@ -39,7 +39,7 @@ eksClusterConfig:
     subnets: []
     tags: {}
     userData: ""
-  region: ca-central-1
+  region: ap-south-1
 gkeClusterConfig:
   projectID: <project>
   zone: asia-south2-c
