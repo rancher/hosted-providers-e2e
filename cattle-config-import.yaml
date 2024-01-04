@@ -15,7 +15,7 @@ aksClusterConfig:
     osType: Linux
     vmSize: Standard_DS2_v2
   resourceGroup: ""
-  resourceLocation:  centralindia
+  resourceLocation: centralindia
 awsCredentials:
 azureCredentials:
   environment: AzurePublicCloud

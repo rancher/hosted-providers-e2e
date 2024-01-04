@@ -13,7 +13,7 @@ import (
 var (
 	ctx         helpers.Context
 	clusterName string
-	zone        = "asia-south2-c"
+	zone        = helpers.GetGKEZone()
 	project     = os.Getenv("GKE_PROJECT_ID")
 	k8sVersion  = "1.27.4-gke.900"
 	increaseBy  = 1

@@ -25,7 +25,6 @@ var _ = Describe("SupportMatrixImporting", func() {
 		When(fmt.Sprintf("a cluster is created with kubernetes version %s", version), func() {
 			var (
 				clusterName string
-				location    = "centralindia"
 				cluster     *management.Cluster
 			)
 			BeforeEach(func() {
