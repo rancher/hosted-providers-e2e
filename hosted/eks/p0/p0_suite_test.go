@@ -12,7 +12,6 @@ import (
 var (
 	ctx         helpers.Context
 	clusterName string
-	region      = helpers.GetEKSLocation()
 	k8sVersion  = "1.26"
 	increaseBy  = 1
 )

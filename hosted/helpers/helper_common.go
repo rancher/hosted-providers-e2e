@@ -89,13 +89,13 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		config.LoadAndUpdateConfig("awsCredentials", credentialConfig, func() {
 			credentialConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
 			credentialConfig.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
-			credentialConfig.DefaultRegion = GetEKSLocation()
+			credentialConfig.DefaultRegion = GetEKSRegion()
 		})
 		cloudCredential, err = aws.CreateAWSCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
 		eksClusterConfig := new(management.EKSClusterConfigSpec)
 		config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
-			eksClusterConfig.Region = GetEKSLocation()
+			eksClusterConfig.Region = GetEKSRegion()
 		})
 	case "gke":
 		credentialConfig := new(cloudcredentials.GoogleCredentialConfig)
@@ -107,6 +107,7 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		gkeClusterConfig := new(management.GKEClusterConfigSpec)
 		config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
 			gkeClusterConfig.Zone = GetGKEZone()
+			gkeClusterConfig.ProjectID = GetGKEProjectID()
 		})
 	}
 
@@ -142,10 +143,10 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 func GetGKEZone() string {
 	zone := os.Getenv("GKE_ZONE")
 	if zone == "" {
-		var gkeConfig management.GKEClusterConfigSpec
+		gkeConfig := new(management.GKEClusterConfigSpec)
 		config.LoadConfig("gkeClusterConfig", gkeConfig)
 		if gkeConfig.Zone != "" {
-			zone = gkeConfig.Region
+			zone = gkeConfig.Zone
 		}
 		if zone == "" {
 			zone = "asia-south2-c"
@@ -160,7 +161,7 @@ func GetGKEZone() string {
 func GetAKSLocation() string {
 	region := os.Getenv("AKS_REGION")
 	if region == "" {
-		var aksClusterConfig management.AKSClusterConfigSpec
+		aksClusterConfig := new(management.AKSClusterConfigSpec)
 		config.LoadConfig("aksClusterConfig", aksClusterConfig)
 		region = aksClusterConfig.ResourceLocation
 		if region == "" {
@@ -170,13 +171,13 @@ func GetAKSLocation() string {
 	return region
 }
 
-// GetEKSLocation fetches the value of EKS Region;
+// GetEKSRegion fetches the value of EKS Region;
 // it first obtains the value from env var EKS_REGION, if the value is empty, it fetches the information from config file(cattle_config-import.yaml/cattle_config-provisioning.yaml)
 // if none of the sources can provide a value, it returns the default value
-func GetEKSLocation() string {
+func GetEKSRegion() string {
 	region := os.Getenv("EKS_REGION")
 	if region == "" {
-		var eksClusterConfig management.EKSClusterConfigSpec
+		eksClusterConfig := new(management.EKSClusterConfigSpec)
 		config.LoadConfig("eksClusterConfig", eksClusterConfig)
 		region = eksClusterConfig.Region
 		if region == "" {
@@ -184,4 +185,9 @@ func GetEKSLocation() string {
 		}
 	}
 	return region
+}
+
+// GetGKEProjectID returns the value of GKE project by fetching the value of env var GKE_PROJECT_ID
+func GetGKEProjectID() string {
+	return os.Getenv("GKE_PROJECT_ID")
 }
