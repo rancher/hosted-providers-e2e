@@ -25,5 +25,5 @@ var _ = BeforeEach(func() {
 	var err error
 	ctx, err = helpers.CommonBeforeSuite("gke")
 	Expect(err).To(BeNil())
-	clusterName = namegen.AppendRandomString("gkehostcluster")
+	clusterName = namegen.AppendRandomString(helpers.GKEBaseClusterName)
 })

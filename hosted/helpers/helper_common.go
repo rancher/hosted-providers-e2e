@@ -25,7 +25,10 @@ import (
 )
 
 const (
-	Timeout = 30 * time.Minute
+	Timeout            = 30 * time.Minute
+	GKEBaseClusterName = "gkehostcluster-HP"
+	EKSBaseClusterName = "ekshostcluster-HP"
+	AKSBaseClusterName = "akshostcluster-HP"
 )
 
 var (
@@ -41,6 +44,14 @@ type Context struct {
 }
 
 func CommonBeforeSuite(cloud string) (Context, error) {
+	// Fetch the current user and testname to add to cluster resource tags
+	testuser, err := user.Current()
+	Expect(err).To(BeNil())
+	specReport := ginkgo.CurrentSpecReport()
+	tags := map[string]string{
+		"owner":    "hosted-providers-qa-ci-" + testuser.Username,
+		"testName": fmt.Sprintf("%s--%s_L%d", specReport.FullText(), strings.Split(specReport.FileName(), "hosted/")[1], specReport.LineNumber()),
+	}
 
 	rancherConfig := new(rancher.Config)
 	Eventually(rancherConfig, "10s").ShouldNot(BeNil())
@@ -69,14 +80,6 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 	resp, err = rancherClient.Management.Setting.Update(resp, setting)
 	Expect(err).To(BeNil())
 
-	// Fetch the current user and testname to add to cluster resource tags
-	testuser, err := user.Current()
-	Expect(err).To(BeNil())
-	specReport := ginkgo.CurrentSpecReport()
-	tags := map[string]string{
-		"owner":    "hosted-providers-qa-ci-" + testuser.Username,
-		"testName": fmt.Sprintf("%s %s#L%d", specReport.FullText(), strings.Split(specReport.FileName(), "hosted/")[1], specReport.LineNumber()),
-	}
 	switch cloud {
 	case "aks":
 		credentialConfig := new(cloudcredentials.AzureCredentialConfig)

@@ -28,7 +28,7 @@ var _ = Describe("SupportMatrixImporting", func() {
 				cluster     *management.Cluster
 			)
 			BeforeEach(func() {
-				clusterName = namegen.AppendRandomString("akshostcluster")
+				clusterName = namegen.AppendRandomString(helpers.AKSBaseClusterName)
 				var err error
 				err = helper.CreateAKSClusterOnAzure(location, clusterName, version, "1")
 				Expect(err).To(BeNil())

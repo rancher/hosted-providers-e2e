@@ -31,7 +31,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				cluster     *management.Cluster
 			)
 			BeforeEach(func() {
-				clusterName = namegen.AppendRandomString("gkehostcluster")
+				clusterName = namegen.AppendRandomString(helpers.GKEBaseClusterName)
 				pipeline.UpdateHostedKubernetesVField(provisioninginput.GoogleProviderName.String(), version)
 				var err error
 				gkeConfig := new(management.GKEClusterConfigSpec)

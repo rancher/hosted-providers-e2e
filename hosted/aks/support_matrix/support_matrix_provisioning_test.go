@@ -31,7 +31,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				cluster     *management.Cluster
 			)
 			BeforeEach(func() {
-				clusterName = namegen.AppendRandomString("akshostcluster")
+				clusterName = namegen.AppendRandomString(helpers.AKSBaseClusterName)
 				pipeline.UpdateHostedKubernetesVField(provisioninginput.AzureProviderName.String(), version)
 				var err error
 				aksConfig := new(aks.ClusterConfig)

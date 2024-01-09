@@ -27,7 +27,7 @@ var _ = Describe("SupportMatrixImporting", func() {
 				cluster     *management.Cluster
 			)
 			BeforeEach(func() {
-				clusterName = namegen.AppendRandomString("ekshostcluster")
+				clusterName = namegen.AppendRandomString(helpers.EKSBaseClusterName)
 				var err error
 				err = helper.CreateEKSClusterOnAWS(region, clusterName, version, "1")
 				Expect(err).To(BeNil())
