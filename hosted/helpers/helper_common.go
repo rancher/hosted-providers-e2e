@@ -2,7 +2,10 @@ package helpers
 
 import (
 	"fmt"
+	"github.com/onsi/ginkgo/v2"
 	"os"
+	"os/user"
+	"strings"
 	"time"
 
 	. "github.com/onsi/gomega"
@@ -29,7 +32,6 @@ var (
 	rancherPassword = os.Getenv("RANCHER_PASSWORD")
 	rancherHostname = os.Getenv("RANCHER_HOSTNAME")
 	cloudCredential *cloudcredentials.CloudCredential
-	rancherConfig   *rancher.Config
 )
 
 type Context struct {
@@ -67,6 +69,14 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 	resp, err = rancherClient.Management.Setting.Update(resp, setting)
 	Expect(err).To(BeNil())
 
+	// Fetch the current user and testname to add to cluster resource tags
+	testuser, err := user.Current()
+	Expect(err).To(BeNil())
+	specReport := ginkgo.CurrentSpecReport()
+	tags := map[string]string{
+		"owner":    "hosted-providers-qa-ci-" + testuser.Username,
+		"testName": fmt.Sprintf("%s %s#L%d", specReport.FullText(), strings.Split(specReport.FileName(), "hosted/")[1], specReport.LineNumber()),
+	}
 	switch cloud {
 	case "aks":
 		credentialConfig := new(cloudcredentials.AzureCredentialConfig)
@@ -83,6 +93,7 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		// this is necessary so that there is a single source of truth for provisioning and import test cases
 		config.LoadAndUpdateConfig("azureClusterConfig", azureClusterConfig, func() {
 			azureClusterConfig.ResourceLocation = GetAKSLocation()
+			azureClusterConfig.Tags = tags
 		})
 	case "eks":
 		credentialConfig := new(cloudcredentials.AmazonEC2CredentialConfig)
@@ -96,6 +107,7 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		eksClusterConfig := new(management.EKSClusterConfigSpec)
 		config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
 			eksClusterConfig.Region = GetEKSRegion()
+			eksClusterConfig.Tags = &tags
 		})
 	case "gke":
 		credentialConfig := new(cloudcredentials.GoogleCredentialConfig)
@@ -108,6 +120,7 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
 			gkeClusterConfig.Zone = GetGKEZone()
 			gkeClusterConfig.ProjectID = GetGKEProjectID()
+			gkeClusterConfig.Labels = &tags
 		})
 	}
 
