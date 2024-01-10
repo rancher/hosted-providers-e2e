@@ -37,7 +37,7 @@ var _ = Describe("SupportMatrixImporting", func() {
 					aksConfig.ResourceGroup = clusterName
 					aksConfig.ResourceLocation = location
 				})
-				cluster, err = helper.ImportAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+				cluster, err = helper.ImportAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetMetadataTags())
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())

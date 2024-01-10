@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/aks"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
@@ -18,12 +19,21 @@ import (
 func GetTags() map[string]string {
 	aksConfig := new(management.AKSClusterConfigSpec)
 	config.LoadConfig("aksClusterConfig", aksConfig)
-	var tags map[string]string
+	tags := make(map[string]string)
 	tags = aksConfig.Tags
 	for key, value := range helpers.GetMetadataTags() {
 		tags[key] = value
 	}
 	return tags
+}
+
+func CreateAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
+	aksConfig := new(management.AKSClusterConfigSpec)
+	config.LoadAndUpdateConfig("aksClusterConfig", aksConfig, func() {
+		aksTags := GetTags()
+		aksConfig.Tags = aksTags
+	})
+	return aks.CreateAKSHostedCluster(client, displayName, cloudCredentialID, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster, labels)
 }
 
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.

@@ -29,7 +29,7 @@ var _ = Describe("P0Provisioning", func() {
 				dnsPrefix := clusterName + "-dns"
 				aksConfig.DNSPrefix = &dnsPrefix
 			})
-			cluster, err = aks.CreateAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetTags())
+			cluster, err = helper.CreateAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetMetadataTags())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
