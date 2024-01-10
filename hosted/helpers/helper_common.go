@@ -201,8 +201,13 @@ func GetMetadataTags() map[string]string {
 	Expect(err).To(BeNil())
 
 	specReport := ginkgo.CurrentSpecReport()
+	// Sanitize the filename to fit the label requirements for all the hosted providers
+	filename := strings.Split(specReport.FileName(), "hosted/")[1]
+	filename = strings.TrimSuffix(filename, ".go")
+	filename = strings.ReplaceAll(filename, "/", "-")
+	filename = strings.ToLower(filename)
 	return map[string]string{
 		"owner":          "hosted-providers-qa-ci-" + testuser.Username,
-		"testfilenumber": fmt.Sprintf("%s_L%d", strings.ReplaceAll(strings.Split(specReport.FileName(), "hosted/")[1], "/", "-"), specReport.LineNumber()),
+		"testfilenumber": fmt.Sprintf("line%d_%s", specReport.LineNumber(), filename),
 	}
 }
