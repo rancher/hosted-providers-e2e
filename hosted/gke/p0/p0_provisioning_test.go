@@ -8,7 +8,6 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters"
-	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
 	"github.com/rancher/rancher/tests/framework/extensions/workloads/pods"
 )
@@ -20,7 +19,7 @@ var _ = Describe("P0Provisioning", func() {
 
 		BeforeEach(func() {
 			var err error
-			cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetLabels())
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetMetadataTags())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())

@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
@@ -16,15 +17,29 @@ import (
 	"github.com/pkg/errors"
 )
 
+// GetLabels fetches labels from config file, appends the common labels/tags to it and returns the map
 func GetLabels() map[string]string {
 	gkeConfig := new(management.GKEClusterConfigSpec)
 	config.LoadConfig("gkeClusterConfig", gkeConfig)
-	var labels map[string]string
-	labels = *gkeConfig.Labels
+	labels := make(map[string]string)
+	if gkeConfig.Labels != nil {
+		labels = *gkeConfig.Labels
+	}
 	for key, value := range helpers.GetMetadataTags() {
 		labels[key] = value
 	}
 	return labels
+}
+
+// CreateGKEHostedCluster updates the GKE config with labels and creates the GKE Cluster
+func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
+	gkeConfig := new(management.GKEClusterConfigSpec)
+	// Update the GKE labels present in config file with the common metadata labels
+	config.LoadAndUpdateConfig("gkeClusterConfig", gkeConfig, func() {
+		gkeLabels := GetLabels()
+		gkeConfig.Labels = &gkeLabels
+	})
+	return gke.CreateGKEHostedCluster(client, displayName, cloudCredentialID, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster, labels)
 }
 
 // UpgradeKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion; if upgradeNodePool is true, it also upgrades nodepools' k8s version
