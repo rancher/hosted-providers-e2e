@@ -29,7 +29,7 @@ var _ = Describe("P0Provisioning", func() {
 				dnsPrefix := clusterName + "-dns"
 				aksConfig.DNSPrefix = &dnsPrefix
 			})
-			cluster, err = aks.CreateAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+			cluster, err = aks.CreateAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetTags())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
@@ -37,7 +37,7 @@ var _ = Describe("P0Provisioning", func() {
 		AfterEach(func() {
 			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
-			err = helper.DeleteAKSClusteronAzure(clusterName)
+			err = helper.DeleteAKSClusterOnAzure(clusterName)
 			Expect(err).To(BeNil())
 		})
 		It("should successfully provision the cluster & add, delete, scale nodepool", func() {

@@ -45,7 +45,7 @@ var _ = Describe("SupportMatrixImporting", func() {
 			AfterEach(func() {
 				err := helper.DeleteAKSHostCluster(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())
-				err = helper.DeleteAKSClusteronAzure(clusterName)
+				err = helper.DeleteAKSClusterOnAzure(clusterName)
 				Expect(err).To(BeNil())
 			})
 

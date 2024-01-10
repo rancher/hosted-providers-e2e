@@ -41,7 +41,7 @@ var _ = Describe("P0Importing", func() {
 		AfterEach(func() {
 			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
-			err = helper.DeleteAKSClusteronAzure(clusterName)
+			err = helper.DeleteAKSClusterOnAzure(clusterName)
 			Expect(err).To(BeNil())
 		})
 		It("should successfully import the cluster & add, delete, scale nodepool", func() {
