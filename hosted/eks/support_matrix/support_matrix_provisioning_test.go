@@ -8,7 +8,6 @@ import (
 
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters"
-	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
 	"github.com/rancher/rancher/tests/framework/extensions/pipeline"
 	"github.com/rancher/rancher/tests/framework/extensions/provisioninginput"
@@ -33,7 +32,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				clusterName = namegen.AppendRandomString(helpers.EKSBaseClusterName)
 				pipeline.UpdateHostedKubernetesVField(provisioninginput.AWSProviderName.String(), version)
 				var err error
-				cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetTags())
+				cluster, err = helper.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetMetadataTags())
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())

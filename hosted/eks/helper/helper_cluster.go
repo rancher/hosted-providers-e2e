@@ -3,6 +3,7 @@ package helper
 import (
 	"fmt"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
@@ -19,12 +20,24 @@ import (
 func GetTags() map[string]string {
 	eksConfig := new(management.EKSClusterConfigSpec)
 	config.LoadConfig("eksClusterConfig", eksConfig)
-	var tags map[string]string
-	tags = *eksConfig.Tags
+	tags := make(map[string]string)
+	if eksConfig.Tags != nil {
+		tags = *eksConfig.Tags
+	}
 	for key, value := range helpers.GetMetadataTags() {
 		tags[key] = value
 	}
 	return tags
+}
+
+func CreateEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
+	eksConfig := new(management.EKSClusterConfigSpec)
+	// Update the EKS tags present in config file with the common metadata labels
+	config.LoadAndUpdateConfig("eksClusterConfig", eksConfig, func() {
+		eksTags := GetTags()
+		eksConfig.Tags = &eksTags
+	})
+	return eks.CreateEKSHostedCluster(client, displayName, cloudCredentialID, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster, labels)
 }
 
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
