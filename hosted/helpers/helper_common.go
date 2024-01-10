@@ -202,7 +202,7 @@ func GetMetadataTags() map[string]string {
 
 	specReport := ginkgo.CurrentSpecReport()
 	return map[string]string{
-		"owner":    "hosted-providers-qa-ci-" + testuser.Username,
-		"testName": fmt.Sprintf("%s--%s_L%d", specReport.FullText(), strings.Split(specReport.FileName(), "hosted/")[1], specReport.LineNumber()),
+		"owner":          "hosted-providers-qa-ci-" + testuser.Username,
+		"testfilenumber": fmt.Sprintf("%s_L%d", strings.ReplaceAll(strings.Split(specReport.FileName(), "hosted/")[1], "/", "-"), specReport.LineNumber()),
 	}
 }
