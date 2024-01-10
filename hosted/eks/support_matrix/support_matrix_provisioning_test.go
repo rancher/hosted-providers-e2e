@@ -33,7 +33,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				clusterName = namegen.AppendRandomString(helpers.EKSBaseClusterName)
 				pipeline.UpdateHostedKubernetesVField(provisioninginput.AWSProviderName.String(), version)
 				var err error
-				cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+				cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetTags())
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())

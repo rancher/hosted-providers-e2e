@@ -2,6 +2,8 @@ package helper
 
 import (
 	"fmt"
+	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
@@ -13,6 +15,17 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/pkg/errors"
 )
+
+func GetTags() map[string]string {
+	eksConfig := new(management.EKSClusterConfigSpec)
+	config.LoadConfig("eksClusterConfig", eksConfig)
+	var tags map[string]string
+	tags = *eksConfig.Tags
+	for key, value := range helpers.GetMetadataTags() {
+		tags[key] = value
+	}
+	return tags
+}
 
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
 func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersion *string, client *rancher.Client) (*management.Cluster, error) {
@@ -122,9 +135,10 @@ func ListEKSAvailableVersions(client *rancher.Client, clusterID string) (availab
 
 // Create AWS EKS cluster using EKS CLI
 func CreateEKSClusterOnAWS(eks_region string, clusterName string, k8sVersion string, nodes string) error {
-
+	tags := GetTags()
+	formattedTags := k8slabels.SelectorFromSet(tags).String()
 	fmt.Println("Creating EKS cluster ...")
-	out, err := proc.RunW("eksctl", "create", "cluster", "--region="+eks_region, "--name="+clusterName, "--version="+k8sVersion, "--nodegroup-name", "ranchernodes", "--nodes", nodes, "--managed")
+	out, err := proc.RunW("eksctl", "create", "cluster", "--region="+eks_region, "--name="+clusterName, "--version="+k8sVersion, "--nodegroup-name", "ranchernodes", "--nodes", nodes, "--managed", "--tags", formattedTags)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}

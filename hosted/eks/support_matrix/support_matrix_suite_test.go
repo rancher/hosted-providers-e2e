@@ -19,6 +19,7 @@ var (
 func TestSupportMatrix(t *testing.T) {
 	RegisterFailHandler(Fail)
 	var err error
+	// TODO: Fix this behavior; move to BeforeSuite.
 	ctx, err = helpers.CommonBeforeSuite("eks")
 	Expect(err).To(BeNil())
 	availableVersionList, err = kubernetesversions.ListEKSAllVersions(ctx.RancherClient)

@@ -21,7 +21,7 @@ var _ = Describe("P0Provisioning", func() {
 
 		BeforeEach(func() {
 			var err error
-			cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+			cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetTags())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
