@@ -26,9 +26,9 @@ import (
 
 const (
 	Timeout            = 30 * time.Minute
-	GKEBaseClusterName = "gkehostcluster-HP"
-	EKSBaseClusterName = "ekshostcluster-HP"
-	AKSBaseClusterName = "akshostcluster-HP"
+	GKEBaseClusterName = "gkehostcluster-hp"
+	EKSBaseClusterName = "ekshostcluster-hp"
+	AKSBaseClusterName = "akshostcluster-hp"
 )
 
 var (
@@ -44,15 +44,6 @@ type Context struct {
 }
 
 func CommonBeforeSuite(cloud string) (Context, error) {
-	// Fetch the current user and testname to add to cluster resource tags
-	testuser, err := user.Current()
-	Expect(err).To(BeNil())
-	specReport := ginkgo.CurrentSpecReport()
-	tags := map[string]string{
-		"owner":    "hosted-providers-qa-ci-" + testuser.Username,
-		"testName": fmt.Sprintf("%s--%s_L%d", specReport.FullText(), strings.Split(specReport.FileName(), "hosted/")[1], specReport.LineNumber()),
-	}
-
 	rancherConfig := new(rancher.Config)
 	Eventually(rancherConfig, "10s").ShouldNot(BeNil())
 
@@ -91,12 +82,11 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		cloudCredential, err = azure.CreateAzureCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
 
-		azureClusterConfig := new(management.AKSClusterConfigSpec)
+		aksClusterConfig := new(management.AKSClusterConfigSpec)
 		// provisioning test cases rely on config file to fetch the location information
 		// this is necessary so that there is a single source of truth for provisioning and import test cases
-		config.LoadAndUpdateConfig("azureClusterConfig", azureClusterConfig, func() {
-			azureClusterConfig.ResourceLocation = GetAKSLocation()
-			azureClusterConfig.Tags = tags
+		config.LoadAndUpdateConfig("aksClusterConfig", aksClusterConfig, func() {
+			aksClusterConfig.ResourceLocation = GetAKSLocation()
 		})
 	case "eks":
 		credentialConfig := new(cloudcredentials.AmazonEC2CredentialConfig)
@@ -110,7 +100,6 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		eksClusterConfig := new(management.EKSClusterConfigSpec)
 		config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
 			eksClusterConfig.Region = GetEKSRegion()
-			eksClusterConfig.Tags = &tags
 		})
 	case "gke":
 		credentialConfig := new(cloudcredentials.GoogleCredentialConfig)
@@ -123,7 +112,6 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
 			gkeClusterConfig.Zone = GetGKEZone()
 			gkeClusterConfig.ProjectID = GetGKEProjectID()
-			gkeClusterConfig.Labels = &tags
 		})
 	}
 
@@ -206,4 +194,15 @@ func GetEKSRegion() string {
 // GetGKEProjectID returns the value of GKE project by fetching the value of env var GKE_PROJECT_ID
 func GetGKEProjectID() string {
 	return os.Getenv("GKE_PROJECT_ID")
+}
+
+func GetMetadataTags() map[string]string {
+	testuser, err := user.Current()
+	Expect(err).To(BeNil())
+
+	specReport := ginkgo.CurrentSpecReport()
+	return map[string]string{
+		"owner":    "hosted-providers-qa-ci-" + testuser.Username,
+		"testName": fmt.Sprintf("%s--%s_L%d", specReport.FullText(), strings.Split(specReport.FileName(), "hosted/")[1], specReport.LineNumber()),
+	}
 }
