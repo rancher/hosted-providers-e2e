@@ -2,18 +2,30 @@ package helper
 
 import (
 	"fmt"
-
 	"github.com/Masterminds/semver/v3"
+	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/pointer"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/pkg/errors"
 )
+
+func GetLabels() map[string]string {
+	gkeConfig := new(management.GKEClusterConfigSpec)
+	config.LoadConfig("gkeClusterConfig", gkeConfig)
+	var labels map[string]string
+	labels = *gkeConfig.Labels
+	for key, value := range helpers.GetMetadataTags() {
+		labels[key] = value
+	}
+	return labels
+}
 
 // UpgradeKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion; if upgradeNodePool is true, it also upgrades nodepools' k8s version
 func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion *string, client *rancher.Client, upgradeNodePool bool) (*management.Cluster, error) {
@@ -129,10 +141,12 @@ func ListSingleVariantGKEAvailableVersions(client *rancher.Client, projectID, cl
 }
 
 // Create Google GKE cluster using gcloud CLI
-func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k8sVersion string) error {
+func CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion string) error {
+	labels := GetLabels()
+	labelsAsString := k8slabels.SelectorFromSet(labels).String()
 
 	fmt.Println("Creating GKE cluster ...")
-	out, err := proc.RunW("gcloud", "container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks")
+	out, err := proc.RunW("gcloud", "container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks")
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}

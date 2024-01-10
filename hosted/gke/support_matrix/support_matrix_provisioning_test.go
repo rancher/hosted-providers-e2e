@@ -21,7 +21,6 @@ import (
 )
 
 var _ = Describe("SupportMatrixProvisioning", func() {
-
 	for _, version := range availableVersionList {
 		version := version
 
@@ -38,7 +37,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 					gkeConfig.ProjectID = project
 				})
-				cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+				cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helper.GetLabels())
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())
