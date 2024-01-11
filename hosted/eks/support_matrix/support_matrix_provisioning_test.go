@@ -3,6 +3,7 @@ package support_matrix_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
 
 	"fmt"
 
@@ -32,7 +33,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				clusterName = namegen.AppendRandomString(helpers.EKSBaseClusterName)
 				pipeline.UpdateHostedKubernetesVField(provisioninginput.AWSProviderName.String(), version)
 				var err error
-				cluster, err = helper.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetMetadataTags())
+				cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetCommonMetadataLabels())
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 				Expect(err).To(BeNil())

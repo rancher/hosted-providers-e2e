@@ -3,6 +3,9 @@ package support_matrix_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/hosted-providers-e2e/hosted/eks/helper"
+	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
+	"github.com/rancher/rancher/tests/framework/pkg/config"
 
 	"testing"
 
@@ -27,3 +30,12 @@ func TestSupportMatrix(t *testing.T) {
 	Expect(availableVersionList).ToNot(BeEmpty())
 	RunSpecs(t, "SupportMatrix Suite")
 }
+
+var _ = BeforeSuite(func() {
+	eksClusterConfig := new(management.EKSClusterConfigSpec)
+	// re-update the config file with tags, Support Matrix suite is defined such that "testfilename" does not get updated in CommonBeforeSuite.
+	config.LoadAndUpdateConfig(helpers.EKSClusterConfigKey, eksClusterConfig, func() {
+		tags := helper.GetTags()
+		eksClusterConfig.Tags = &tags
+	})
+})

@@ -6,7 +6,6 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
-	"github.com/rancher/rancher/tests/framework/extensions/clusters/aks"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
@@ -18,22 +17,12 @@ import (
 
 func GetTags() map[string]string {
 	aksConfig := new(management.AKSClusterConfigSpec)
-	config.LoadConfig("aksClusterConfig", aksConfig)
-	tags := make(map[string]string)
-	tags = aksConfig.Tags
-	for key, value := range helpers.GetMetadataTags() {
+	config.LoadConfig(helpers.AKSClusterConfigKey, aksConfig)
+	tags := helpers.GetCommonMetadataLabels()
+	for key, value := range aksConfig.Tags {
 		tags[key] = value
 	}
 	return tags
-}
-
-func CreateAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
-	aksConfig := new(management.AKSClusterConfigSpec)
-	config.LoadAndUpdateConfig("aksClusterConfig", aksConfig, func() {
-		aksTags := GetTags()
-		aksConfig.Tags = aksTags
-	})
-	return aks.CreateAKSHostedCluster(client, displayName, cloudCredentialID, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster, labels)
 }
 
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
@@ -201,7 +190,7 @@ func DeleteAKSClusterOnAzure(clusterName string) error {
 	return nil
 }
 
-func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
+func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, rancherClusterLabels map[string]string) (*management.Cluster, error) {
 	aksHostCluster := AksHostClusterConfig(displayName, cloudCredentialID)
 	cluster := &management.Cluster{
 		DockerRootDir:           "/var/lib/docker",
@@ -210,7 +199,7 @@ func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 		EnableClusterAlerting:   enableClusterAlerting,
 		EnableClusterMonitoring: enableClusterMonitoring,
 		EnableNetworkPolicy:     &enableNetworkPolicy,
-		Labels:                  labels,
+		Labels:                  rancherClusterLabels,
 		WindowsPreferedCluster:  windowsPreferedCluster,
 	}
 
@@ -223,7 +212,7 @@ func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 
 func AksHostClusterConfig(displayName, cloudCredentialID string) *management.AKSClusterConfigSpec {
 	var aksClusterConfig ImportClusterConfig
-	config.LoadConfig("aksClusterConfig", &aksClusterConfig)
+	config.LoadConfig(helpers.AKSClusterConfigKey, &aksClusterConfig)
 
 	return &management.AKSClusterConfigSpec{
 		AzureCredentialSecret: cloudCredentialID,
@@ -236,7 +225,7 @@ func AksHostClusterConfig(displayName, cloudCredentialID string) *management.AKS
 
 func AksHostNodeConfig() []management.AKSNodePool {
 	var nodeConfig management.AKSClusterConfigSpec
-	config.LoadConfig("aksClusterConfig", &nodeConfig)
+	config.LoadConfig(helpers.AKSClusterConfigKey, &nodeConfig)
 
 	return nodeConfig.NodePools
 }

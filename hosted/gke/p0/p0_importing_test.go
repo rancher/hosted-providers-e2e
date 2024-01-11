@@ -24,7 +24,7 @@ var _ = Describe("P0Importing", func() {
 			var err error
 			err = helper.CreateGKEClusterOnGCloud(zone, clusterName, helpers.GetGKEProjectID(), k8sVersion)
 			Expect(err).To(BeNil())
-			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetMetadataTags())
+			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())

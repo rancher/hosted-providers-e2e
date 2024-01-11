@@ -6,7 +6,6 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
-	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
@@ -20,26 +19,14 @@ import (
 // GetLabels fetches labels from config file, appends the common labels/tags to it and returns the map
 func GetLabels() map[string]string {
 	gkeConfig := new(management.GKEClusterConfigSpec)
-	config.LoadConfig("gkeClusterConfig", gkeConfig)
-	labels := make(map[string]string)
+	config.LoadConfig(helpers.GKEClusterConfigKey, gkeConfig)
+	labels := helpers.GetCommonMetadataLabels()
 	if gkeConfig.Labels != nil {
-		labels = *gkeConfig.Labels
-	}
-	for key, value := range helpers.GetMetadataTags() {
-		labels[key] = value
+		for key, value := range *gkeConfig.Labels {
+			labels[key] = value
+		}
 	}
 	return labels
-}
-
-// CreateGKEHostedCluster updates the GKE config with labels and creates the GKE Cluster
-func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
-	gkeConfig := new(management.GKEClusterConfigSpec)
-	// Update the GKE labels present in config file with the common metadata labels
-	config.LoadAndUpdateConfig("gkeClusterConfig", gkeConfig, func() {
-		gkeLabels := GetLabels()
-		gkeConfig.Labels = &gkeLabels
-	})
-	return gke.CreateGKEHostedCluster(client, displayName, cloudCredentialID, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster, labels)
 }
 
 // UpgradeKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion; if upgradeNodePool is true, it also upgrades nodepools' k8s version
@@ -185,7 +172,7 @@ func DeleteGKEClusterOnGCloud(zone string, clusterName string) error {
 	return nil
 }
 
-func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
+func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, rancherClusterLabels map[string]string) (*management.Cluster, error) {
 	gkeHostCluster := GkeHostClusterConfig(displayName, cloudCredentialID)
 	cluster := &management.Cluster{
 		DockerRootDir:           "/var/lib/docker",
@@ -194,7 +181,7 @@ func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 		EnableClusterAlerting:   enableClusterAlerting,
 		EnableClusterMonitoring: enableClusterMonitoring,
 		EnableNetworkPolicy:     &enableNetworkPolicy,
-		Labels:                  labels,
+		Labels:                  rancherClusterLabels,
 		WindowsPreferedCluster:  windowsPreferedCluster,
 	}
 
@@ -207,7 +194,7 @@ func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 
 func GkeHostClusterConfig(displayName, cloudCredentialID string) *management.GKEClusterConfigSpec {
 	var gkeClusterConfig ImportClusterConfig
-	config.LoadConfig("gkeClusterConfig", &gkeClusterConfig)
+	config.LoadConfig(helpers.GKEClusterConfigKey, &gkeClusterConfig)
 
 	return &management.GKEClusterConfigSpec{
 		GoogleCredentialSecret: cloudCredentialID,
@@ -220,7 +207,7 @@ func GkeHostClusterConfig(displayName, cloudCredentialID string) *management.GKE
 
 func GkeHostNodeConfig() []management.GKENodePoolConfig {
 	var nodeConfig management.GKEClusterConfigSpec
-	config.LoadConfig("gkeClusterConfig", &nodeConfig)
+	config.LoadConfig(helpers.GKEClusterConfigKey, &nodeConfig)
 
 	return nodeConfig.NodePools
 }

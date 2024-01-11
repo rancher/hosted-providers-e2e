@@ -4,6 +4,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
+	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
+	"github.com/rancher/rancher/tests/framework/pkg/config"
 
 	"testing"
 
@@ -26,3 +28,12 @@ func TestSupportMatrix(t *testing.T) {
 	Expect(err).To(BeNil())
 	RunSpecs(t, "SupportMatrix Suite")
 }
+
+var _ = BeforeSuite(func() {
+	aksClusterConfig := new(management.AKSClusterConfigSpec)
+	// re-update the config file with tags, Support Matrix suite is defined such that "testfilename" does not get updated in CommonBeforeSuite.
+	config.LoadAndUpdateConfig(helpers.AKSClusterConfigKey, aksClusterConfig, func() {
+		providerTags := helper.GetTags()
+		aksClusterConfig.Tags = providerTags
+	})
+})

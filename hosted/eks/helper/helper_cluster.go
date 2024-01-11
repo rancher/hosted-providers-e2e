@@ -3,7 +3,6 @@ package helper
 import (
 	"fmt"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
-	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
@@ -19,25 +18,14 @@ import (
 
 func GetTags() map[string]string {
 	eksConfig := new(management.EKSClusterConfigSpec)
-	config.LoadConfig("eksClusterConfig", eksConfig)
-	tags := make(map[string]string)
+	config.LoadConfig(helpers.EKSClusterConfigKey, eksConfig)
+	providerTags := helpers.GetCommonMetadataLabels()
 	if eksConfig.Tags != nil {
-		tags = *eksConfig.Tags
+		for key, value := range *eksConfig.Tags {
+			providerTags[key] = value
+		}
 	}
-	for key, value := range helpers.GetMetadataTags() {
-		tags[key] = value
-	}
-	return tags
-}
-
-func CreateEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
-	eksConfig := new(management.EKSClusterConfigSpec)
-	// Update the EKS tags present in config file with the common metadata labels
-	config.LoadAndUpdateConfig("eksClusterConfig", eksConfig, func() {
-		eksTags := GetTags()
-		eksConfig.Tags = &eksTags
-	})
-	return eks.CreateEKSHostedCluster(client, displayName, cloudCredentialID, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster, labels)
+	return providerTags
 }
 
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
@@ -174,7 +162,7 @@ func DeleteEKSClusterOnAWS(eks_region string, clusterName string) error {
 	return nil
 }
 
-func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
+func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, rancherClusterLabels map[string]string) (*management.Cluster, error) {
 	eksHostCluster := EksHostClusterConfig(displayName, cloudCredentialID)
 	cluster := &management.Cluster{
 		DockerRootDir:           "/var/lib/docker",
@@ -183,7 +171,7 @@ func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 		EnableClusterAlerting:   enableClusterAlerting,
 		EnableClusterMonitoring: enableClusterMonitoring,
 		EnableNetworkPolicy:     &enableNetworkPolicy,
-		Labels:                  labels,
+		Labels:                  rancherClusterLabels,
 		WindowsPreferedCluster:  windowsPreferedCluster,
 	}
 
@@ -196,7 +184,7 @@ func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 
 func EksHostClusterConfig(displayName, cloudCredentialID string) *management.EKSClusterConfigSpec {
 	var eksClusterConfig ImportClusterConfig
-	config.LoadConfig("eksClusterConfig", &eksClusterConfig)
+	config.LoadConfig(helpers.EKSClusterConfigKey, &eksClusterConfig)
 
 	return &management.EKSClusterConfigSpec{
 		AmazonCredentialSecret: cloudCredentialID,
@@ -208,7 +196,7 @@ func EksHostClusterConfig(displayName, cloudCredentialID string) *management.EKS
 
 func EksHostNodeConfig() []management.NodeGroup {
 	var nodeConfig management.EKSClusterConfigSpec
-	config.LoadConfig("eksClusterConfig", &nodeConfig)
+	config.LoadConfig(helpers.EKSClusterConfigKey, &nodeConfig)
 
 	return nodeConfig.NodeGroups
 }

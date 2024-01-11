@@ -25,10 +25,16 @@ import (
 )
 
 const (
-	Timeout            = 30 * time.Minute
-	GKEBaseClusterName = "gkehostcluster-hp"
-	EKSBaseClusterName = "ekshostcluster-hp"
-	AKSBaseClusterName = "akshostcluster-hp"
+	Timeout             = 30 * time.Minute
+	GKEBaseClusterName  = "gkehostcluster-hp"
+	EKSBaseClusterName  = "ekshostcluster-hp"
+	AKSBaseClusterName  = "akshostcluster-hp"
+	GKEClusterConfigKey = "gkeClusterConfig"
+	GoogleCredentials   = "googleCredentials"
+	EKSClusterConfigKey = "eksClusterConfig"
+	AWSCredentials      = "awsCredentials"
+	AKSClusterConfigKey = "aksClusterConfig"
+	AzureCredentials    = "azureCredentials"
 )
 
 var (
@@ -71,10 +77,11 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 	resp, err = rancherClient.Management.Setting.Update(resp, setting)
 	Expect(err).To(BeNil())
 
+	providerTags := GetCommonMetadataLabels()
 	switch cloud {
 	case "aks":
 		credentialConfig := new(cloudcredentials.AzureCredentialConfig)
-		config.LoadAndUpdateConfig("azureCredentials", credentialConfig, func() {
+		config.LoadAndUpdateConfig(AzureCredentials, credentialConfig, func() {
 			credentialConfig.ClientID = os.Getenv("AKS_CLIENT_ID")
 			credentialConfig.SubscriptionID = os.Getenv("AKS_SUBSCRIPTION_ID")
 			credentialConfig.ClientSecret = os.Getenv("AKS_CLIENT_SECRET")
@@ -85,12 +92,16 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		aksClusterConfig := new(management.AKSClusterConfigSpec)
 		// provisioning test cases rely on config file to fetch the location information
 		// this is necessary so that there is a single source of truth for provisioning and import test cases
-		config.LoadAndUpdateConfig("aksClusterConfig", aksClusterConfig, func() {
+		config.LoadAndUpdateConfig(AKSClusterConfigKey, aksClusterConfig, func() {
 			aksClusterConfig.ResourceLocation = GetAKSLocation()
+			for key, value := range aksClusterConfig.Tags {
+				providerTags[key] = value
+			}
+			aksClusterConfig.Tags = providerTags
 		})
 	case "eks":
 		credentialConfig := new(cloudcredentials.AmazonEC2CredentialConfig)
-		config.LoadAndUpdateConfig("awsCredentials", credentialConfig, func() {
+		config.LoadAndUpdateConfig(AWSCredentials, credentialConfig, func() {
 			credentialConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
 			credentialConfig.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 			credentialConfig.DefaultRegion = GetEKSRegion()
@@ -98,20 +109,32 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		cloudCredential, err = aws.CreateAWSCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
 		eksClusterConfig := new(management.EKSClusterConfigSpec)
-		config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
+		config.LoadAndUpdateConfig(EKSClusterConfigKey, eksClusterConfig, func() {
 			eksClusterConfig.Region = GetEKSRegion()
+			if eksClusterConfig.Tags != nil {
+				for key, value := range *eksClusterConfig.Tags {
+					providerTags[key] = value
+				}
+			}
+			eksClusterConfig.Tags = &providerTags
 		})
 	case "gke":
 		credentialConfig := new(cloudcredentials.GoogleCredentialConfig)
-		config.LoadAndUpdateConfig("googleCredentials", credentialConfig, func() {
+		config.LoadAndUpdateConfig(GoogleCredentials, credentialConfig, func() {
 			credentialConfig.AuthEncodedJSON = os.Getenv("GCP_CREDENTIALS")
 		})
 		cloudCredential, err = google.CreateGoogleCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
 		gkeClusterConfig := new(management.GKEClusterConfigSpec)
-		config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
+		config.LoadAndUpdateConfig(GKEClusterConfigKey, gkeClusterConfig, func() {
 			gkeClusterConfig.Zone = GetGKEZone()
 			gkeClusterConfig.ProjectID = GetGKEProjectID()
+			if gkeClusterConfig.Labels != nil {
+				for key, value := range *gkeClusterConfig.Labels {
+					providerTags[key] = value
+				}
+			}
+			gkeClusterConfig.Labels = &providerTags
 		})
 	}
 
@@ -148,7 +171,7 @@ func GetGKEZone() string {
 	zone := os.Getenv("GKE_ZONE")
 	if zone == "" {
 		gkeConfig := new(management.GKEClusterConfigSpec)
-		config.LoadConfig("gkeClusterConfig", gkeConfig)
+		config.LoadConfig(GKEClusterConfigKey, gkeConfig)
 		if gkeConfig.Zone != "" {
 			zone = gkeConfig.Zone
 		}
@@ -166,7 +189,7 @@ func GetAKSLocation() string {
 	region := os.Getenv("AKS_REGION")
 	if region == "" {
 		aksClusterConfig := new(management.AKSClusterConfigSpec)
-		config.LoadConfig("aksClusterConfig", aksClusterConfig)
+		config.LoadConfig(AKSClusterConfigKey, aksClusterConfig)
 		region = aksClusterConfig.ResourceLocation
 		if region == "" {
 			region = "centralindia"
@@ -182,7 +205,7 @@ func GetEKSRegion() string {
 	region := os.Getenv("EKS_REGION")
 	if region == "" {
 		eksClusterConfig := new(management.EKSClusterConfigSpec)
-		config.LoadConfig("eksClusterConfig", eksClusterConfig)
+		config.LoadConfig(EKSClusterConfigKey, eksClusterConfig)
 		region = eksClusterConfig.Region
 		if region == "" {
 			region = "ap-south-1"
@@ -196,18 +219,26 @@ func GetGKEProjectID() string {
 	return os.Getenv("GKE_PROJECT_ID")
 }
 
-func GetMetadataTags() map[string]string {
+// GetCommonMetadataLabels returns a list of common metadata labels/tabs
+func GetCommonMetadataLabels() map[string]string {
 	testuser, err := user.Current()
 	Expect(err).To(BeNil())
 
 	specReport := ginkgo.CurrentSpecReport()
-	// Sanitize the filename to fit the label requirements for all the hosted providers
-	filename := strings.Split(specReport.FileName(), "hosted/")[1]
-	filename = strings.TrimSuffix(filename, ".go")
-	filename = strings.ReplaceAll(filename, "/", "-")
-	filename = strings.ToLower(filename)
+	// filename indicates the filename and line number of the test
+	// we only use this information instead of the ginkgo.CurrentSpecReport().FullText() because of the 63 character limit
+	var filename string
+	// Because of the way Support Matrix suites are designed, filename is not loaded at first, so we need to ensure it is non-empty before sanitizing it
+	if specReport.FileName() != "" {
+		// Sanitize the filename to fit the label requirements for all the hosted providers
+		filename = strings.Split(specReport.FileName(), "hosted/")[1] // abstract the relative path
+		filename = strings.TrimSuffix(filename, ".go")                // `.` is not allowed
+		filename = strings.ReplaceAll(filename, "/", "-")             // `/` is not allowed
+		filename = strings.ToLower(filename)                          // string must be in lowercase
+		filename = fmt.Sprintf("line%d_%s", specReport.LineNumber(), filename)
+	}
 	return map[string]string{
 		"owner":          "hosted-providers-qa-ci-" + testuser.Username,
-		"testfilenumber": fmt.Sprintf("line%d_%s", specReport.LineNumber(), filename),
+		"testfilenumber": filename,
 	}
 }
