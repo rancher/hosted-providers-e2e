@@ -14,6 +14,10 @@ on:
         required: true
         type: string
         default: v1.26.10+k3s1
+      workflow-name:
+        description: Name of the GH Action
+        type: string
+        default: gke-e2e
       operator_nightly_chart:
         description: Install hosted-provider nightly chart
         # Until https://github.com/rancher/gke-operator/issues/137 is fixed
@@ -47,6 +51,7 @@ on:
 
 jobs:
   gke-e2e:
+    name: ${{inputs.workflow-name}}
     uses: ./.github/workflows/main.yaml
     secrets: inherit
     with:

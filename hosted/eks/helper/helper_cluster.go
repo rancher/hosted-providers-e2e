@@ -22,7 +22,10 @@ func GetTags() map[string]string {
 	providerTags := helpers.GetCommonMetadataLabels()
 	if eksConfig.Tags != nil {
 		for key, value := range *eksConfig.Tags {
-			providerTags[key] = value
+			// if the key already exists then make sure it's empty before assigning a new value
+			if providerTags[key] == "" {
+				providerTags[key] = value
+			}
 		}
 	}
 	return providerTags

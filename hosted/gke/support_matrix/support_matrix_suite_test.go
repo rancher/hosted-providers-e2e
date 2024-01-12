@@ -32,7 +32,7 @@ func TestSupportMatrix(t *testing.T) {
 	RunSpecs(t, "SupportMatrix Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeEach(func() {
 	// re-update the config file with tags, Support Matrix suite is defined such that "testfilename" does not get updated in CommonBeforeSuite.
 	gkeClusterConfig := new(management.GKEClusterConfigSpec)
 	config.LoadAndUpdateConfig(helpers.GKEClusterConfigKey, gkeClusterConfig, func() {

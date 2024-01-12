@@ -29,7 +29,7 @@ func TestSupportMatrix(t *testing.T) {
 	RunSpecs(t, "SupportMatrix Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeEach(func() {
 	aksClusterConfig := new(management.AKSClusterConfigSpec)
 	// re-update the config file with tags, Support Matrix suite is defined such that "testfilename" does not get updated in CommonBeforeSuite.
 	config.LoadAndUpdateConfig(helpers.AKSClusterConfigKey, aksClusterConfig, func() {

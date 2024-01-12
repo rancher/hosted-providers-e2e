@@ -20,7 +20,10 @@ func GetTags() map[string]string {
 	config.LoadConfig(helpers.AKSClusterConfigKey, aksConfig)
 	tags := helpers.GetCommonMetadataLabels()
 	for key, value := range aksConfig.Tags {
-		tags[key] = value
+		// if the key already exists then make sure it's empty before assigning a new value
+		if tags[key] == "" {
+			tags[key] = value
+		}
 	}
 	return tags
 }
