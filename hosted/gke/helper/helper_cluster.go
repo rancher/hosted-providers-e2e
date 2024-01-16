@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
@@ -178,7 +179,7 @@ func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 
 func GkeHostClusterConfig(displayName, cloudCredentialID string) *management.GKEClusterConfigSpec {
 	var gkeClusterConfig ImportClusterConfig
-	config.LoadConfig("gkeClusterConfig", &gkeClusterConfig)
+	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
 
 	return &management.GKEClusterConfigSpec{
 		GoogleCredentialSecret: cloudCredentialID,
@@ -190,8 +191,9 @@ func GkeHostClusterConfig(displayName, cloudCredentialID string) *management.GKE
 }
 
 func GkeHostNodeConfig() []management.GKENodePoolConfig {
+	// TODO(pvala): Should gke.ClusterConfig be used instead
 	var nodeConfig management.GKEClusterConfigSpec
-	config.LoadConfig("gkeClusterConfig", &nodeConfig)
+	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &nodeConfig)
 
 	return nodeConfig.NodePools
 }

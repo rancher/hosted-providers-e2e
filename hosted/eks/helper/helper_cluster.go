@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
 
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
@@ -169,7 +170,7 @@ func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 
 func EksHostClusterConfig(displayName, cloudCredentialID string) *management.EKSClusterConfigSpec {
 	var eksClusterConfig ImportClusterConfig
-	config.LoadConfig("eksClusterConfig", &eksClusterConfig)
+	config.LoadConfig(eks.EKSClusterConfigConfigurationFileKey, &eksClusterConfig)
 
 	return &management.EKSClusterConfigSpec{
 		AmazonCredentialSecret: cloudCredentialID,
@@ -180,8 +181,9 @@ func EksHostClusterConfig(displayName, cloudCredentialID string) *management.EKS
 }
 
 func EksHostNodeConfig() []management.NodeGroup {
+	// TODO(pvala): should eks.ClusterConfig be used instead
 	var nodeConfig management.EKSClusterConfigSpec
-	config.LoadConfig("eksClusterConfig", &nodeConfig)
+	config.LoadConfig(eks.EKSClusterConfigConfigurationFileKey, &nodeConfig)
 
 	return nodeConfig.NodeGroups
 }

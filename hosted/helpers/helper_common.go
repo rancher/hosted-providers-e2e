@@ -2,6 +2,9 @@ package helpers
 
 import (
 	"fmt"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/aks"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
 	"os"
 	"time"
 
@@ -29,7 +32,6 @@ var (
 	rancherPassword = os.Getenv("RANCHER_PASSWORD")
 	rancherHostname = os.Getenv("RANCHER_HOSTNAME")
 	cloudCredential *cloudcredentials.CloudCredential
-	rancherConfig   *rancher.Config
 )
 
 type Context struct {
@@ -70,7 +72,7 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 	switch cloud {
 	case "aks":
 		credentialConfig := new(cloudcredentials.AzureCredentialConfig)
-		config.LoadAndUpdateConfig("azureCredentials", credentialConfig, func() {
+		config.LoadAndUpdateConfig(cloudcredentials.AzureCredentialConfigurationFileKey, credentialConfig, func() {
 			credentialConfig.ClientID = os.Getenv("AKS_CLIENT_ID")
 			credentialConfig.SubscriptionID = os.Getenv("AKS_SUBSCRIPTION_ID")
 			credentialConfig.ClientSecret = os.Getenv("AKS_CLIENT_SECRET")
@@ -78,34 +80,34 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		cloudCredential, err = azure.CreateAzureCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
 
-		azureClusterConfig := new(management.AKSClusterConfigSpec)
+		azureClusterConfig := new(aks.ClusterConfig)
 		// provisioning test cases rely on config file to fetch the location information
 		// this is necessary so that there is a single source of truth for provisioning and import test cases
-		config.LoadAndUpdateConfig("azureClusterConfig", azureClusterConfig, func() {
+		config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, azureClusterConfig, func() {
 			azureClusterConfig.ResourceLocation = GetAKSLocation()
 		})
 	case "eks":
 		credentialConfig := new(cloudcredentials.AmazonEC2CredentialConfig)
-		config.LoadAndUpdateConfig("awsCredentials", credentialConfig, func() {
+		config.LoadAndUpdateConfig(cloudcredentials.AmazonEC2CredentialConfigurationFileKey, credentialConfig, func() {
 			credentialConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
 			credentialConfig.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 			credentialConfig.DefaultRegion = GetEKSRegion()
 		})
 		cloudCredential, err = aws.CreateAWSCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
-		eksClusterConfig := new(management.EKSClusterConfigSpec)
-		config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
+		eksClusterConfig := new(eks.ClusterConfig)
+		config.LoadAndUpdateConfig(eks.EKSClusterConfigConfigurationFileKey, eksClusterConfig, func() {
 			eksClusterConfig.Region = GetEKSRegion()
 		})
 	case "gke":
 		credentialConfig := new(cloudcredentials.GoogleCredentialConfig)
-		config.LoadAndUpdateConfig("googleCredentials", credentialConfig, func() {
+		config.LoadAndUpdateConfig(cloudcredentials.GoogleCredentialConfigurationFileKey, credentialConfig, func() {
 			credentialConfig.AuthEncodedJSON = os.Getenv("GCP_CREDENTIALS")
 		})
 		cloudCredential, err = google.CreateGoogleCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
-		gkeClusterConfig := new(management.GKEClusterConfigSpec)
-		config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
+		gkeClusterConfig := new(gke.ClusterConfig)
+		config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeClusterConfig, func() {
 			gkeClusterConfig.Zone = GetGKEZone()
 			gkeClusterConfig.ProjectID = GetGKEProjectID()
 		})
@@ -143,8 +145,8 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 func GetGKEZone() string {
 	zone := os.Getenv("GKE_ZONE")
 	if zone == "" {
-		gkeConfig := new(management.GKEClusterConfigSpec)
-		config.LoadConfig("gkeClusterConfig", gkeConfig)
+		gkeConfig := new(gke.ClusterConfig)
+		config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig)
 		if gkeConfig.Zone != "" {
 			zone = gkeConfig.Zone
 		}
@@ -161,8 +163,8 @@ func GetGKEZone() string {
 func GetAKSLocation() string {
 	region := os.Getenv("AKS_REGION")
 	if region == "" {
-		aksClusterConfig := new(management.AKSClusterConfigSpec)
-		config.LoadConfig("aksClusterConfig", aksClusterConfig)
+		aksClusterConfig := new(aks.ClusterConfig)
+		config.LoadConfig(aks.AKSClusterConfigConfigurationFileKey, aksClusterConfig)
 		region = aksClusterConfig.ResourceLocation
 		if region == "" {
 			region = "centralindia"
@@ -177,8 +179,8 @@ func GetAKSLocation() string {
 func GetEKSRegion() string {
 	region := os.Getenv("EKS_REGION")
 	if region == "" {
-		eksClusterConfig := new(management.EKSClusterConfigSpec)
-		config.LoadConfig("eksClusterConfig", eksClusterConfig)
+		eksClusterConfig := new(eks.ClusterConfig)
+		config.LoadConfig(eks.EKSClusterConfigConfigurationFileKey, eksClusterConfig)
 		region = eksClusterConfig.Region
 		if region == "" {
 			region = "ap-south-1"

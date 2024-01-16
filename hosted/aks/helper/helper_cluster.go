@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/aks"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
@@ -190,7 +191,7 @@ func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 
 func AksHostClusterConfig(displayName, cloudCredentialID string) *management.AKSClusterConfigSpec {
 	var aksClusterConfig ImportClusterConfig
-	config.LoadConfig("aksClusterConfig", &aksClusterConfig)
+	config.LoadConfig(aks.AKSClusterConfigConfigurationFileKey, &aksClusterConfig)
 
 	return &management.AKSClusterConfigSpec{
 		AzureCredentialSecret: cloudCredentialID,
@@ -203,7 +204,7 @@ func AksHostClusterConfig(displayName, cloudCredentialID string) *management.AKS
 
 func AksHostNodeConfig() []management.AKSNodePool {
 	var nodeConfig management.AKSClusterConfigSpec
-	config.LoadConfig("aksClusterConfig", &nodeConfig)
+	config.LoadConfig(aks.AKSClusterConfigConfigurationFileKey, &nodeConfig)
 
 	return nodeConfig.NodePools
 }
