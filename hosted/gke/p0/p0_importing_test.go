@@ -3,6 +3,8 @@ package p0_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/rancher/tests/framework/pkg/config"
+	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -13,16 +15,27 @@ import (
 )
 
 var _ = Describe("P0Importing", func() {
-	var (
-		zone = helpers.GetGKEZone()
+	const (
+		k8sVersion = "1.27.4-gke.900"
 	)
-
 	When("a cluster is created", func() {
-		var cluster *management.Cluster
+		var (
+			cluster           *management.Cluster
+			clusterName, zone string
+		)
 
 		BeforeEach(func() {
-			var err error
-			err = helper.CreateGKEClusterOnGCloud(zone, clusterName, helpers.GetGKEProjectID(), k8sVersion)
+			zone = helpers.GetGKEZone()
+			projectID := helpers.GetGKEProjectID()
+
+			gkeImportClusterConfig := new(helper.ImportClusterConfig)
+			config.LoadAndUpdateConfig("gkeClusterConfig", gkeImportClusterConfig, func() {
+				gkeImportClusterConfig.Zone = zone
+				gkeImportClusterConfig.ProjectID = projectID
+			})
+
+			clusterName = namegen.AppendRandomString("gkehostcluster")
+			err := helper.CreateGKEClusterOnGCloud(zone, clusterName, projectID, k8sVersion)
 			Expect(err).To(BeNil())
 
 			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})

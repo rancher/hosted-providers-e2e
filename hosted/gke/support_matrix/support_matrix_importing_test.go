@@ -27,15 +27,19 @@ var _ = Describe("SupportMatrixImporting", func() {
 			var (
 				clusterName string
 				cluster     *management.Cluster
+				zone        string
 			)
 			BeforeEach(func() {
 				clusterName = namegen.AppendRandomString("gkehostcluster")
-				var err error
-				gkeConfig := new(management.GKEClusterConfigSpec)
+				zone = helpers.GetGKEZone()
+				project := helpers.GetGKEProjectID()
+				gkeConfig := new(helper.ImportClusterConfig)
 				config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 					gkeConfig.ProjectID = project
+					gkeConfig.Zone = zone
 				})
-				err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, version)
+
+				err := helper.CreateGKEClusterOnGCloud(zone, clusterName, project, version)
 				Expect(err).To(BeNil())
 				cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 				Expect(err).To(BeNil())

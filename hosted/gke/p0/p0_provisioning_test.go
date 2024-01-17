@@ -3,6 +3,8 @@ package p0_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/rancher/tests/framework/pkg/config"
+	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -14,12 +16,22 @@ import (
 )
 
 var _ = Describe("P0Provisioning", func() {
-	var cluster *management.Cluster
 
 	When("a cluster is created", func() {
+		var (
+			cluster     *management.Cluster
+			clusterName string
+		)
 
 		BeforeEach(func() {
+			gkeClusterConfig := new(gke.ClusterConfig)
+			config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
+				gkeClusterConfig.Zone = helpers.GetGKEZone()
+				gkeClusterConfig.ProjectID = helpers.GetGKEProjectID()
+			})
+
 			var err error
+			clusterName = namegen.AppendRandomString("gkehostcluster")
 			cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)

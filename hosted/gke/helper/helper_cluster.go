@@ -2,17 +2,15 @@ package helper
 
 import (
 	"fmt"
-
 	"github.com/Masterminds/semver/v3"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/pkg/errors"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 	"k8s.io/utils/pointer"
-
-	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/pkg/errors"
 )
 
 // UpgradeKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion; if upgradeNodePool is true, it also upgrades nodepools' k8s version
