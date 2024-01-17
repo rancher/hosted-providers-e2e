@@ -13,7 +13,6 @@ import (
 var (
 	availableVersionList []string
 	ctx                  helpers.Context
-	location             = helpers.GetAKSLocation()
 )
 
 func TestSupportMatrix(t *testing.T) {
@@ -21,7 +20,7 @@ func TestSupportMatrix(t *testing.T) {
 	var err error
 	ctx, err = helpers.CommonBeforeSuite("aks")
 	Expect(err).To(BeNil())
-	availableVersionList, err = helper.ListSingleVariantAKSAvailableVersions(ctx.RancherClient, ctx.CloudCred.ID, location)
+	availableVersionList, err = helper.ListSingleVariantAKSAvailableVersions(ctx.RancherClient, ctx.CloudCred.ID, helpers.GetAKSLocation())
 	Expect(err).To(BeNil())
 	RunSpecs(t, "SupportMatrix Suite")
 }

@@ -3,6 +3,7 @@ package p0_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
@@ -19,16 +20,22 @@ import (
 var _ = Describe("P0Provisioning", func() {
 
 	When("a cluster is created", func() {
-		var cluster *management.Cluster
+		var (
+			cluster     *management.Cluster
+			clusterName string
+		)
 
 		BeforeEach(func() {
-			var err error
+			clusterName = namegen.AppendRandomString("akshostcluster")
 			aksConfig := new(aks.ClusterConfig)
 			config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
 				aksConfig.ResourceGroup = clusterName
 				dnsPrefix := clusterName + "-dns"
 				aksConfig.DNSPrefix = &dnsPrefix
+				aksConfig.ResourceLocation = helpers.GetAKSLocation()
 			})
+
+			var err error
 			cluster, err = aks.CreateAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)

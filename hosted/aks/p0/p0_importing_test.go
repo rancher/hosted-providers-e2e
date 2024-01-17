@@ -3,34 +3,37 @@ package p0_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
-	"github.com/rancher/rancher/tests/framework/extensions/clusters"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/aks"
-	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
-	"github.com/rancher/rancher/tests/framework/extensions/workloads/pods"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
+	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
+	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters"
+	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
+	"github.com/rancher/rancher/tests/framework/extensions/workloads/pods"
 )
 
 var _ = Describe("P0Importing", func() {
-	var (
-		location = helpers.GetAKSLocation()
-	)
-	When("a cluster is imported", func() {
-		var cluster *management.Cluster
+	const k8sVersion = "1.26.6"
 
+	When("a cluster is imported", func() {
+		var (
+			cluster     *management.Cluster
+			clusterName string
+		)
 		BeforeEach(func() {
-			var err error
-			err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1")
-			Expect(err).To(BeNil())
+			location := helpers.GetAKSLocation()
+			clusterName = namegen.AppendRandomString("akshostcluster")
 			aksConfig := new(helper.ImportClusterConfig)
 			config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
 				aksConfig.ResourceGroup = clusterName
+				aksConfig.ResourceLocation = location
 			})
 
+			err := helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1")
+			Expect(err).To(BeNil())
 			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
