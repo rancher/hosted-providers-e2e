@@ -6,14 +6,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
-	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 )
 
 var (
-	ctx         helpers.Context
-	clusterName string
-	k8sVersion  = "1.26"
-	increaseBy  = 1
+	ctx        helpers.Context
+	increaseBy = 1
 )
 
 func TestP0(t *testing.T) {
@@ -25,5 +22,4 @@ var _ = BeforeEach(func() {
 	var err error
 	ctx, err = helpers.CommonBeforeSuite("eks")
 	Expect(err).To(BeNil())
-	clusterName = namegen.AppendRandomString("ekshostcluster")
 })

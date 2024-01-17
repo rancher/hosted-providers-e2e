@@ -3,6 +3,8 @@ package p0_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/rancher/tests/framework/pkg/config"
+	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters"
@@ -14,16 +16,24 @@ import (
 )
 
 var _ = Describe("P0Importing", func() {
-	var (
-		cluster *management.Cluster
-		region  = helpers.GetEKSRegion()
+	const (
+		k8sVersion = "1.26"
 	)
-
 	When("a cluster is imported", func() {
+		var (
+			cluster             *management.Cluster
+			clusterName, region string
+		)
 
 		BeforeEach(func() {
-			var err error
-			err = helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1")
+			region = helpers.GetEKSRegion()
+			eksClusterConfig := new(helper.ImportClusterConfig)
+			config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
+				eksClusterConfig.Region = region
+			})
+
+			clusterName = namegen.AppendRandomString("ekshostcluster")
+			err := helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1")
 			Expect(err).To(BeNil())
 			cluster, err = helper.ImportEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())

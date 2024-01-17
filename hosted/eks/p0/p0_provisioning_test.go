@@ -3,24 +3,33 @@ package p0_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/eks"
 	nodestat "github.com/rancher/rancher/tests/framework/extensions/nodes"
 	"github.com/rancher/rancher/tests/framework/extensions/workloads/pods"
+	"github.com/rancher/rancher/tests/framework/pkg/config"
+	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/eks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var _ = Describe("P0Provisioning", func() {
-	var cluster *management.Cluster
-
 	When("a cluster is created", func() {
+		var (
+			cluster     *management.Cluster
+			clusterName string
+		)
 
 		BeforeEach(func() {
+			eksClusterConfig := new(eks.ClusterConfig)
+			config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
+				eksClusterConfig.Region = helpers.GetEKSRegion()
+			})
+
 			var err error
+			clusterName = namegen.AppendRandomString("ekshostcluster")
 			cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
