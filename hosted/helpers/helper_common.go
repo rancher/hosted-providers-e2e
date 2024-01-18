@@ -77,26 +77,15 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		})
 		cloudCredential, err = azure.CreateAzureCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
-
-		azureClusterConfig := new(management.AKSClusterConfigSpec)
-		// provisioning test cases rely on config file to fetch the location information
-		// this is necessary so that there is a single source of truth for provisioning and import test cases
-		config.LoadAndUpdateConfig("aksClusterConfig", azureClusterConfig, func() {
-			azureClusterConfig.ResourceLocation = GetAKSLocation()
-		})
 	case "eks":
 		credentialConfig := new(cloudcredentials.AmazonEC2CredentialConfig)
 		config.LoadAndUpdateConfig("awsCredentials", credentialConfig, func() {
 			credentialConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
 			credentialConfig.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
-			credentialConfig.DefaultRegion = GetEKSRegion()
+			credentialConfig.DefaultRegion = os.Getenv("EKS_REGION")
 		})
 		cloudCredential, err = aws.CreateAWSCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
-		eksClusterConfig := new(management.EKSClusterConfigSpec)
-		config.LoadAndUpdateConfig("eksClusterConfig", eksClusterConfig, func() {
-			eksClusterConfig.Region = GetEKSRegion()
-		})
 	case "gke":
 		credentialConfig := new(cloudcredentials.GoogleCredentialConfig)
 		config.LoadAndUpdateConfig("googleCredentials", credentialConfig, func() {
@@ -104,11 +93,6 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		})
 		cloudCredential, err = google.CreateGoogleCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())
-		gkeClusterConfig := new(management.GKEClusterConfigSpec)
-		config.LoadAndUpdateConfig("gkeClusterConfig", gkeClusterConfig, func() {
-			gkeClusterConfig.Zone = GetGKEZone()
-			gkeClusterConfig.ProjectID = GetGKEProjectID()
-		})
 	}
 
 	return Context{

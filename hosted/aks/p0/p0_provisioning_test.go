@@ -28,6 +28,7 @@ var _ = Describe("P0Provisioning", func() {
 				aksConfig.ResourceGroup = clusterName
 				dnsPrefix := clusterName + "-dns"
 				aksConfig.DNSPrefix = &dnsPrefix
+				aksConfig.ResourceLocation = location
 			})
 			cluster, err = aks.CreateAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())

@@ -34,6 +34,8 @@ var _ = Describe("SupportMatrixImporting", func() {
 				gkeConfig := new(management.GKEClusterConfigSpec)
 				config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 					gkeConfig.ProjectID = project
+					gkeConfig.Zone = zone
+					gkeConfig.KubernetesVersion = &version
 				})
 				err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, version)
 				Expect(err).To(BeNil())
