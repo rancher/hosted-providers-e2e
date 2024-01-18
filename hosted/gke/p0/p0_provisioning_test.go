@@ -26,6 +26,8 @@ var _ = Describe("P0Provisioning", func() {
 			config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 				gkeConfig.ProjectID = project
 				gkeConfig.Zone = zone
+				labels := helper.GetLabels()
+				gkeConfig.Labels = &labels
 			})
 
 			cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})

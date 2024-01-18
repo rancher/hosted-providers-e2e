@@ -36,6 +36,8 @@ var _ = Describe("SupportMatrixImporting", func() {
 					gkeConfig.ProjectID = project
 					gkeConfig.Zone = zone
 					gkeConfig.KubernetesVersion = &version
+					labels := helper.GetLabels()
+					gkeConfig.Labels = &labels
 				})
 				err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, version)
 				Expect(err).To(BeNil())

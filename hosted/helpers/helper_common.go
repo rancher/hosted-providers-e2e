@@ -2,7 +2,10 @@ package helpers
 
 import (
 	"fmt"
+	"github.com/onsi/ginkgo/v2"
 	"os"
+	"os/user"
+	"strings"
 	"time"
 
 	. "github.com/onsi/gomega"
@@ -174,4 +177,28 @@ func GetEKSRegion() string {
 // GetGKEProjectID returns the value of GKE project by fetching the value of env var GKE_PROJECT_ID
 func GetGKEProjectID() string {
 	return os.Getenv("GKE_PROJECT_ID")
+}
+
+// GetCommonMetadataLabels returns a list of common metadata labels/tabs
+func GetCommonMetadataLabels() map[string]string {
+	testuser, err := user.Current()
+	Expect(err).To(BeNil())
+
+	specReport := ginkgo.CurrentSpecReport()
+	// filename indicates the filename and line number of the test
+	// we only use this information instead of the ginkgo.CurrentSpecReport().FullText() because of the 63 character limit
+	var filename string
+	// Because of the way Support Matrix suites are designed, filename is not loaded at first, so we need to ensure it is non-empty before sanitizing it
+	if specReport.FileName() != "" {
+		// Sanitize the filename to fit the label requirements for all the hosted providers
+		filename = strings.Split(specReport.FileName(), "hosted/")[1] // abstract the relative path
+		filename = strings.TrimSuffix(filename, ".go")                // `.` is not allowed
+		filename = strings.ReplaceAll(filename, "/", "-")             // `/` is not allowed
+		filename = strings.ToLower(filename)                          // string must be in lowercase
+		filename = fmt.Sprintf("line%d_%s", specReport.LineNumber(), filename)
+	}
+	return map[string]string{
+		"owner":          "hosted-providers-qa-ci-" + testuser.Username,
+		"testfilenumber": filename,
+	}
 }

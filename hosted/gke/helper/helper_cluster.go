@@ -2,18 +2,36 @@ package helper
 
 import (
 	"fmt"
+	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
+	"github.com/rancher/rancher/tests/framework/extensions/clusters/gke"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/pkg/errors"
 	"github.com/rancher/rancher/tests/framework/clients/rancher"
 	management "github.com/rancher/rancher/tests/framework/clients/rancher/generated/management/v3"
 	"github.com/rancher/rancher/tests/framework/extensions/clusters/kubernetesversions"
 	"github.com/rancher/rancher/tests/framework/pkg/config"
 	namegen "github.com/rancher/rancher/tests/framework/pkg/namegenerator"
 	"k8s.io/utils/pointer"
-
-	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/pkg/errors"
 )
+
+// GetLabels fetches labels from config file, appends the common labels/tags to it and returns the map
+func GetLabels() map[string]string {
+	gkeConfig := new(management.GKEClusterConfigSpec)
+	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig)
+	labels := helpers.GetCommonMetadataLabels()
+	if gkeConfig.Labels != nil {
+		for key, value := range *gkeConfig.Labels {
+			// if the key already exists then make sure it's empty before assigning a new value
+			if labels[key] == "" {
+				labels[key] = value
+			}
+		}
+	}
+	return labels
+}
 
 // UpgradeKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion; if upgradeNodePool is true, it also upgrades nodepools' k8s version
 func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion *string, client *rancher.Client, upgradeNodePool bool) (*management.Cluster, error) {
@@ -131,8 +149,11 @@ func ListSingleVariantGKEAvailableVersions(client *rancher.Client, projectID, cl
 // Create Google GKE cluster using gcloud CLI
 func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k8sVersion string) error {
 
+	labels := GetLabels()
+	labelsAsString := k8slabels.SelectorFromSet(labels).String()
+
 	fmt.Println("Creating GKE cluster ...")
-	out, err := proc.RunW("gcloud", "container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks")
+	out, err := proc.RunW("gcloud", "container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks")
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}
@@ -201,4 +222,5 @@ type ImportClusterConfig struct {
 	Zone      string                          `json:"zone" yaml:"zone"`
 	Imported  bool                            `json:"imported" yaml:"imported"`
 	NodePools []*management.GKENodePoolConfig `json:"nodePools" yaml:"nodePools"`
+	Labels    *map[string]string              `json:"labels,omitempty" yaml:"labels,omitempty"`
 }

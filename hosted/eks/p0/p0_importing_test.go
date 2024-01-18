@@ -28,6 +28,8 @@ var _ = Describe("P0Importing", func() {
 			eksConfig := new(helper.ImportClusterConfig)
 			config.LoadAndUpdateConfig(eks.EKSClusterConfigConfigurationFileKey, eksConfig, func() {
 				eksConfig.Region = region
+				tags := helper.GetTags()
+				eksConfig.Tags = &tags
 			})
 
 			cluster, err = helper.ImportEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})

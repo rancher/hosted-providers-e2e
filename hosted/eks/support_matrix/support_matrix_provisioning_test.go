@@ -34,6 +34,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				config.LoadAndUpdateConfig(eks.EKSClusterConfigConfigurationFileKey, eksConfig, func() {
 					eksConfig.Region = region
 					eksConfig.KubernetesVersion = &version
+					eksConfig.Tags = helper.GetTags()
 				})
 				var err error
 				cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})

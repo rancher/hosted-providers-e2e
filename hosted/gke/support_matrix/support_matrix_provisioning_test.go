@@ -36,6 +36,8 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 					gkeConfig.ProjectID = project
 					gkeConfig.KubernetesVersion = &version
 					gkeConfig.Zone = zone
+					labels := helper.GetLabels()
+					gkeConfig.Labels = &labels
 				})
 				cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 				Expect(err).To(BeNil())

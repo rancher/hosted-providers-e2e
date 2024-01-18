@@ -28,6 +28,8 @@ var _ = Describe("P0Importing", func() {
 			config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 				gkeConfig.ProjectID = project
 				gkeConfig.Zone = zone
+				labels := helper.GetLabels()
+				gkeConfig.Labels = &labels
 			})
 			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
