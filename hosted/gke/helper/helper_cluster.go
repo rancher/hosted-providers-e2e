@@ -24,10 +24,7 @@ func GetLabels() map[string]string {
 	labels := helpers.GetCommonMetadataLabels()
 	if gkeConfig.Labels != nil {
 		for key, value := range *gkeConfig.Labels {
-			// if the key already exists then make sure it's empty before assigning a new value
-			if labels[key] == "" {
-				labels[key] = value
-			}
+			labels[key] = value
 		}
 	}
 	return labels
