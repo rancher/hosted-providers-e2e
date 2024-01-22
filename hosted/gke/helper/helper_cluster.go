@@ -150,7 +150,9 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	labelsAsString := k8slabels.SelectorFromSet(labels).String()
 
 	fmt.Println("Creating GKE cluster ...")
-	out, err := proc.RunW("gcloud", "container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks")
+	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks"}
+	fmt.Printf("Running command: gcloud %v\n", args)
+	out, err := proc.RunW("gcloud", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}
@@ -164,7 +166,9 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 func DeleteGKEClusterOnGCloud(zone string, clusterName string) error {
 
 	fmt.Println("Deleting GKE cluster ...")
-	out, err := proc.RunW("gcloud", "container", "clusters", "delete", clusterName, "--zone", zone, "--quiet")
+	args := []string{"container", "clusters", "delete", clusterName, "--zone", zone, "--quiet"}
+	fmt.Printf("Running command: gcloud %v\n", args)
+	out, err := proc.RunW("gcloud", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete cluster: "+out)
 	}

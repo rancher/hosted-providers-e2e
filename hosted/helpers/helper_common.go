@@ -85,7 +85,7 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		config.LoadAndUpdateConfig("awsCredentials", credentialConfig, func() {
 			credentialConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
 			credentialConfig.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
-			credentialConfig.DefaultRegion = os.Getenv("EKS_REGION")
+			credentialConfig.DefaultRegion = GetEKSRegion()
 		})
 		cloudCredential, err = aws.CreateAWSCloudCredentials(rancherClient)
 		Expect(err).To(BeNil())

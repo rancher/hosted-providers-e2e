@@ -151,13 +151,18 @@ func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion str
 	tags := GetTags()
 	formattedTags := convertMapToAKSString(tags)
 	fmt.Println("Creating AKS resource group ...")
-	out, err := proc.RunW("az", "group", "create", "--location", location, "--resource-group", clusterName)
+	rgargs := []string{"group", "create", "--location", location, "--resource-group", clusterName}
+	fmt.Printf("Running command: az %v\n", rgargs)
+
+	out, err := proc.RunW("az", rgargs...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}
 
 	fmt.Println("Creating AKS cluster ...")
-	out, err = proc.RunW("az", "aks", "create", "--resource-group", clusterName, "--generate-ssh-keys", "--kubernetes-version", k8sVersion, "--enable-managed-identity", "--name", clusterName, "--node-count", nodes, "--tags", formattedTags)
+	args := []string{"aks", "create", "--resource-group", clusterName, "--generate-ssh-keys", "--kubernetes-version", k8sVersion, "--enable-managed-identity", "--name", clusterName, "--node-count", nodes, "--tags", formattedTags}
+	fmt.Printf("Running command: az %v\n", args)
+	out, err = proc.RunW("az", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}
@@ -181,7 +186,10 @@ func convertMapToAKSString(tags map[string]string) string {
 func DeleteAKSClusteronAzure(clusterName string) error {
 
 	fmt.Println("Deleting AKS resource group which will delete cluster too ...")
-	out, err := proc.RunW("az", "group", "delete", "--name", clusterName, "--yes")
+	args := []string{"group", "delete", "--name", clusterName, "--yes"}
+	fmt.Printf("Running command: az %v\n", args)
+
+	out, err := proc.RunW("az", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete resource group: "+out)
 	}

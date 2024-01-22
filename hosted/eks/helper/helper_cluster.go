@@ -140,7 +140,9 @@ func CreateEKSClusterOnAWS(eks_region string, clusterName string, k8sVersion str
 	tags := GetTags()
 	formattedTags := k8slabels.SelectorFromSet(tags).String()
 	fmt.Println("Creating EKS cluster ...")
-	out, err := proc.RunW("eksctl", "create", "cluster", "--region="+eks_region, "--name="+clusterName, "--version="+k8sVersion, "--nodegroup-name", "ranchernodes", "--nodes", nodes, "--managed", "--tags", formattedTags)
+	args := []string{"create", "cluster", "--region=" + eks_region, "--name=" + clusterName, "--version=" + k8sVersion, "--nodegroup-name", "ranchernodes", "--nodes", nodes, "--managed", "--tags", formattedTags}
+	fmt.Printf("Running command: eksctl %v\n", args)
+	out, err := proc.RunW("eksctl", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create cluster: "+out)
 	}
@@ -153,7 +155,9 @@ func CreateEKSClusterOnAWS(eks_region string, clusterName string, k8sVersion str
 func DeleteEKSClusterOnAWS(eks_region string, clusterName string) error {
 
 	fmt.Println("Deleting EKS cluster ...")
-	out, err := proc.RunW("eksctl", "delete", "cluster", "--region="+eks_region, "--name="+clusterName)
+	args := []string{"delete", "cluster", "--region=" + eks_region, "--name=" + clusterName}
+	fmt.Printf("Running command: eksctl %v\n", args)
+	out, err := proc.RunW("eksctl", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete cluster: "+out)
 	}
