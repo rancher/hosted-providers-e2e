@@ -206,7 +206,7 @@ func GetCommonMetadataLabels() map[string]string {
 }
 
 func GetK8sVersion(provider string) string {
-	k8sVersion := os.Getenv("KUBERNETES_VERSION")
+	k8sVersion := os.Getenv("DOWNSTREAM_KUBERNETES_VERSION")
 	if k8sVersion != "" {
 		return k8sVersion
 	}

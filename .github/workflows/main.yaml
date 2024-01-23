@@ -39,8 +39,8 @@ on:
         description: Runner template to use
         required: true
         type: string
-      provider_k8s_version:
-        description: Provider specific K8s version to test
+      downstream_k8s_version:
+        description: Downstream cluster K8s version to test
         type: string
 
 env:
@@ -57,7 +57,7 @@ env:
   RANCHER_PASSWORD: ${{ secrets.RANCHER_PASSWORD }}
   RANCHER_LOG_COLLECTOR: ${{ github.workspace }}/.github/scripts/collect-rancher-logs.sh
   GCP_RUNNER_ZONE: asia-south2-c
-  KUBERNETES_VERSION: ${{ inputs.provider_k8s_version }}
+  DOWNSTREAM_KUBERNETES_VERSION: ${{ inputs.downstream_k8s_version }}
 jobs:
   create-runner:
     runs-on: ubuntu-latest
