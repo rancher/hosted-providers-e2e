@@ -51,7 +51,7 @@ require (
     github.com/onsi/ginkgo/v2 latest
     github.com/onsi/gomega latest
     github.com/epinio/epinio latest
-    github.com/rancher/shepherd 3690b7e         // release/v2.8.1 HEAD commit
+    github.com/rancher/shepherd 3690b7e         // shepherd main HEAD commit
     github.com/stretchr/testify latest
     k8s.io/api v0.27.9
     k8s.io/apimachinery v0.27.9
