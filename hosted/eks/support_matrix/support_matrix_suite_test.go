@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 - 2024 SUSE LLC
+Copyright © 2023 - 2024 SUSE LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import (
 
 	"testing"
 
-	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/shepherd/extensions/clusters/kubernetesversions"
+
+	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var (
