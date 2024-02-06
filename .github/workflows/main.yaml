@@ -135,6 +135,7 @@ jobs:
 
       - name: Install Azure cli
         run: |
+          sudo zypper clean --all
           sudo zypper install -y azure-cli
           pip install azure-cli
             
