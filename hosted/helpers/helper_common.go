@@ -235,7 +235,7 @@ func GetK8sVersion(provider string) string {
 		if aksConfig.KubernetesVersion != nil {
 			k8sVersion = *aksConfig.KubernetesVersion
 		} else {
-			k8sVersion = "1.26"
+			k8sVersion = "1.26.6"
 		}
 	}
 	return k8sVersion
