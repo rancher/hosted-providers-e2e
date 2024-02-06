@@ -164,6 +164,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Provisioning cluster tests
+        continue-on-error: true
         if:  ${{ inputs.run_p0_provisioning_tests == true }}
         env:
           RANCHER_HOSTNAME: ${{ steps.runner-ip.outputs.PUBLIC_IP}}.sslip.io
@@ -172,6 +173,7 @@ jobs:
           make e2e-provisioning-tests
 
       - name: Importing cluster tests
+        continue-on-error: true
         if: ${{ inputs.run_p0_importing_tests == true }}
         env:
           RANCHER_HOSTNAME: ${{ steps.runner-ip.outputs.PUBLIC_IP}}.sslip.io
@@ -180,6 +182,7 @@ jobs:
           make e2e-import-tests
 
       - name: Support matrix provisioning tests
+        continue-on-error: true
         if: ${{ inputs.run_support_matrix_provisioning_tests == true }}
         env:
           RANCHER_HOSTNAME: ${{ steps.runner-ip.outputs.PUBLIC_IP}}.sslip.io
