@@ -8,8 +8,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.15.0
 	github.com/onsi/gomega v1.31.1
 	github.com/pkg/errors v0.9.1
-	github.com/rancher/shepherd v0.0.0-20240208174621-8dd382eb321c
-	k8s.io/apimachinery v0.28.3
+	github.com/rancher/shepherd v0.0.0-20240212210618-6f6f377a7e21
+	k8s.io/apimachinery v0.29.1
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
 
