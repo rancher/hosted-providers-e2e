@@ -1,6 +1,5 @@
 # This workflow calls the main workflow with custom variables
 name: AKS-E2E
-run-name: AKS ${{ inputs.downstream_k8s_version }} on Rancher v${{ inputs.rancher_version }} deployed on ${{ inputs.k3s_version}}
 
 on:
   schedule:
@@ -12,11 +11,6 @@ on:
         required: true
         type: string
         default: 2.8-head
-      k3s_version:
-        description: k3s version of local cluster
-        required: true
-        type: string
-        default: v1.27.9+k3s1
       operator_nightly_chart:
         description: Install hosted-provider nightly chart
         default: true
@@ -49,6 +43,10 @@ on:
       downstream_k8s_version:
         description: Downstream cluster K8s version to test
         default: 1.26.6
+      rancher:
+        description: Rancher hostname/password if already installed
+        default: ''
+        type: string
 
 jobs:
   aks-e2e:
@@ -57,12 +55,13 @@ jobs:
     with:
       hosted_provider: aks
       rancher_version: ${{ inputs.rancher_version || '2.8-head' }}
-      k3s_version: ${{ inputs.k3s_version || 'v1.27.9+k3s1' }}
+      k3s_version: 'v1.27.9+k3s1'
       operator_nightly_chart: ${{ inputs.operator_nightly_chart == true || (github.event_name == 'schedule' && true) }}
       run_p0_provisioning_tests: ${{ inputs.run_p0_provisioning_tests == true || (github.event_name == 'schedule' && true) }}
       run_p0_importing_tests: ${{ inputs.run_p0_importing_tests == true || (github.event_name == 'schedule' && true) }}
       run_support_matrix_provisioning_tests: ${{ inputs.run_support_matrix_provisioning_tests == true || (github.event_name == 'schedule' && false) }}
       run_support_matrix_importing_tests: ${{ inputs.run_support_matrix_importing_tests == true || (github.event_name == 'schedule' && false) }}
-      destroy_runner: ${{ inputs.destroy_runner ==true || (github.event_name == 'schedule' && true) }}
+      destroy_runner: ${{ inputs.destroy_runner == true || (github.event_name == 'schedule' && true) }}
       runner_template: ${{ inputs.runner_template || 'hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v1' }}
       downstream_k8s_version: ${{ inputs.downstream_k8s_version || '1.26.6' }}
+      rancher: ${{ inputs.rancher || '' }}
