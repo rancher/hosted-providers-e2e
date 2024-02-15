@@ -117,7 +117,7 @@ jobs:
 
       - name: Set Rancher hostname / password
         run: |
-          if [ ${{ inputs.rancher_installed }} != '<hostname/password>' ]; then
+          if [ ${{ inputs.rancher_installed }} != 'hostname/password' ]; then
             echo RANCHER_HOSTNAME="$(echo ${{ inputs.rancher_installed }} | cut -d'/' -f1)" >> ${GITHUB_ENV}
             echo RANCHER_PASSWORD="$(echo ${{ inputs.rancher_installed }} | cut -d'/' -f2)" >> ${GITHUB_ENV}
           else
@@ -126,7 +126,7 @@ jobs:
           fi
 
       - name: Install K3s / Helm / Rancher
-        if: ${{ inputs.rancher_installed == '<hostname/password>' }}
+        if: ${{ inputs.rancher_installed == 'hostname/password' }}
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
           HELM_VERSION: 3.13.1
