@@ -92,7 +92,6 @@ func DeployRancherManager(fullVersion string, checkPods bool) {
 			{CattleSystemNS, "app=rancher"},
 			{"cattle-fleet-local-system", "app=fleet-agent"},
 			{CattleSystemNS, "app=rancher-webhook"},
-			{CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", Provider)},
 		}
 		Eventually(func() error {
 			return rancherhelper.CheckPod(kubectl.New(), checkList)

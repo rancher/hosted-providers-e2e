@@ -123,6 +123,12 @@ func commonChartSupportUpgrade(ctx *helpers.Context, cluster *management.Cluster
 	By("upgrading rancher", func() {
 		helpers.DeployRancherManager(rancherUpgradedVersion, true)
 
+		By("ensuring operator pods are also up", func() {
+			Eventually(func() error {
+				return kubectl.New().WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+		})
+
 		By("regenerating the token and initiating a new rancher client", func() {
 			//	regenerate the tokens and initiate a new rancher client
 			rancherConfig := new(rancher.Config)
