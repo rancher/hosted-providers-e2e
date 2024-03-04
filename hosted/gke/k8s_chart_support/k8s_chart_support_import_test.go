@@ -54,5 +54,6 @@ var _ = Describe("K8sChartSupportImport", func() {
 	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", k8sUpgradedMinorVersion, rancherUpgradedVersion), func() {
 		commonChartSupportUpgrade(&ctx, cluster, clusterName, rancherUpgradedVersion, helpers.RancherHostname, k8sUpgradedMinorVersion)
 	})
+	//	TODO: Automate It(fmt.Sprintf("should successfully test k8s %s chart support importing on upgraded rancher %s", k8sUpgradedMinorVersion, rancherUpgradedVersion)
 
 })
