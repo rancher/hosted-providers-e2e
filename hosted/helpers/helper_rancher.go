@@ -1,11 +1,7 @@
 package helpers
 
 import (
-	"crypto/tls"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
