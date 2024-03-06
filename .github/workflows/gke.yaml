@@ -60,7 +60,7 @@ jobs:
       run_p0_importing_tests: ${{ contains(inputs.tests_to_run, 'p0_importing') || (github.event_name == 'schedule' && true) }}
       run_support_matrix_provisioning_tests: ${{ contains(inputs.tests_to_run, 'support_matrix_provisioning') || (github.event_name == 'schedule' && false) }}
       run_support_matrix_importing_tests: ${{ contains(inputs.tests_to_run, 'support_matrix_importing') || (github.event_name == 'schedule' && false) }}
-      destroy_runner: ${{ inputs.destroy_runner ==true || (github.event_name == 'schedule' && true) }}
+      destroy_runner: ${{ inputs.destroy_runner == true || (github.event_name == 'schedule' && true) }}
       runner_template: ${{ inputs.runner_template || 'hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v1' }}
       downstream_k8s_version: ${{ inputs.downstream_k8s_version || '1.27.3-gke.100' }}
       rancher_installed: ${{ inputs.rancher_installed || 'hostname/password' }}

@@ -64,8 +64,7 @@ deps: ## Install the Go dependencies
 	go install -mod=mod github.com/onsi/gomega
 	go mod tidy
 
-prepare-e2e-ci-rancher-hosted-nightly-chart: install-k3s install-helm install-cert-manager install-rancher-hosted-nightly-chart ## Setup Rancher with nightly hosted provider charts on the local machine
-prepare-e2e-ci-rancher: install-k3s install-helm install-cert-manager install-rancher ## Setup Rancher on the local machine
+prepare-e2e-ci-k3s: install-k3s install-helm install-cert-manager
 
 e2e-import-tests: deps	## Run the 'P0Importing' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Importing" ./hosted/${PROVIDER}/p0/
