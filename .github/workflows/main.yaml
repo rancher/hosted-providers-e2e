@@ -42,7 +42,7 @@ on:
         description: Runner template to use
         required: true
         type: string
-      downstream_k8s_version:
+      downstream_k8s_minor_version:
         description: Downstream cluster K8s version to test
         type: string
       downstream_cluster_cleanup:
@@ -67,7 +67,7 @@ env:
   QASE_RUN_COMPLETE: 1
   RANCHER_LOG_COLLECTOR: ${{ github.workspace }}/.github/scripts/collect-rancher-logs.sh
   GCP_RUNNER_ZONE: asia-south2-c
-  DOWNSTREAM_KUBERNETES_VERSION: ${{ inputs.downstream_k8s_version }}
+  DOWNSTREAM_K8S_MINOR_VERSION: ${{ inputs.downstream_k8s_minor_version }}
   DOWNSTREAM_CLUSTER_CLEANUP: ${{ inputs.downstream_cluster_cleanup }}
   QASE_HELPER: ${{ github.workspace }}/hosted/helpers/qase/helper_qase.go
 jobs:
@@ -150,23 +150,17 @@ jobs:
             make prepare-e2e-ci-rancher
           fi
 
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
-
-      - name: Install Azure cli
-        run: |
-          sudo zypper clean --all
-          sudo zypper install -y azure-cli
-          pip install azure-cli
-            
-      - name: Login to Azure
-        uses: azure/login@v2.0.0
-        with:
-          creds: '{"clientId":"${{ env.AKS_CLIENT_ID }}","clientSecret":"${{ env.AKS_CLIENT_SECRET }}","subscriptionId":"${{ env.AKS_SUBSCRIPTION_ID }}","tenantId":"${{ env.AKS_TENANT_ID }}"}'
 
       - name: Install EKSCTL
         run: |
@@ -183,10 +177,16 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.EKS_REGION }}
 
-      - name: Install Go
-        uses: actions/setup-go@v5
+      - name: Install Azure cli
+        run: |
+          sudo zypper clean --all
+          sudo zypper install -y azure-cli
+          pip install azure-cli
+
+      - name: Login to Azure
+        uses: azure/login@v2.0.0
         with:
-          go-version-file: go.mod
+          creds: '{"clientId":"${{ env.AKS_CLIENT_ID }}","clientSecret":"${{ env.AKS_CLIENT_SECRET }}","subscriptionId":"${{ env.AKS_SUBSCRIPTION_ID }}","tenantId":"${{ env.AKS_TENANT_ID }}"}'
 
       - name: Create/Export Qase Run
         id: qase
@@ -268,7 +268,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: support-logs
+          name: support-logs-${{ inputs.hosted_provider }}
           path: ${{ github.workspace }}/logs/*
           if-no-files-found: ignore
 
@@ -279,7 +279,7 @@ jobs:
           echo "## General information" >> ${GITHUB_STEP_SUMMARY}
           echo "Rancher Manager Version: ${{ inputs.rancher_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "K3s on Rancher Manager: ${{ inputs.k3s_version }}" >> ${GITHUB_STEP_SUMMARY}
-          echo "Downstream ${{ inputs.hosted_provider }} version: ${{ inputs.downstream_k8s_version }}" >> ${GITHUB_STEP_SUMMARY}
+          echo "Downstream ${{ inputs.hosted_provider }} version: ${{ inputs.downstream_k8s_minor_version }}" >> ${GITHUB_STEP_SUMMARY}
 
   delete-runner:
     if: ${{ always() && inputs.destroy_runner == true }}

@@ -221,8 +221,8 @@ type ImportClusterConfig struct {
 	Tags       *map[string]string      `json:"tags,omitempty" yaml:"tags,omitempty"`
 }
 
-// DefaultEKS returns a version less than the highest version or K8S_UPGRADE_MINOR_VERSION is it is set.
-// Note: It does not return the default version used by UI which is the highest supported version.
+// DefaultEKS returns a version less than the highest version or K8S_UPGRADE_MINOR_VERSION if it is set.
+// Note: It does not return the default version used by UI which is the highest supported version; this is done to support k8s upgrade tests.
 func DefaultEKS(client *rancher.Client) (defaultEKS string, err error) {
 	var versions []string
 	versions, err = kubernetesversions.ListEKSAllVersions(client)
@@ -230,7 +230,7 @@ func DefaultEKS(client *rancher.Client) (defaultEKS string, err error) {
 		return
 	}
 
-	if upgradeVersion := os.Getenv("K8S_UPGRADE_MINOR_VERSION"); upgradeVersion != "" {
+	if upgradeVersion := helpers.K8sUpgradedMinorVersion; upgradeVersion != "" {
 		for _, version := range versions {
 			if helpers.VersionCompare(upgradeVersion, version) > 0 {
 				return version, nil
@@ -242,10 +242,9 @@ func DefaultEKS(client *rancher.Client) (defaultEKS string, err error) {
 }
 
 // GetK8sVersion returns the k8s version to be used by the test;
-// this value can either be envvar DOWNSTREAM_KUBERNETES_VERSION or the default UI value returned by DefaultEKS.
+// this value can either be envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by DefaultEKS.
 func GetK8sVersion(client *rancher.Client) (string, error) {
-	k8sVersion := os.Getenv("DOWNSTREAM_KUBERNETES_VERSION")
-	if k8sVersion != "" {
+	if k8sVersion := helpers.DownstreamK8sMinorVersion; k8sVersion != "" {
 		return k8sVersion, nil
 	}
 	return DefaultEKS(client)

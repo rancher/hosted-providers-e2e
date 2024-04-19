@@ -1,10 +1,6 @@
 # HOSTED PROVIDERS E2E
 
-[![AKS-E2E_head_2.8](https://github.com/rancher/hosted-providers-e2e/actions/workflows/aks.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/aks.yaml)
-
-[![EKS-E2E_head_2.8](https://github.com/rancher/hosted-providers-e2e/actions/workflows/eks.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/eks.yaml)
-
-[![GKE-E2E_head_2.8](https://github.com/rancher/hosted-providers-e2e/actions/workflows/gke.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/gke.yaml)
+[![E2E_head_2.8](https://github.com/rancher/hosted-providers-e2e/actions/workflows/e2e-matrix.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/e2e-matrix.yaml)
 
 ## How to run a test locally:
 
@@ -14,7 +10,7 @@ Following are the common environment variables that need to be exported for runn
 2. RANCHER_PASSWORD - Admin Password for login. We currently only test with 'admin' user.
 3. CATTLE_TEST_CONFIG: Config file containing cluster and cloud credential information, for e.g. cattle-config-provisioning.yaml and cattle-config-import.yaml in the root directory.
 4. PROVIDER: Type of the hosted provider you want to test. Acceptable values - gke, eks, aks
-5. DOWNSTREAM_KUBERNETES_VERSION (optional): Downstream cluster Kubernetes version to test. If the env var is not provided, it uses a provider specific default value.
+5. DOWNSTREAM_K8S_MINOR_VERSION (optional): Downstream cluster Kubernetes version to test. If the env var is not provided, it uses a provider specific default value.
 6. DOWNSTREAM_CLUSTER_CLEANUP (optional): If set to true, downstream cluster will be deleted. Default: false. 
 
 #### To run K8s Chart support test cases:

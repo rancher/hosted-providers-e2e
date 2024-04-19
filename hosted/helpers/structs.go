@@ -37,10 +37,11 @@ var (
 			return fmt.Sprintf("%s-%s-hp-ci", Provider, testuser.Username)
 		}
 	}()
-	RancherVersion          = os.Getenv("RANCHER_VERSION")
-	RancherUpgradeVersion   = os.Getenv("RANCHER_UPGRADE_VERSION")
-	Kubeconfig              = os.Getenv("KUBECONFIG")
-	K8sUpgradedMinorVersion = os.Getenv("K8S_UPGRADE_MINOR_VERSION")
+	RancherVersion            = os.Getenv("RANCHER_VERSION")
+	RancherUpgradeVersion     = os.Getenv("RANCHER_UPGRADE_VERSION")
+	Kubeconfig                = os.Getenv("KUBECONFIG")
+	K8sUpgradedMinorVersion   = os.Getenv("K8S_UPGRADE_MINOR_VERSION")
+	DownstreamK8sMinorVersion = os.Getenv("DOWNSTREAM_K8S_MINOR_VERSION")
 )
 
 type HelmChart struct {
