@@ -73,6 +73,8 @@ func DeleteAKSHostCluster(cluster *management.Cluster, client *rancher.Client) e
 	return client.Management.Cluster.Delete(cluster)
 }
 
+// ListSingleVariantAKSAvailableVersions returns a list of single variants of minor versions
+// For e.g 1.27.5, 1.26.6, 1.25.8
 func ListSingleVariantAKSAvailableVersions(client *rancher.Client, cloudCredentialID, region string) (availableVersions []string, err error) {
 	availableVersions, err = kubernetesversions.ListAKSAllVersions(client, cloudCredentialID, region)
 	if err != nil {
@@ -88,6 +90,21 @@ func ListSingleVariantAKSAvailableVersions(client *rancher.Client, cloudCredenti
 		}
 	}
 	return singleVersionList, nil
+}
+
+// GetK8sVersionVariantAKS returns a variant of a given minor K8s version
+func GetK8sVersionVariantAKS(minorVersion string, client *rancher.Client, cloudCredentialID, region string) (version string, err error) {
+	versions, err := ListSingleVariantAKSAvailableVersions(client, cloudCredentialID, region)
+	if err != nil {
+		return "", err
+	}
+
+	for _, version := range versions {
+		if strings.Contains(version, minorVersion) {
+			return version, nil
+		}
+	}
+	return "", fmt.Errorf("version %s not found", minorVersion)
 }
 
 // AddNodePool adds a nodepool to the list
@@ -337,9 +354,8 @@ func getUIK8sDefaultVersionRange(client *rancher.Client) (value string, err erro
 // GetK8sVersion returns the k8s version to be used by the test;
 // this value can either be envvar DOWNSTREAM_KUBERNETES_VERSION or the default UI value returned by DefaultAKS.
 func GetK8sVersion(client *rancher.Client, cloudCredentialID, region string) (string, error) {
-	k8sVersion := os.Getenv("DOWNSTREAM_KUBERNETES_VERSION")
-	if k8sVersion != "" {
-		return k8sVersion, nil
+	if k8sMinorVersion := helpers.DownstreamK8sMinorVersion; k8sMinorVersion != "" {
+		return GetK8sVersionVariantAKS(k8sMinorVersion, client, cloudCredentialID, region)
 	}
 	return DefaultAKS(client, cloudCredentialID, region)
 }

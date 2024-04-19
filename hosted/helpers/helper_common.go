@@ -195,6 +195,7 @@ func GetCommonMetadataLabels() map[string]string {
 	}
 }
 
+// ListOperatorChart lists the installed operators charts for a provider in cattle-system
 func ListOperatorChart() (operatorCharts []HelmChart) {
 	output, err := kubectl.RunHelmBinaryWithOutput("list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
 	Expect(err).To(BeNil())
@@ -207,6 +208,20 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 	return
 }
 
+// ListChartVersions lists all the available the chart version for a given chart name
+func ListChartVersions(chartName string) (operatorCharts []HelmChart) {
+	output, err := kubectl.RunHelmBinaryWithOutput("search", "repo", chartName, "--versions", "-ojson", "--devel")
+	Expect(err).To(BeNil())
+	ginkgo.GinkgoLogr.Info(output)
+	err = json.Unmarshal([]byte(output), &operatorCharts)
+	Expect(err).To(BeNil())
+	return
+}
+
+// VersionCompare compares Versions v to o:
+// -1 == v is less than o
+// 0 == v is equal to o
+// 1 == v is greater than o
 func VersionCompare(latestVersion, oldVersion string) int {
 	latestVer, err := semver.ParseTolerant(latestVersion)
 	Expect(err).To(BeNil())

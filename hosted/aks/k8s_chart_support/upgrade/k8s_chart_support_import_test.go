@@ -1,4 +1,4 @@
-package k8s_chart_support_test
+package chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("K8sChartSupportImport", func() {
+var _ = Describe("K8sChartSupportImportUpgrade", func() {
 	var cluster *management.Cluster
 
 	BeforeEach(func() {
@@ -50,7 +50,5 @@ var _ = Describe("K8sChartSupportImport", func() {
 		testCaseID = 322 // Report to Qase
 		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
 	})
-
-	//	TODO: Automate It(fmt.Sprintf("should successfully test k8s %s chart support importing on upgraded rancher %s", k8sUpgradedMinorVersion, rancherUpgradedVersion), func(){ testCaseID = 323 // Report to Qase})
 
 })

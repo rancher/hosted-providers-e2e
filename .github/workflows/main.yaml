@@ -35,6 +35,12 @@ on:
       run_support_matrix_importing_tests:
         required: true
         type: boolean
+      run_k8s_chart_support_importing_tests:
+        required: false
+        type: boolean
+      run_k8s_chart_support_provisioning_tests:
+        required: false
+        type: boolean
       destroy_runner:
         description: Destroy the auto-generated self-hosted runner
         type: boolean
@@ -243,6 +249,32 @@ jobs:
           QASE_RUN_ID: ${{ steps.qase.outputs.qase_run_id }}
         run: |
           make e2e-support-matrix-importing-tests
+
+      - name: K8s Chart Support importing tests
+        if: ${{ !cancelled() && inputs.run_k8s_chart_support_importing_tests == true }}
+        env:
+          RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
+          RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
+          CATTLE_TEST_CONFIG: ${{ github.workspace }}/cattle-config-import.yaml
+          QASE_RUN_ID: ${{ steps.qase.outputs.qase_run_id }}
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+          RANCHER_VERSION: ${{ env.RANCHER_VERSION }}
+          K8S_UPGRADE_MINOR_VERSION: ${{ env.DOWNSTREAM_KUBERNETES_VERSION }}
+        run: |
+          make e2e-k8s-chart-support-importing-tests
+
+      - name: K8s Chart Support provisioning tests
+        if: ${{ !cancelled() && inputs.run_k8s_chart_support_provisioning_tests == true }}
+        env:
+          RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
+          RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
+          CATTLE_TEST_CONFIG: ${{ github.workspace }}/cattle-config-provisioning.yaml
+          QASE_RUN_ID: ${{ steps.qase.outputs.qase_run_id }}
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+          RANCHER_VERSION: ${{ env.RANCHER_VERSION }}
+          K8S_UPGRADE_MINOR_VERSION: ${{ env.DOWNSTREAM_KUBERNETES_VERSION }}
+        run: |
+          make e2e-k8s-chart-support-provisioning-tests
 
       - name: Finalize Qase Run and publish Results
         env:

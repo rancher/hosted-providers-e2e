@@ -1,4 +1,4 @@
-package k8s_chart_support_test
+package chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
@@ -20,7 +21,7 @@ import (
 	"github.com/rancher/shepherd/pkg/config"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
-	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
+	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
@@ -28,20 +29,16 @@ var (
 	ctx                     helpers.Context
 	clusterName, k8sVersion string
 	testCaseID              int64
-	location                = helpers.GetAKSLocation()
+	zone                    = helpers.GetGKEZone()
+	project                 = helpers.GetGKEProjectID()
 )
 
 func TestK8sChartSupport(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "K8sChartSupport Suite")
+	RunSpecs(t, "K8sChartSupport Upgrade Suite")
 }
 
 var _ = BeforeSuite(func() {
-	Expect(helpers.RancherVersion).ToNot(BeEmpty())
-	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.8-head)
-	Expect(helpers.RancherVersion).ToNot(ContainSubstring("head"))
-
-	Expect(helpers.RancherUpgradeVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
@@ -64,10 +61,9 @@ var _ = BeforeEach(func() {
 	Expect(err).To(BeNil())
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 
-	k8sVersion, err = helper.DefaultAKS(ctx.RancherClient, ctx.CloudCred.ID, location)
+	k8sVersion, err = helper.DefaultGKE(ctx.RancherClient, project, ctx.CloudCred.ID, zone, "")
 	Expect(err).To(BeNil())
-	Expect(k8sVersion).ToNot(BeEmpty())
-	GinkgoLogr.Info(fmt.Sprintf("Using AKS version %s", k8sVersion))
+	GinkgoLogr.Info(fmt.Sprintf("Using GKE version %s", k8sVersion))
 
 })
 
@@ -97,9 +93,8 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
-	var newChartVersion, oldChartVersion string
-
+// commonChartSupportUpgrade runs the common checks required for testing chart support
+func commonChartSupportUpgrade(ctx *helpers.Context, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
 	By("checking cluster name is same", func() {
 		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
 	})
@@ -120,6 +115,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		Expect(podErrors).To(BeEmpty())
 	})
 
+	var oldChartVersion string
 	By("checking the chart version", func() {
 		oldCharts := helpers.ListOperatorChart()
 		oldChartVersion = oldCharts[0].DerivedVersion
@@ -128,11 +124,13 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 	By("upgrading rancher", func() {
 		helpers.DeployRancherManager(rancherUpgradedVersion, true)
+
 		By("ensuring operator pods are also up", func() {
 			Eventually(func() error {
 				return kubectl.New().WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
+
 		By("regenerating the token and initiating a new rancher client", func() {
 			//	regenerate the tokens and initiate a new rancher client
 			rancherConfig := new(rancher.Config)
@@ -177,6 +175,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		})
 	})
 
+	var newChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
 
 		Eventually(func() int {
@@ -187,31 +186,27 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 	})
 
-	var latestVersion *string
-	By(fmt.Sprintf("fetching a list of available k8s versions and ensure the v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
-		versions, err := helper.ListAKSAvailableVersions(ctx.RancherClient, cluster.ID)
+	By(fmt.Sprintf("fetching a list of available k8s versions and ensuring v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
+		versions, err := helper.ListGKEAvailableVersions(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		latestVersion = &versions[len(versions)-1]
+		latestVersion := versions[len(versions)-1]
 		Expect(latestVersion).To(ContainSubstring(k8sUpgradedVersion))
-		Expect(helpers.VersionCompare(*latestVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
+		Expect(helpers.VersionCompare(latestVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
 
-		currentVersion := cluster.AKSConfig.KubernetesVersion
-
-		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, latestVersion, ctx.RancherClient)
+		cluster, err = helper.UpgradeKubernetesVersion(cluster, &latestVersion, ctx.RancherClient, true)
 		Expect(err).To(BeNil())
-		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestVersion))
-		for _, np := range cluster.AKSConfig.NodePools {
-			Expect(np.OrchestratorVersion).To(BeEquivalentTo(currentVersion))
+		Expect(*cluster.GKEConfig.KubernetesVersion).To(BeEquivalentTo(latestVersion))
+		for _, np := range cluster.GKEConfig.NodePools {
+			Expect(*np.Version).To(BeEquivalentTo(latestVersion))
 		}
 	})
 
 	By("downgrading the chart version", func() {
 		newCharts := helpers.ListOperatorChart()
 		for _, chart := range newCharts {
-			// helm requires 2 args
-			err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("rancher-charts/%s", chart.Name), "--namespace", helpers.CattleSystemNS, "--version", oldChartVersion, "--wait")
+			err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name), "--namespace", helpers.CattleSystemNS, "--version", oldChartVersion, "--wait")
 			Expect(err).To(BeNil())
 		}
 		// wait until the downgraded chart version is same as the old version
@@ -224,14 +219,14 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 	})
 
 	By("making a change to the cluster to validate functionality after chart downgrade", func() {
+		initialNodeCount := *cluster.GKEConfig.NodePools[0].InitialNodeCount
 		var err error
-		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, latestVersion, ctx.RancherClient)
+		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount+1)
 		Expect(err).To(BeNil())
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestVersion))
-		for _, np := range cluster.AKSConfig.NodePools {
-			Expect(np.OrchestratorVersion).To(BeEquivalentTo(latestVersion))
+		for i := range cluster.GKEConfig.NodePools {
+			Expect(*cluster.GKEConfig.NodePools[i].InitialNodeCount).To(BeNumerically(">", initialNodeCount))
 		}
 	})
 
@@ -245,7 +240,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 	})
 
 	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest version", func() {
-		currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
+		currentNodePoolNumber := len(cluster.GKEConfig.NodePools)
 		var err error
 		cluster, err = helper.AddNodePool(cluster, 1, ctx.RancherClient)
 		Expect(err).To(BeNil())
@@ -264,7 +259,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
+		Expect(len(cluster.GKEConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 	})
 
 }

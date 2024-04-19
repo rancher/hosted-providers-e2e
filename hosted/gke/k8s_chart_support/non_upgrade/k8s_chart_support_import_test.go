@@ -1,4 +1,4 @@
-package k8s_chart_support_test
+package chart_support_test
 
 import (
 	"fmt"
@@ -36,6 +36,7 @@ var _ = Describe("K8sChartSupportImport", func() {
 		Expect(err).To(BeNil())
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 		Expect(err).To(BeNil())
+
 		// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
 		cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
 	})
@@ -51,10 +52,8 @@ var _ = Describe("K8sChartSupportImport", func() {
 		}
 	})
 
-	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
-		testCaseID = 314 // Report to Qase
-		commonChartSupportUpgrade(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
+	It(fmt.Sprintf("should successfully test k8s %s chart support importing on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherVersion), func() {
+		testCaseID = 315 // Report to Qase
+		commonChartSupport(&ctx, cluster)
 	})
-
-	//	TODO: Automate It(fmt.Sprintf("should successfully test k8s %s chart support importing on upgraded rancher %s", k8sUpgradedMinorVersion, rancherUpgradedVersion), func(){ testCaseID = 315 // Report to Qase})
 })

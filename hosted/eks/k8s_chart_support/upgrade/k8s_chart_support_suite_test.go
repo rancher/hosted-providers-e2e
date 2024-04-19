@@ -1,4 +1,4 @@
-package k8s_chart_support_test
+package chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ var (
 
 func TestK8sChartSupport(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "K8sChartSupport Suite")
+	RunSpecs(t, "K8sChartSupport Upgrade Suite")
 }
 
 var _ = BeforeSuite(func() {

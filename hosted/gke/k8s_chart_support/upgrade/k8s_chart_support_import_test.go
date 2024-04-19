@@ -1,4 +1,4 @@
-package k8s_chart_support_test
+package chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -13,34 +13,38 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("K8sChartSupportProvisioning", func() {
-
+var _ = Describe("K8sChartSupportImportUpgrade", func() {
 	var (
 		cluster *management.Cluster
 	)
+
 	BeforeEach(func() {
-		gkeConfig := new(management.GKEClusterConfigSpec)
+		err := helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
+		Expect(err).To(BeNil())
+
+		gkeConfig := new(helper.ImportClusterConfig)
 		config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 			gkeConfig.ProjectID = project
 			gkeConfig.Zone = zone
 			labels := helper.GetLabels()
 			gkeConfig.Labels = &labels
-			gkeConfig.KubernetesVersion = &k8sVersion
 			for _, np := range gkeConfig.NodePools {
 				np.Version = &k8sVersion
 			}
 		})
-
-		var err error
-		cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+		cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 		Expect(err).To(BeNil())
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 		Expect(err).To(BeNil())
+		// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
+		cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
 	})
 
 	AfterEach(func() {
 		if ctx.ClusterCleanup {
 			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
+			Expect(err).To(BeNil())
+			err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
 			Expect(err).To(BeNil())
 		} else {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
@@ -48,9 +52,8 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 	})
 
 	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
-		testCaseID = 312 // Report to Qase
+		testCaseID = 314 // Report to Qase
 		commonChartSupportUpgrade(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
 	})
-	//	TODO: Automate It(fmt.Sprintf("should successfully test k8s %s chart support provisioning on upgraded rancher %s", k8sUpgradedMinorVersion, rancherUpgradedVersion), func(){ testCaseID = 313 // Report to Qase})
 
 })

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/rancher/shepherd/extensions/clusters/gke"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
@@ -149,6 +150,21 @@ func ListSingleVariantGKEAvailableVersions(client *rancher.Client, projectID, cl
 	return singleVersionList, nil
 }
 
+// GetK8sVersionVariantGKE returns a variant of a given minor K8s version
+func GetK8sVersionVariantGKE(minorVersion string, client *rancher.Client, projectID, cloudCrendetialID, zone, region string) (string, error) {
+	versions, err := ListSingleVariantGKEAvailableVersions(client, projectID, cloudCrendetialID, zone, region)
+	if err != nil {
+		return "", err
+	}
+
+	for _, version := range versions {
+		if strings.Contains(version, minorVersion) {
+			return version, nil
+		}
+	}
+	return "", fmt.Errorf("version %s not found", minorVersion)
+}
+
 // Create Google GKE cluster using gcloud CLI
 func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k8sVersion string) error {
 
@@ -288,9 +304,8 @@ func DefaultGKE(client *rancher.Client, projectID, cloudCredentialID, zone, regi
 // GetK8sVersion returns the k8s version to be used by the test;
 // this value can either be envvar DOWNSTREAM_KUBERNETES_VERSION or the default UI value returned by DefaultGKE.
 func GetK8sVersion(client *rancher.Client, projectID, cloudCredentialID, zone, region string) (string, error) {
-	k8sVersion := os.Getenv("DOWNSTREAM_KUBERNETES_VERSION")
-	if k8sVersion != "" {
-		return k8sVersion, nil
+	if k8sMinorVersion := helpers.DownstreamK8sMinorVersion; k8sMinorVersion != "" {
+		return GetK8sVersionVariantGKE(k8sMinorVersion, client, projectID, cloudCredentialID, zone, region)
 	}
 	return DefaultGKE(client, projectID, cloudCredentialID, zone, region)
 }
