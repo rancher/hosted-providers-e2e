@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"strconv"
 	"strings"
 
 	"github.com/blang/semver"
 	"github.com/onsi/ginkgo/v2"
-	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher/shepherd/extensions/pipeline"
 
 	. "github.com/onsi/gomega"
@@ -197,10 +197,11 @@ func GetCommonMetadataLabels() map[string]string {
 
 // ListOperatorChart lists the installed operators charts for a provider in cattle-system
 func ListOperatorChart() (operatorCharts []HelmChart) {
-	output, err := kubectl.RunHelmBinaryWithOutput("list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
+	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
+	output, err := cmd.Output()
 	Expect(err).To(BeNil())
-	ginkgo.GinkgoLogr.Info(output)
-	err = json.Unmarshal([]byte(output), &operatorCharts)
+	ginkgo.GinkgoLogr.Info(string(output))
+	err = json.Unmarshal(output, &operatorCharts)
 	Expect(err).To(BeNil())
 	for i := range operatorCharts {
 		operatorCharts[i].DerivedVersion = strings.TrimPrefix(operatorCharts[i].Chart, fmt.Sprintf("%s-", operatorCharts[i].Name))
@@ -210,10 +211,11 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 
 // ListChartVersions lists all the available the chart version for a given chart name
 func ListChartVersions(chartName string) (operatorCharts []HelmChart) {
-	output, err := kubectl.RunHelmBinaryWithOutput("search", "repo", chartName, "--versions", "-ojson", "--devel")
+	cmd := exec.Command("helm", "search", "repo", chartName, "--versions", "-ojson", "--devel")
+	output, err := cmd.Output()
 	Expect(err).To(BeNil())
-	ginkgo.GinkgoLogr.Info(output)
-	err = json.Unmarshal([]byte(output), &operatorCharts)
+	ginkgo.GinkgoLogr.Info(string(output))
+	err = json.Unmarshal(output, &operatorCharts)
 	Expect(err).To(BeNil())
 	return
 }
