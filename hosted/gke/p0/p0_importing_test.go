@@ -137,6 +137,13 @@ var _ = Describe("P0Importing", func() {
 			})
 
 		})
+
+		It("should fail to reimport an imported cluster", func() {
+			_, err := helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+			Expect(err).ToNot(BeNil())
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("cluster already exists for GKE cluster [%s] in zone [%s]", clusterName, zone)))
+		})
+
 		Context("Upgrading K8s version", func() {
 			var upgradeToVersion *string
 			BeforeEach(func() {
