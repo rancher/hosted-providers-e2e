@@ -6,7 +6,7 @@ STANDARD_TEST_OPTIONS= -v -r --timeout=2h --keep-going --randomize-all --randomi
 BUILD_DATE= $(shell date +'%Y%m%d')
 
 install-k3s: ## Install K3s with default options; installed on the local machine
-	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 644
+	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 640
 	## Wait for K3s to start
 	timeout 2m bash -c "until ! kubectl get pod -A 2>/dev/null | grep -Eq 'ContainerCreating|CrashLoopBackOff'; do sleep 1; done"
 
