@@ -10,6 +10,7 @@ import (
 	"github.com/rancher/shepherd/pkg/config"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
+	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var _ = Describe("P0OtherProvisioning", func() {
@@ -50,6 +51,7 @@ var _ = Describe("P0OtherProvisioning", func() {
 		})
 
 		It("should fail to provision a cluster when creating cluster with invalid name", func() {
+			testCaseID = 291
 			var err error
 			cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, "@!invalid-gke-name-@#", ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).ToNot(BeNil())
@@ -57,6 +59,7 @@ var _ = Describe("P0OtherProvisioning", func() {
 		})
 
 		It("should fail to provision a cluster with invalid nodepool name", func() {
+			testCaseID = 292
 			gkeConfig := new(management.GKEClusterConfigSpec)
 			config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 				for _, np := range gkeConfig.NodePools {
@@ -82,6 +85,7 @@ var _ = Describe("P0OtherProvisioning", func() {
 		})
 
 		It("should fail to provision a cluster with no nodepools", func() {
+			testCaseID = 31
 			gkeConfig := new(management.GKEClusterConfigSpec)
 			config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
 				gkeConfig.NodePools = nil
@@ -102,6 +106,26 @@ var _ = Describe("P0OtherProvisioning", func() {
 				return false
 			}, "10s", "1s").Should(BeTrue())
 
+		})
+	})
+	When("a cluster is created", func() {
+
+		BeforeEach(func() {
+			var err error
+			cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
+			Expect(err).To(BeNil())
+		})
+
+		It("should be able to update mutable parameter", func() {
+			testCaseID = 36
+			updateLoggingAndMonitoringServiceCheck(ctx, cluster)
+		})
+
+		It("should be able to update autoscaling", func() {
+			testCaseID = 38
+			updateAutoScaling(ctx, cluster)
 		})
 	})
 

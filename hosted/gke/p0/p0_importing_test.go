@@ -26,7 +26,6 @@ import (
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/workloads/pods"
 	"github.com/rancher/shepherd/pkg/config"
-	"k8s.io/utils/pointer"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -137,45 +136,6 @@ var _ = Describe("P0Importing", func() {
 
 			})
 
-		})
-
-		It("should fail to reimport an imported cluster", func() {
-			_, err := helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
-			Expect(err).ToNot(BeNil())
-			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("cluster already exists for GKE cluster [%s] in zone [%s]", clusterName, zone)))
-		})
-
-		It("should be able to update mutable parameter", func() {
-			upgradedCluster := new(management.Cluster)
-			upgradedCluster.Name = cluster.Name
-			upgradedCluster.GKEConfig = cluster.GKEConfig
-
-			var updateMonitoringValue, updateLoggingValue *string
-
-			if *cluster.GKEConfig.MonitoringService == "none" {
-				updateMonitoringValue = pointer.String("monitoring.googleapis.com/kubernetes")
-			} else {
-				updateMonitoringValue = pointer.String("none")
-			}
-
-			if *cluster.GKEConfig.LoggingService == "none" {
-				updateLoggingValue = pointer.String("logging.googleapis.com/kubernetes")
-			} else {
-				updateLoggingValue = pointer.String("none")
-			}
-
-			By("updating loggingService", func() {
-				upgradedCluster.GKEConfig.LoggingService = updateLoggingValue
-			})
-			By("updating monitoringService", func() {
-				upgradedCluster.GKEConfig.MonitoringService = updateMonitoringValue
-			})
-			cluster, err := ctx.RancherClient.Management.Cluster.Update(cluster, &upgradedCluster)
-			Expect(err).To(BeNil())
-			err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
-			Expect(err).To(BeNil())
-			Expect(cluster.GKEConfig.MonitoringService).To(BeEquivalentTo(updateMonitoringValue))
-			Expect(cluster.GKEConfig.LoggingService).To(BeEquivalentTo(updateLoggingValue))
 		})
 
 		Context("Upgrading K8s version", func() {
