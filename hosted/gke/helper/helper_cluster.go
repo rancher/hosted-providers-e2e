@@ -177,12 +177,10 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	currentKubeconfig := os.Getenv("KUBECONFIG")
 	defer os.Setenv("KUBECONFIG", currentKubeconfig)
 
-	tmpKubeConfig, err := os.CreateTemp("", clusterName)
+	err := helpers.SetTempKubeConfig(clusterName)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpKubeConfig.Name()) // clean up
-	os.Setenv("KUBECONFIG", tmpKubeConfig.Name())
 
 	fmt.Println("Creating GKE cluster ...")
 	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks"}
@@ -199,6 +197,10 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 
 // Complete cleanup steps for Google GKE
 func DeleteGKEClusterOnGCloud(zone, project, clusterName string) error {
+	currentKubeconfig := os.Getenv("KUBECONFIG")
+	defer os.Setenv("KUBECONFIG", currentKubeconfig)
+
+	os.Setenv("KUBECONFIG", os.Getenv(helpers.DownstreamKubeconfig(clusterName)))
 
 	fmt.Println("Deleting GKE cluster ...")
 	args := []string{"container", "clusters", "delete", clusterName, "--zone", zone, "--quiet", "--project", project}

@@ -144,6 +144,13 @@ func ListEKSAvailableVersions(client *rancher.Client, clusterID string) (availab
 
 // Create AWS EKS cluster using EKS CLI
 func CreateEKSClusterOnAWS(eks_region string, clusterName string, k8sVersion string, nodes string) error {
+	currentKubeconfig := os.Getenv("KUBECONFIG")
+	defer os.Setenv("KUBECONFIG", currentKubeconfig)
+
+	err := helpers.SetTempKubeConfig(clusterName)
+	if err != nil {
+		return err
+	}
 
 	tags := GetTags()
 	formattedTags := k8slabels.SelectorFromSet(tags).String()
@@ -161,6 +168,14 @@ func CreateEKSClusterOnAWS(eks_region string, clusterName string, k8sVersion str
 
 // Complete cleanup steps for Amazon EKS
 func DeleteEKSClusterOnAWS(eks_region string, clusterName string) error {
+	currentKubeconfig := os.Getenv("KUBECONFIG")
+	downstreamKubeconfig := os.Getenv(helpers.DownstreamKubeconfig(clusterName))
+	defer func() {
+		os.Setenv("KUBECONFIG", currentKubeconfig)
+		os.Remove(downstreamKubeconfig) // clean up
+	}()
+
+	os.Setenv("KUBECONFIG", downstreamKubeconfig)
 
 	fmt.Println("Deleting EKS cluster ...")
 	args := []string{"delete", "cluster", "--region=" + eks_region, "--name=" + clusterName, "--disable-nodegroup-eviction"}

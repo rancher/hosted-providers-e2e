@@ -195,6 +195,16 @@ func GetCommonMetadataLabels() map[string]string {
 	}
 }
 
+func SetTempKubeConfig(clusterName string) error {
+	tmpKubeConfig, err := os.CreateTemp("", clusterName)
+	if err != nil {
+		return err
+	}
+	os.Setenv(DownstreamKubeconfig(clusterName), tmpKubeConfig.Name())
+	os.Setenv("KUBECONFIG", tmpKubeConfig.Name())
+	return nil
+}
+
 // ListOperatorChart lists the installed operators charts for a provider in cattle-system
 func ListOperatorChart() (operatorCharts []HelmChart) {
 	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
