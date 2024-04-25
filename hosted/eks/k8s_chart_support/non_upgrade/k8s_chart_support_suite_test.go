@@ -118,8 +118,9 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 
 	})
 
-	By("making a change(scaling nodegroup) to the cluster to validate functionality after chart downgrade", func() {
-		initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
+	initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
+
+	By("making a change(scaling nodegroup up) to the cluster to validate functionality after chart downgrade", func() {
 
 		var err error
 		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount+1)
@@ -140,10 +141,9 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		}
 	})
 
-	By("making a change(adding a nodegroup) to the cluster to re-install the operator and validating it is re-installed to the latest version", func() {
-		currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
+	By("making a change(scaling nodegroup down) to the cluster to re-install the operator and validating it is re-installed to the latest version", func() {
 		var err error
-		cluster, err = helper.AddNodeGroup(cluster, 1, ctx.RancherClient)
+		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount)
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest version", func() {
@@ -157,10 +157,12 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 			}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically("==", 0))
 
 		})
-
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		Expect(len(cluster.EKSConfig.NodeGroups)).To(BeNumerically("==", currentNodeGroupNumber+1))
+		for i := range cluster.EKSConfig.NodeGroups {
+			Expect(*cluster.EKSConfig.NodeGroups[i].DesiredSize).To(BeNumerically("==", initialNodeCount))
+		}
+
 	})
 
 }
