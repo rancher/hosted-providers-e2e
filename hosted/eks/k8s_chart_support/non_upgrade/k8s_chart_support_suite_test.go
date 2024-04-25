@@ -146,6 +146,9 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount)
 		Expect(err).To(BeNil())
 
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		Expect(err).To(BeNil())
+
 		By("ensuring that the chart is re-installed to the latest version", func() {
 			Eventually(func() int {
 				charts := helpers.ListOperatorChart()
@@ -153,12 +156,11 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 					return 10
 				}
 				reinstalledChartVersion := charts[0].DerivedVersion
+				GinkgoLogr.Info("Checking chart reinstallation", reinstalledChartVersion, originalChartVersion, "\n")
 				return helpers.VersionCompare(reinstalledChartVersion, originalChartVersion)
-			}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically("==", 0))
-
+			}, tools.SetTimeout(1*time.Minute), 1*time.Second).Should(BeNumerically("==", 0))
 		})
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
-		Expect(err).To(BeNil())
+
 		for i := range cluster.EKSConfig.NodeGroups {
 			Expect(*cluster.EKSConfig.NodeGroups[i].DesiredSize).To(BeNumerically("==", initialNodeCount))
 		}
