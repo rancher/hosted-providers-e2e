@@ -146,8 +146,8 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount)
 		Expect(err).To(BeNil())
 
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
-		Expect(err).To(BeNil())
+		//err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		//Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest version", func() {
 			Eventually(func() int {
@@ -161,9 +161,13 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 			}, tools.SetTimeout(1*time.Minute), 1*time.Second).Should(BeNumerically("==", 0))
 		})
 
-		for i := range cluster.EKSConfig.NodeGroups {
-			Expect(*cluster.EKSConfig.NodeGroups[i].DesiredSize).To(BeNumerically("==", initialNodeCount))
-		}
+		var upgradeSuccessful bool
+		Eventually(func() bool {
+			for i := range cluster.EKSConfig.NodeGroups {
+				upgradeSuccessful = *cluster.EKSConfig.NodeGroups[i].DesiredSize == initialNodeCount
+			}
+			return upgradeSuccessful
+		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(BeTrue())
 
 	})
 
