@@ -1,4 +1,4 @@
-package chart_support_upgrade_test
+package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"

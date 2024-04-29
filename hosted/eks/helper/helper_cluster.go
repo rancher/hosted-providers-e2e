@@ -147,10 +147,7 @@ func CreateEKSClusterOnAWS(eks_region string, clusterName string, k8sVersion str
 	currentKubeconfig := os.Getenv("KUBECONFIG")
 	defer os.Setenv("KUBECONFIG", currentKubeconfig)
 
-	err := helpers.SetTempKubeConfig(clusterName)
-	if err != nil {
-		return err
-	}
+	helpers.SetTempKubeConfig(clusterName)
 
 	tags := GetTags()
 	formattedTags := k8slabels.SelectorFromSet(tags).String()
@@ -257,7 +254,7 @@ func DefaultEKS(client *rancher.Client) (defaultEKS string, err error) {
 }
 
 // GetK8sVersion returns the k8s version to be used by the test;
-// this value can either be envvar DOWNSTREAM_KUBERNETES_VERSION or the default UI value returned by DefaultEKS.
+// this value can either be envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by DefaultEKS.
 func GetK8sVersion(client *rancher.Client) (string, error) {
 	if k8sVersion := helpers.DownstreamK8sMinorVersion; k8sVersion != "" {
 		return k8sVersion, nil

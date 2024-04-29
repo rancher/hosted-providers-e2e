@@ -1,4 +1,4 @@
-package chart_support_upgrade_test
+package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -6,49 +6,49 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/clusters/aks"
+	"github.com/rancher/shepherd/extensions/clusters/eks"
 	"github.com/rancher/shepherd/pkg/config"
 
-	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
+	"github.com/rancher/hosted-providers-e2e/hosted/eks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var _ = Describe("K8sChartSupportImportUpgrade", func() {
 	var cluster *management.Cluster
-
 	BeforeEach(func() {
 		var err error
-		err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1")
+		err = helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1")
 		Expect(err).To(BeNil())
 
-		aksConfig := new(helper.ImportClusterConfig)
-		config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
-			aksConfig.ResourceGroup = clusterName
-			aksConfig.ResourceLocation = location
-			aksConfig.Tags = helper.GetTags()
+		eksConfig := new(helper.ImportClusterConfig)
+		config.LoadAndUpdateConfig(eks.EKSClusterConfigConfigurationFileKey, eksConfig, func() {
+			eksConfig.Region = region
+			tags := helper.GetTags()
+			eksConfig.Tags = &tags
 		})
 
-		cluster, err = helper.ImportAKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+		cluster, err = helper.ImportEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 		Expect(err).To(BeNil())
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 		Expect(err).To(BeNil())
-		// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
-		cluster.AKSConfig = cluster.AKSStatus.UpstreamSpec
+		//Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
+		cluster.EKSConfig = cluster.EKSStatus.UpstreamSpec
+
 	})
 	AfterEach(func() {
 		if ctx.ClusterCleanup {
-			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherClient)
+			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
-			err = helper.DeleteAKSClusteronAzure(clusterName)
+			err = helper.DeleteEKSClusterOnAWS(region, clusterName)
 			Expect(err).To(BeNil())
+			// TODO: Force delete EKS cluster
 		} else {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
 	})
-
 	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
-		testCaseID = 322 // Report to Qase
+		testCaseID = 318 // Report to Qase
+
 		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
 	})
-
 })

@@ -352,7 +352,7 @@ func getUIK8sDefaultVersionRange(client *rancher.Client) (value string, err erro
 }
 
 // GetK8sVersion returns the k8s version to be used by the test;
-// this value can either be envvar DOWNSTREAM_KUBERNETES_VERSION or the default UI value returned by DefaultAKS.
+// this value can either be envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by DefaultAKS.
 func GetK8sVersion(client *rancher.Client, cloudCredentialID, region string) (string, error) {
 	if k8sMinorVersion := helpers.DownstreamK8sMinorVersion; k8sMinorVersion != "" {
 		return GetK8sVersionVariantAKS(k8sMinorVersion, client, cloudCredentialID, region)

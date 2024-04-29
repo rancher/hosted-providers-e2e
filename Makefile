@@ -87,10 +87,10 @@ e2e-k8s-chart-support-provisioning-tests-upgrade: deps ## Run the 'K8sChartSuppo
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportProvisioningUpgrade" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
 
 e2e-k8s-chart-support-importing-tests: deps ## Run the 'K8sChartSupportImport' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportImport" ./hosted/${PROVIDER}/k8s_chart_support/non_upgrade
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportImport" ./hosted/${PROVIDER}/k8s_chart_support
 
 e2e-k8s-chart-support-provisioning-tests: deps ## Run the 'K8sChartSupportProvisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportProvisioning" ./hosted/${PROVIDER}/k8s_chart_support/non_upgrade
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportProvisioning" ./hosted/${PROVIDER}/k8s_chart_support
 
 clean-k3s:	## Uninstall k3s cluster
 	/usr/local/bin/k3s-uninstall.sh

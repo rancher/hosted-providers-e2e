@@ -1,4 +1,4 @@
-package chart_support_test
+package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -13,41 +13,33 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("K8sChartSupportImport", func() {
+var _ = Describe("K8sChartSupportProvisioningUpgrade", func() {
 	var cluster *management.Cluster
 	BeforeEach(func() {
 		var err error
-		err = helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1")
-		Expect(err).To(BeNil())
-
-		eksConfig := new(helper.ImportClusterConfig)
+		eksConfig := new(eks.ClusterConfig)
 		config.LoadAndUpdateConfig(eks.EKSClusterConfigConfigurationFileKey, eksConfig, func() {
 			eksConfig.Region = region
-			tags := helper.GetTags()
-			eksConfig.Tags = &tags
+			eksConfig.Tags = helper.GetTags()
+			eksConfig.KubernetesVersion = &k8sVersion
 		})
-
-		cluster, err = helper.ImportEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+		cluster, err = eks.CreateEKSHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 		Expect(err).To(BeNil())
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 		Expect(err).To(BeNil())
-		// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
-		cluster.EKSConfig = cluster.EKSStatus.UpstreamSpec
-
 	})
 	AfterEach(func() {
+		// TODO Check if EKS cluster deleted on AWS
 		if ctx.ClusterCleanup {
 			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherClient)
-			Expect(err).To(BeNil())
-			err = helper.DeleteEKSClusterOnAWS(region, clusterName)
 			Expect(err).To(BeNil())
 		} else {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
 	})
-
-	It(fmt.Sprintf("should successfully test k8s %s chart support importing on upgraded rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherVersion), func() {
-		testCaseID = 319 // Report to Qase
-		commonchecks(&ctx, cluster)
+	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
+		testCaseID = 316
+		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
 	})
+
 })

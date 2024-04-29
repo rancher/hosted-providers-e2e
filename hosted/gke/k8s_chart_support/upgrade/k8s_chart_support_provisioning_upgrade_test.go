@@ -1,4 +1,4 @@
-package chart_support_test
+package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("K8sChartSupportProvisioning", func() {
+var _ = Describe("K8sChartSupportProvisioningUpgrade", func() {
 
 	var (
 		cluster *management.Cluster
@@ -47,9 +47,9 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 		}
 	})
 
-	It(fmt.Sprintf("should successfully test k8s %s chart support provisioning on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherVersion), func() {
-		testCaseID = 313 // Report to Qase
-		commonChartSupport(&ctx, cluster)
+	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
+		testCaseID = 312 // Report to Qase
+		commonChartSupportUpgrade(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
 	})
 
 })

@@ -1,4 +1,4 @@
-package chart_support_upgrade_test
+package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"
@@ -11,7 +11,6 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
-	"github.com/rancher/shepherd/clients/rancher/catalog"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
@@ -46,10 +45,7 @@ var _ = BeforeSuite(func() {
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
 	By("Adding the necessary chart repos", func() {
-		err := kubectl.RunHelmBinaryWithCustomErr("repo", "add", catalog.RancherChartRepo, "https://charts.rancher.io")
-		Expect(err).To(BeNil())
-		err = kubectl.RunHelmBinaryWithCustomErr("repo", "add", fmt.Sprintf("rancher-%s", helpers.RancherChannel), fmt.Sprintf("https://releases.rancher.com/server-charts/%s", helpers.RancherChannel))
-		Expect(err).To(BeNil())
+		helpers.AddRancherCharts()
 	})
 
 	By(fmt.Sprintf("Installing Rancher Manager v%s", helpers.RancherVersion), func() {
@@ -78,12 +74,7 @@ var _ = AfterEach(func() {
 	})
 
 	By("Uninstalling the existing operator charts", func() {
-		charts := helpers.ListOperatorChart()
-		for _, chart := range charts {
-			args := []string{"uninstall", chart.Name, "--namespace", helpers.CattleSystemNS}
-			err := kubectl.RunHelmBinaryWithCustomErr(args...)
-			Expect(err).To(BeNil())
-		}
+		helpers.UninstallProviderCharts()
 	})
 })
 
@@ -98,7 +89,6 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
-	var newChartVersion, oldChartVersion string
 
 	By("checking cluster name is same", func() {
 		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
@@ -120,10 +110,12 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		Expect(podErrors).To(BeEmpty())
 	})
 
+	var originalChartVersion string
+
 	By("checking the chart version", func() {
-		oldCharts := helpers.ListOperatorChart()
-		oldChartVersion = oldCharts[0].DerivedVersion
-		Expect(oldChartVersion).ToNot(BeEmpty())
+		originalChartVersion = helpers.GetCurrentChartVersion()
+		Expect(originalChartVersion).ToNot(BeEmpty())
+		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
 	})
 
 	By("upgrading rancher", func() {
@@ -177,88 +169,61 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		})
 	})
 
+	var upgradedChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
-
-		Eventually(func() int {
-			charts := helpers.ListOperatorChart()
-			newChartVersion = charts[0].DerivedVersion
-			return helpers.VersionCompare(newChartVersion, oldChartVersion)
-		}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically("==", 1))
-
+		helpers.WaitProviderChartInstallation(originalChartVersion, 1)
+		upgradedChartVersion = helpers.GetCurrentChartVersion()
+		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 	})
 
-	var latestVersion *string
+	var latestK8sVersion *string
 	By(fmt.Sprintf("fetching a list of available k8s versions and ensure the v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
 		versions, err := helper.ListAKSAvailableVersions(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		latestVersion = &versions[len(versions)-1]
-		Expect(latestVersion).To(ContainSubstring(k8sUpgradedVersion))
-		Expect(helpers.VersionCompare(*latestVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
+		latestK8sVersion = &versions[len(versions)-1]
+		Expect(latestK8sVersion).To(ContainSubstring(k8sUpgradedVersion))
+		Expect(helpers.VersionCompare(*latestK8sVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
 
 		currentVersion := cluster.AKSConfig.KubernetesVersion
 
-		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, latestVersion, ctx.RancherClient)
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, latestK8sVersion, ctx.RancherClient)
 		Expect(err).To(BeNil())
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestVersion))
+		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestK8sVersion))
 		for _, np := range cluster.AKSConfig.NodePools {
 			Expect(np.OrchestratorVersion).To(BeEquivalentTo(currentVersion))
 		}
 	})
 
 	By("downgrading the chart version", func() {
-		newCharts := helpers.ListOperatorChart()
-		for _, chart := range newCharts {
-			// helm requires 2 args
-			err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("rancher-charts/%s", chart.Name), "--namespace", helpers.CattleSystemNS, "--version", oldChartVersion, "--wait")
-			Expect(err).To(BeNil())
-		}
-		// wait until the downgraded chart version is same as the old version
-		Eventually(func() int {
-			charts := helpers.ListOperatorChart()
-			downgradedChartVersion := charts[0].DerivedVersion
-			return helpers.VersionCompare(downgradedChartVersion, oldChartVersion)
-		}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically("==", 0))
-
+		helpers.DowngradeProviderChart(originalChartVersion)
 	})
 
 	By("making a change to the cluster to validate functionality after chart downgrade", func() {
 		var err error
-		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, latestVersion, ctx.RancherClient)
+		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, latestK8sVersion, ctx.RancherClient)
 		Expect(err).To(BeNil())
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestVersion))
+		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestK8sVersion))
 		for _, np := range cluster.AKSConfig.NodePools {
-			Expect(np.OrchestratorVersion).To(BeEquivalentTo(latestVersion))
+			Expect(np.OrchestratorVersion).To(BeEquivalentTo(latestK8sVersion))
 		}
 	})
 
 	By("uninstalling the operator chart", func() {
-		charts := helpers.ListOperatorChart()
-		for _, chart := range charts {
-			args := []string{"uninstall", chart.Name, "--namespace", helpers.CattleSystemNS}
-			err := kubectl.RunHelmBinaryWithCustomErr(args...)
-			Expect(err).To(BeNil())
-		}
+		helpers.UninstallProviderCharts()
 	})
 
-	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest version", func() {
+	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
 		currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
 		var err error
 		cluster, err = helper.AddNodePool(cluster, 1, ctx.RancherClient)
 		Expect(err).To(BeNil())
 
-		By("ensuring that the chart is re-installed to the latest version", func() {
-			Eventually(func() int {
-				charts := helpers.ListOperatorChart()
-				if len(charts) == 0 {
-					return 10
-				}
-				reinstalledChartVersion := charts[0].DerivedVersion
-				return helpers.VersionCompare(reinstalledChartVersion, newChartVersion)
-			}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically("==", 0))
+		By("ensuring that the chart is re-installed to the latest/upgraded version", func() {
+			helpers.WaitProviderChartInstallation(upgradedChartVersion, 0)
 
 		})
 

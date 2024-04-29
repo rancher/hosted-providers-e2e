@@ -1,15 +1,12 @@
 package helpers
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"strconv"
 	"strings"
 
-	"github.com/blang/semver"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/rancher/shepherd/extensions/pipeline"
 
@@ -195,49 +192,9 @@ func GetCommonMetadataLabels() map[string]string {
 	}
 }
 
-func SetTempKubeConfig(clusterName string) error {
+func SetTempKubeConfig(clusterName string) {
 	tmpKubeConfig, err := os.CreateTemp("", clusterName)
-	if err != nil {
-		return err
-	}
-	os.Setenv(DownstreamKubeconfig(clusterName), tmpKubeConfig.Name())
-	os.Setenv("KUBECONFIG", tmpKubeConfig.Name())
-	return nil
-}
-
-// ListOperatorChart lists the installed operators charts for a provider in cattle-system
-func ListOperatorChart() (operatorCharts []HelmChart) {
-	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
-	output, err := cmd.Output()
 	Expect(err).To(BeNil())
-	ginkgo.GinkgoLogr.Info(string(output))
-	err = json.Unmarshal(output, &operatorCharts)
-	Expect(err).To(BeNil())
-	for i := range operatorCharts {
-		operatorCharts[i].DerivedVersion = strings.TrimPrefix(operatorCharts[i].Chart, fmt.Sprintf("%s-", operatorCharts[i].Name))
-	}
-	return
-}
-
-// ListChartVersions lists all the available the chart version for a given chart name
-func ListChartVersions(chartName string) (operatorCharts []HelmChart) {
-	cmd := exec.Command("helm", "search", "repo", chartName, "--versions", "-ojson", "--devel")
-	output, err := cmd.Output()
-	Expect(err).To(BeNil())
-	ginkgo.GinkgoLogr.Info(string(output))
-	err = json.Unmarshal(output, &operatorCharts)
-	Expect(err).To(BeNil())
-	return
-}
-
-// VersionCompare compares Versions v to o:
-// -1 == v is less than o
-// 0 == v is equal to o
-// 1 == v is greater than o
-func VersionCompare(latestVersion, oldVersion string) int {
-	latestVer, err := semver.ParseTolerant(latestVersion)
-	Expect(err).To(BeNil())
-	oldVer, err := semver.ParseTolerant(oldVersion)
-	Expect(err).To(BeNil())
-	return latestVer.Compare(oldVer)
+	_ = os.Setenv(DownstreamKubeconfig(clusterName), tmpKubeConfig.Name())
+	_ = os.Setenv("KUBECONFIG", tmpKubeConfig.Name())
 }

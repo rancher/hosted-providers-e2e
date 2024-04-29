@@ -1,4 +1,4 @@
-package chart_support_upgrade_test
+package k8s_chart_support_test
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("K8sChartSupportProvisioningUpgrade", func() {
+var _ = Describe("K8sChartSupportProvisioning", func() {
 	var cluster *management.Cluster
 	BeforeEach(func() {
 		var err error
@@ -37,9 +37,10 @@ var _ = Describe("K8sChartSupportProvisioningUpgrade", func() {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
 	})
-	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
-		testCaseID = 316
-		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
+
+	It(fmt.Sprintf("should successfully test k8s %s chart support provisioning on upgraded rancher %s", k8sVersion, helpers.RancherVersion), func() {
+		testCaseID = 317
+		commonchecks(&ctx, cluster)
 	})
 
 })

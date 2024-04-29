@@ -1,4 +1,4 @@
-package chart_support_test
+package k8s_chart_support_test
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 		}
 	})
 
-	It(fmt.Sprintf("should successfully test k8s %s chart support provisioning on upgraded rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherVersion), func() {
+	It(fmt.Sprintf("should successfully test k8s %s chart support provisioning on upgraded rancher %s", k8sVersion, helpers.RancherVersion), func() {
 		testCaseID = 321 // Report to Qase
 		commonchecks(&ctx, cluster)
 
