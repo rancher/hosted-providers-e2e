@@ -15,6 +15,7 @@ import (
 	"github.com/rancher/shepherd/clients/rancher/catalog"
 )
 
+// AddRancherCharts adds the repo from which rancher can be installed
 func AddRancherCharts() {
 	err := kubectl.RunHelmBinaryWithCustomErr("repo", "add", catalog.RancherChartRepo, "https://charts.rancher.io")
 	Expect(err).To(BeNil())
@@ -22,17 +23,19 @@ func AddRancherCharts() {
 	Expect(err).To(BeNil())
 }
 
-func GetCurrentChartVersion() string {
-	charts := ListProviderChart()
+// GetCurrentOperatorChartVersion returns the current version of a Provider chart.
+func GetCurrentOperatorChartVersion() string {
+	charts := ListOperatorChart()
 	if len(charts) == 0 {
 		return ""
 	}
 	return charts[0].DerivedVersion
 }
 
-func GetDowngradeChartVersion(currentChartVersion string) string {
+// GetDowngradeOperatorChartVersion returns a version to downgrade to from a given chart version.
+func GetDowngradeOperatorChartVersion(currentChartVersion string) string {
 	var chartName string
-	if charts := ListProviderChart(); len(charts) > 0 {
+	if charts := ListOperatorChart(); len(charts) > 0 {
 		chartName = charts[0].Name
 	} else {
 		ginkgo.GinkgoLogr.Info("Could not find downgrade chart; chart is not installed")
@@ -48,22 +51,22 @@ func GetDowngradeChartVersion(currentChartVersion string) string {
 }
 
 func DowngradeProviderChart(downgradeChartVersion string) {
-	currentChartVersion := GetCurrentChartVersion()
+	currentChartVersion := GetCurrentOperatorChartVersion()
 	Expect(currentChartVersion).ToNot(BeEmpty())
-	UpdateProviderChartsVersion(downgradeChartVersion)
+	UpdateOperatorChartsVersion(downgradeChartVersion)
 	Expect(VersionCompare(downgradeChartVersion, currentChartVersion)).To(Equal(-1))
 }
 
-// WaitProviderChartInstallation waits until the current chart version compares to the input chartVersion
+// WaitUntilOperatorChartInstallation waits until the current operator chart version compares to the input chartVersion
 // compareTo value can be 0 if current == input; -1 if current < input; 1 if current > input; defaults to 0
 // compareTo is helpful in case either of the chart version is unknown;
 // for e.g. when after a rancher upgrade, if only the old chart version is known then we can wait until the current chart version is greater than it
-func WaitProviderChartInstallation(chartVersion string, compareTo int) {
+func WaitUntilOperatorChartInstallation(chartVersion string, compareTo int) {
 	if !(compareTo >= -1 && compareTo <= 1) {
 		compareTo = 0
 	}
 	Eventually(func() int {
-		currentChartVersion := GetCurrentChartVersion()
+		currentChartVersion := GetCurrentOperatorChartVersion()
 		if currentChartVersion == "" {
 			return 10
 		}
@@ -72,18 +75,20 @@ func WaitProviderChartInstallation(chartVersion string, compareTo int) {
 
 }
 
-func UpdateProviderChartsVersion(updateChartVersion string) {
-	for _, chart := range ListProviderChart() {
+// UpdateOperatorChartsVersion updates the operator charts to a given chart version and validates that the current version is same as provided
+func UpdateOperatorChartsVersion(updateChartVersion string) {
+	for _, chart := range ListOperatorChart() {
 		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name), "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
 		if err != nil {
-			Expect(err).To(BeNil(), "UpdateProviderChartsVersion Failed")
+			Expect(err).To(BeNil(), "UpdateOperatorChartsVersion Failed")
 		}
 	}
-	WaitProviderChartInstallation(updateChartVersion, 0)
+	Expect(VersionCompare(GetCurrentOperatorChartVersion(), updateChartVersion)).To(Equal(0))
 }
 
-func UninstallProviderCharts() {
-	for _, chart := range ListProviderChart() {
+// UninstallOperatorCharts uninstalls the operator charts
+func UninstallOperatorCharts() {
+	for _, chart := range ListOperatorChart() {
 		args := []string{"uninstall", chart.Name, "--namespace", CattleSystemNS}
 		err := kubectl.RunHelmBinaryWithCustomErr(args...)
 		if err != nil {
@@ -92,8 +97,8 @@ func UninstallProviderCharts() {
 	}
 }
 
-// ListProviderChart lists the installed provider charts for a provider in cattle-system
-func ListProviderChart() (operatorCharts []HelmChart) {
+// ListOperatorChart lists the installed provider charts for a provider in cattle-system; it fetches the provider value using Provider
+func ListOperatorChart() (operatorCharts []HelmChart) {
 	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
 	output, err := cmd.Output()
 	Expect(err).To(BeNil(), "Failed to list chart %s", Provider)
@@ -107,12 +112,12 @@ func ListProviderChart() (operatorCharts []HelmChart) {
 }
 
 // ListChartVersions lists all the available the chart version for a given chart name
-func ListChartVersions(chartName string) (operatorCharts []HelmChart) {
+func ListChartVersions(chartName string) (charts []HelmChart) {
 	cmd := exec.Command("helm", "search", "repo", chartName, "--versions", "-ojson", "--devel")
 	output, err := cmd.Output()
 	Expect(err).To(BeNil())
 	ginkgo.GinkgoLogr.Info(string(output))
-	err = json.Unmarshal(output, &operatorCharts)
+	err = json.Unmarshal(output, &charts)
 	Expect(err).To(BeNil())
 	return
 }
@@ -121,10 +126,10 @@ func ListChartVersions(chartName string) (operatorCharts []HelmChart) {
 // -1 == v is less than o
 // 0 == v is equal to o
 // 1 == v is greater than o
-func VersionCompare(latestVersion, oldVersion string) int {
-	latestVer, err := semver.ParseTolerant(latestVersion)
+func VersionCompare(v, o string) int {
+	latestVer, err := semver.ParseTolerant(v)
 	Expect(err).To(BeNil())
-	oldVer, err := semver.ParseTolerant(oldVersion)
+	oldVer, err := semver.ParseTolerant(o)
 	Expect(err).To(BeNil())
 	return latestVer.Compare(oldVer)
 }

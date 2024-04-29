@@ -195,9 +195,12 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 // Complete cleanup steps for Google GKE
 func DeleteGKEClusterOnGCloud(zone, project, clusterName string) error {
 	currentKubeconfig := os.Getenv("KUBECONFIG")
-	defer os.Setenv("KUBECONFIG", currentKubeconfig)
-
-	os.Setenv("KUBECONFIG", os.Getenv(helpers.DownstreamKubeconfig(clusterName)))
+	downstreamKubeconfig := os.Getenv(helpers.DownstreamKubeconfig(clusterName))
+	defer func() {
+		_ = os.Setenv("KUBECONFIG", currentKubeconfig)
+		_ = os.Remove(downstreamKubeconfig) // clean up
+	}()
+	_ = os.Setenv("KUBECONFIG", downstreamKubeconfig)
 
 	fmt.Println("Deleting GKE cluster ...")
 	args := []string{"container", "clusters", "delete", clusterName, "--zone", zone, "--quiet", "--project", project}

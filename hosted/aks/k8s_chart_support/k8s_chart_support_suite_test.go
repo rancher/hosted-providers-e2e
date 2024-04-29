@@ -9,6 +9,7 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
+	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -39,8 +40,7 @@ var _ = BeforeEach(func() {
 	var err error
 	ctx, err = helpers.CommonBeforeSuite(helpers.Provider)
 	Expect(err).To(BeNil())
-	//clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-	clusterName = "auto-aks-pvala-hp-ci-dlssm"
+	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 	k8sVersion, err = helper.GetK8sVersion(ctx.RancherClient, ctx.CloudCred.ID, location)
 	Expect(err).To(BeNil())
 	Expect(k8sVersion).ToNot(BeEmpty())
@@ -51,7 +51,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 
 	By("Uninstalling the existing operator charts", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 })
 
@@ -69,14 +69,14 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 	var originalChartVersion string
 
 	By("checking the chart version", func() {
-		originalChartVersion = helpers.GetCurrentChartVersion()
+		originalChartVersion = helpers.GetCurrentOperatorChartVersion()
 		Expect(originalChartVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
-
 	})
+
 	var downgradedVersion string
 	By("obtaining a version to downgrade", func() {
-		downgradedVersion = helpers.GetDowngradeChartVersion(originalChartVersion)
+		downgradedVersion = helpers.GetDowngradeOperatorChartVersion(originalChartVersion)
 		Expect(downgradedVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Downgrading to version: " + downgradedVersion)
 	})
@@ -98,7 +98,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 	})
 
 	By("uninstalling the operator chart", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 
 	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
@@ -108,7 +108,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/original version", func() {
-			helpers.WaitProviderChartInstallation(originalChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 0)
 		})
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)

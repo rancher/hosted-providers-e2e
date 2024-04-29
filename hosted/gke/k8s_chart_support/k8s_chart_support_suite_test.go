@@ -51,7 +51,7 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	By("Uninstalling the existing operator charts", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 })
 
@@ -69,14 +69,14 @@ var _ = ReportAfterEach(func(report SpecReport) {
 func commonChartSupport(ctx *helpers.Context, cluster *management.Cluster) {
 	var originalChartVersion string
 	By("checking the chart version", func() {
-		originalChartVersion = helpers.GetCurrentChartVersion()
+		originalChartVersion = helpers.GetCurrentOperatorChartVersion()
 		Expect(originalChartVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
 	})
 
 	var downgradedVersion string
 	By("obtaining a version to downgrade", func() {
-		downgradedVersion = helpers.GetDowngradeChartVersion(originalChartVersion)
+		downgradedVersion = helpers.GetDowngradeOperatorChartVersion(originalChartVersion)
 		Expect(downgradedVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Downgrading to version: " + downgradedVersion)
 	})
@@ -93,12 +93,12 @@ func commonChartSupport(ctx *helpers.Context, cluster *management.Cluster) {
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.GKEConfig.NodePools {
-			Expect(*cluster.GKEConfig.NodePools[i].InitialNodeCount).To(BeNumerically(">", initialNodeCount))
+			Expect(*cluster.GKEConfig.NodePools[i].InitialNodeCount).To(BeNumerically("==", initialNodeCount+1))
 		}
 	})
 
 	By("uninstalling the operator chart", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 
 	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/original version", func() {
@@ -108,7 +108,7 @@ func commonChartSupport(ctx *helpers.Context, cluster *management.Cluster) {
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/original version", func() {
-			helpers.WaitProviderChartInstallation(originalChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 0)
 		})
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)

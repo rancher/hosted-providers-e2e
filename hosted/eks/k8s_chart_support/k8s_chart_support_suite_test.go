@@ -55,7 +55,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 
 	By("Uninstalling the existing operator charts", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 })
 
@@ -73,14 +73,14 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 	var originalChartVersion string
 
 	By("checking the chart version", func() {
-		originalChartVersion = helpers.GetCurrentChartVersion()
+		originalChartVersion = helpers.GetCurrentOperatorChartVersion()
 		Expect(originalChartVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
 	})
 
 	var downgradedVersion string
 	By("obtaining a version to downgrade", func() {
-		downgradedVersion = helpers.GetDowngradeChartVersion(originalChartVersion)
+		downgradedVersion = helpers.GetDowngradeOperatorChartVersion(originalChartVersion)
 		Expect(downgradedVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Downgrading to version: " + downgradedVersion)
 	})
@@ -92,7 +92,6 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 	initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
 
 	By("making a change(scaling nodegroup up) to the cluster to validate functionality after chart downgrade", func() {
-
 		var err error
 		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherClient, initialNodeCount+1)
 		Expect(err).To(BeNil())
@@ -104,7 +103,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 	})
 
 	By("uninstalling the operator chart", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 
 	By("making a change(scaling nodegroup down) to the cluster to re-install the operator and validating it is re-installed to the latest/original version", func() {
@@ -113,7 +112,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/original version", func() {
-			helpers.WaitProviderChartInstallation(originalChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 0)
 		})
 
 		// We do not use WaitClusterToBeUpgraded because it has been flaky here and times out

@@ -75,7 +75,7 @@ var _ = AfterEach(func() {
 	})
 
 	By("Uninstalling the existing operator charts", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 })
 
@@ -113,7 +113,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 	var originalChartVersion string
 	By("checking the chart version", func() {
-		originalChartVersion = helpers.GetCurrentChartVersion()
+		originalChartVersion = helpers.GetCurrentOperatorChartVersion()
 		Expect(originalChartVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
 	})
@@ -171,8 +171,8 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 	var upgradedChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
-		helpers.WaitProviderChartInstallation(originalChartVersion, 1)
-		upgradedChartVersion = helpers.GetCurrentChartVersion()
+		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 1)
+		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 	})
 
@@ -211,7 +211,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 	})
 
 	By("uninstalling the operator chart", func() {
-		helpers.UninstallProviderCharts()
+		helpers.UninstallOperatorCharts()
 	})
 
 	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
@@ -221,7 +221,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/upgraded version", func() {
-			helpers.WaitProviderChartInstallation(upgradedChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, 0)
 		})
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
