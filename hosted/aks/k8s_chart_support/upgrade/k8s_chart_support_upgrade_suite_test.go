@@ -30,9 +30,9 @@ var (
 	location                = helpers.GetAKSLocation()
 )
 
-func TestK8sChartSupport(t *testing.T) {
+func TestK8sChartSupportUpgrade(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "K8sChartSupport Upgrade Suite")
+	RunSpecs(t, "K8sChartSupportUpgrade Suite")
 }
 
 var _ = BeforeSuite(func() {

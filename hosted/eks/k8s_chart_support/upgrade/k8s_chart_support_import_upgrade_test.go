@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("K8sChartSupportImportUpgrade", func() {
+var _ = Describe("K8sChartSupportUpgradeImport", func() {
 	var cluster *management.Cluster
 	BeforeEach(func() {
 		var err error

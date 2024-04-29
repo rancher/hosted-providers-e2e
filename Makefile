@@ -81,10 +81,10 @@ e2e-support-matrix-provisioning-tests: deps ## Run the 'SupportMatrixProvisionin
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "SupportMatrixProvisioning" ./hosted/${PROVIDER}/support_matrix/
 
 e2e-k8s-chart-support-importing-tests-upgrade: deps ## Run the 'K8sChartSupportImport' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportImportUpgrade" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportUpgradeImport" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
 
 e2e-k8s-chart-support-provisioning-tests-upgrade: deps ## Run the 'K8sChartSupportProvisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportProvisioningUpgrade" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportUpgradeProvisioning" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
 
 e2e-k8s-chart-support-importing-tests: deps ## Run the 'K8sChartSupportImport' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportImport" ./hosted/${PROVIDER}/k8s_chart_support
