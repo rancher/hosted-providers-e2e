@@ -38,7 +38,8 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 		}
 	})
 
-	It(fmt.Sprintf("should successfully test k8s %s chart support provisioning on upgraded rancher %s", k8sVersion, helpers.RancherVersion), func() {
+	It("should successfully test k8s chart support provisioning", func() {
+		GinkgoLogr.Info(fmt.Sprintf("Provision testing on K8s %s on Rancher %s", k8sVersion, helpers.RancherVersion))
 		testCaseID = 317
 		commonchecks(&ctx, cluster)
 	})

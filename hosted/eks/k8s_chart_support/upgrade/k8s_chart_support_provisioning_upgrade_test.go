@@ -37,7 +37,9 @@ var _ = Describe("K8sChartSupportUpgradeProvisioning", func() {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
 	})
-	It(fmt.Sprintf("should successfully test k8s %s chart support on rancher %s", helpers.K8sUpgradedMinorVersion, helpers.RancherUpgradeVersion), func() {
+	It("should successfully test k8s chart support provisioning in an upgrade scenario", func() {
+		GinkgoLogr.Info(fmt.Sprintf("Testing K8s %s chart support for provisioning on Rancher upgraded from %s to %s", helpers.K8sUpgradedMinorVersion, helpers.RancherVersion, helpers.RancherUpgradeVersion))
+
 		testCaseID = 316
 		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
 	})
