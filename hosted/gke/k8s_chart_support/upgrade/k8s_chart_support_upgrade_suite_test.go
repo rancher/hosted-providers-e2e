@@ -2,12 +2,12 @@ package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
@@ -169,7 +169,8 @@ func commonChartSupportUpgrade(ctx *helpers.Context, cluster *management.Cluster
 	var upgradedChartVersion string
 
 	By("checking the chart version and validating it is > the old version", func() {
-		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 1)
+		// the chart is sometimes auto-upgraded to the latest version (mostly happens when running the test on un-rc-ed charts, so we check with `>=`
+		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, ">=", 0)
 		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 
@@ -178,7 +179,14 @@ func commonChartSupportUpgrade(ctx *helpers.Context, cluster *management.Cluster
 	By(fmt.Sprintf("fetching a list of available k8s versions and ensuring v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
 		versions, err := helper.ListGKEAvailableVersions(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
-		latestVersion := versions[len(versions)-1]
+		highestSupportedVersionByUI := helpers.HighestK8sVersionSupportedByUI(ctx.RancherClient)
+		var latestVersion string
+		for _, v := range versions {
+			if strings.Contains(v, highestSupportedVersionByUI) {
+				latestVersion = v
+			}
+		}
+		//latestVersion := versions[len(versions)-1]
 		Expect(latestVersion).To(ContainSubstring(k8sUpgradedVersion))
 		Expect(helpers.VersionCompare(latestVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
 
@@ -192,8 +200,13 @@ func commonChartSupportUpgrade(ctx *helpers.Context, cluster *management.Cluster
 		}
 	})
 
+	var downgradeVersion string
+	By("fetching a value to downgrade to", func() {
+		downgradeVersion = helpers.GetDowngradeOperatorChartVersion(upgradedChartVersion)
+	})
+
 	By("downgrading the chart version", func() {
-		helpers.DowngradeProviderChart(originalChartVersion)
+		helpers.DowngradeProviderChart(downgradeVersion)
 	})
 
 	By("making a change to the cluster to validate functionality after chart downgrade", func() {
@@ -219,7 +232,7 @@ func commonChartSupportUpgrade(ctx *helpers.Context, cluster *management.Cluster
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/upgraded version", func() {
-			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, "", 0)
 		})
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)

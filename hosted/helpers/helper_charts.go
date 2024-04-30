@@ -60,8 +60,12 @@ func DowngradeProviderChart(downgradeChartVersion string) {
 // WaitUntilOperatorChartInstallation waits until the current operator chart version compares to the input chartVersion
 // compareTo value can be 0 if current == input; -1 if current < input; 1 if current > input; defaults to 0
 // compareTo is helpful in case either of the chart version is unknown;
-// for e.g. when after a rancher upgrade, if only the old chart version is known then we can wait until the current chart version is greater than it
-func WaitUntilOperatorChartInstallation(chartVersion string, compareTo int) {
+// for e.g. after a rancher upgrade, if only the old chart version is known then we can wait until the current chart version is greater than it
+func WaitUntilOperatorChartInstallation(chartVersion, comparator string, compareTo int) {
+	if comparator == "" {
+		comparator = "=="
+	}
+
 	if !(compareTo >= -1 && compareTo <= 1) {
 		compareTo = 0
 	}
@@ -71,7 +75,7 @@ func WaitUntilOperatorChartInstallation(chartVersion string, compareTo int) {
 			return 10
 		}
 		return VersionCompare(currentChartVersion, chartVersion)
-	}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically("==", compareTo))
+	}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically(comparator, compareTo))
 
 }
 

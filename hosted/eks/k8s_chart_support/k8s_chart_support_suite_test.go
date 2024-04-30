@@ -112,7 +112,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/original version", func() {
-			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "", 0)
 		})
 
 		// We do not use WaitClusterToBeUpgraded because it has been flaky here and times out

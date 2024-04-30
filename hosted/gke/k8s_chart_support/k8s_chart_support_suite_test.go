@@ -108,7 +108,7 @@ func commonChartSupport(ctx *helpers.Context, cluster *management.Cluster) {
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/original version", func() {
-			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 0)
+			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "", 0)
 		})
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)

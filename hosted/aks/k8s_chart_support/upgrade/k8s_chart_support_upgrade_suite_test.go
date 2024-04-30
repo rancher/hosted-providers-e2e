@@ -171,7 +171,8 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 	var upgradedChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
-		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 1)
+		// the chart is sometimes auto-upgraded to the latest version (mostly happens when running the test on un-rc-ed charts, so we check with `>=`
+		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, ">=", 0)
 		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 	})
@@ -181,7 +182,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		versions, err := helper.ListAKSAvailableVersions(ctx.RancherClient, cluster.ID)
 		Expect(err).To(BeNil())
 		latestK8sVersion = &versions[len(versions)-1]
-		Expect(latestK8sVersion).To(ContainSubstring(k8sUpgradedVersion))
+		Expect(*latestK8sVersion).To(ContainSubstring(k8sUpgradedVersion))
 		Expect(helpers.VersionCompare(*latestK8sVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
 
 		currentVersion := cluster.AKSConfig.KubernetesVersion
@@ -196,8 +197,13 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		}
 	})
 
+	var downgradeVersion string
+	By("fetching a value to downgrade to", func() {
+		downgradeVersion = helpers.GetDowngradeOperatorChartVersion(upgradedChartVersion)
+	})
+
 	By("downgrading the chart version", func() {
-		helpers.DowngradeProviderChart(originalChartVersion)
+		helpers.DowngradeProviderChart(downgradeVersion)
 	})
 
 	By("making a change to the cluster to validate functionality after chart downgrade", func() {
@@ -223,8 +229,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		Expect(err).To(BeNil())
 
 		By("ensuring that the chart is re-installed to the latest/upgraded version", func() {
-			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, 0)
-
+			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, "", 0)
 		})
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
