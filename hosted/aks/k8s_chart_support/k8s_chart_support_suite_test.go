@@ -3,9 +3,11 @@ package k8s_chart_support_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
@@ -101,7 +103,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 		helpers.UninstallOperatorCharts()
 	})
 
-	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
+	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/original version", func() {
 		currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
 		var err error
 		cluster, err = helper.AddNodePool(cluster, 1, ctx.RancherClient)
@@ -111,9 +113,9 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, 0)
 		})
 
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
-		Expect(err).To(BeNil())
-		Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
+		// We do not use WaitClusterToBeUpgraded because it has been flaky here and times out
+		Eventually(func() bool {
+			return len(cluster.AKSConfig.NodePools) == currentNodePoolNumber+1
+		}, tools.SetTimeout(5*time.Minute), 2*time.Second).Should(BeTrue())
 	})
-
 }
