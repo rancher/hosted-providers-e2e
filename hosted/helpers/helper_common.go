@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"strconv"
 	"strings"
 
 	"github.com/blang/semver"
@@ -28,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CommonBeforeSuite(cloud string) (Context, error) {
+func CommonBeforeSuite(cloud string) Context {
 
 	rancherConfig := new(rancher.Config)
 	Eventually(rancherConfig, "10s").ShouldNot(BeNil())
@@ -86,13 +85,12 @@ func CommonBeforeSuite(cloud string) (Context, error) {
 		Expect(err).To(BeNil())
 	}
 
-	clusterCleanup, _ := strconv.ParseBool(os.Getenv("DOWNSTREAM_CLUSTER_CLEANUP"))
 	return Context{
 		CloudCred:      cloudCredential,
 		RancherClient:  rancherClient,
 		Session:        testSession,
 		ClusterCleanup: clusterCleanup,
-	}, nil
+	}
 }
 
 // WaitUntilClusterIsReady waits until the cluster is in a Ready state,
