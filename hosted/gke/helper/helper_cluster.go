@@ -166,7 +166,7 @@ func GetK8sVersionVariantGKE(minorVersion string, client *rancher.Client, projec
 }
 
 // Create Google GKE cluster using gcloud CLI
-func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k8sVersion string) error {
+func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k8sVersion string, extraArgs ...string) error {
 
 	labels := GetLabels()
 	labelsAsString := k8slabels.SelectorFromSet(labels).String()
@@ -181,6 +181,7 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 
 	fmt.Println("Creating GKE cluster ...")
 	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks"}
+	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)
 	if err != nil {

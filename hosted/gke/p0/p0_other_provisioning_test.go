@@ -119,14 +119,25 @@ var _ = Describe("P0OtherProvisioning", func() {
 		})
 
 		It("should be able to update mutable parameter", func() {
-			testCaseID = 36
-			updateLoggingAndMonitoringServiceCheck(ctx, cluster)
+			testCaseID = 59
+			By("disabling the services", func() {
+				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "none", "none")
+			})
+			By("enabling the services", func() {
+				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "monitoring.googleapis.com/kubernetes", "logging.googleapis.com/kubernetes")
+			})
 		})
 
 		It("should be able to update autoscaling", func() {
-			testCaseID = 38
-			updateAutoScaling(ctx, cluster)
+			testCaseID = 61
+			By("enabling autoscaling", func() {
+				updateAutoScaling(ctx, cluster, true)
+			})
+			By("disabling autoscaling", func() {
+				updateAutoScaling(ctx, cluster, false)
+			})
 		})
+
 	})
 
 })

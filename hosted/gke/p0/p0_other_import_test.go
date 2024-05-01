@@ -14,40 +14,52 @@ import (
 )
 
 var _ = Describe("P0OtherImport", func() {
+	var cluster *management.Cluster
+	var (
+		originalConfig = new(management.GKEClusterConfigSpec)
+	)
+
+	BeforeEach(func() {
+		config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, originalConfig)
+
+		gkeConfig := new(helper.ImportClusterConfig)
+		config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
+			gkeConfig.ProjectID = project
+			gkeConfig.Zone = zone
+			labels := helper.GetLabels()
+			gkeConfig.Labels = &labels
+			for _, np := range gkeConfig.NodePools {
+				np.Version = &k8sVersion
+			}
+		})
+	})
+	AfterEach(func() {
+		if ctx.ClusterCleanup {
+			if cluster != nil {
+				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
+				Expect(err).To(BeNil())
+				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
+				Expect(err).To(BeNil())
+			}
+		} else {
+			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+		}
+		config.UpdateConfig(gke.GKEClusterConfigConfigurationFileKey, originalConfig)
+	})
+
 	When("a cluster is created", func() {
-		var cluster *management.Cluster
 
 		BeforeEach(func() {
 			var err error
 			err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
 			Expect(err).To(BeNil())
 
-			gkeConfig := new(helper.ImportClusterConfig)
-			config.LoadAndUpdateConfig(gke.GKEClusterConfigConfigurationFileKey, gkeConfig, func() {
-				gkeConfig.ProjectID = project
-				gkeConfig.Zone = zone
-				labels := helper.GetLabels()
-				gkeConfig.Labels = &labels
-				for _, np := range gkeConfig.NodePools {
-					np.Version = &k8sVersion
-				}
-			})
 			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
 			// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
 			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
-		})
-		AfterEach(func() {
-			if ctx.ClusterCleanup {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
 		})
 
 		It("should fail to reimport an imported cluster", func() {
@@ -59,12 +71,22 @@ var _ = Describe("P0OtherImport", func() {
 
 		It("should be able to update mutable parameter", func() {
 			testCaseID = 59
-			updateLoggingAndMonitoringServiceCheck(ctx, cluster)
+			By("disabling the services", func() {
+				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "none", "none")
+			})
+			By("enabling the services", func() {
+				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "monitoring.googleapis.com/kubernetes", "logging.googleapis.com/kubernetes")
+			})
 		})
 
 		It("should be able to update autoscaling", func() {
 			testCaseID = 61
-			updateAutoScaling(ctx, cluster)
+			By("enabling autoscaling", func() {
+				updateAutoScaling(ctx, cluster, true)
+			})
+			By("disabling autoscalling", func() {
+				updateAutoScaling(ctx, cluster, false)
+			})
 		})
 
 		It("should be able to reimport a deleted cluster", func() {
@@ -77,4 +99,5 @@ var _ = Describe("P0OtherImport", func() {
 			Expect(err).To(BeNil())
 		})
 	})
+
 })

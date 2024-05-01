@@ -22,8 +22,6 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
-	"k8s.io/utils/pointer"
-
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
@@ -66,52 +64,32 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 // updateLoggingAndMonitoringServiceCheck tests updating `loggingService` and `monitoringService`
-func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *management.Cluster) {
+func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *management.Cluster, updateMonitoringValue, updateLoggingValue string) {
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.GKEConfig = cluster.GKEConfig
 
-	var updateMonitoringValue, updateLoggingValue *string
+	upgradedCluster.GKEConfig.LoggingService = &updateLoggingValue
+	upgradedCluster.GKEConfig.MonitoringService = &updateMonitoringValue
 
-	if *cluster.GKEConfig.MonitoringService == "none" {
-		updateMonitoringValue = pointer.String("monitoring.googleapis.com/kubernetes")
-	} else {
-		updateMonitoringValue = pointer.String("none")
-	}
-
-	if *cluster.GKEConfig.LoggingService == "none" {
-		updateLoggingValue = pointer.String("logging.googleapis.com/kubernetes")
-	} else {
-		updateLoggingValue = pointer.String("none")
-	}
-
-	By("updating loggingService", func() {
-		upgradedCluster.GKEConfig.LoggingService = updateLoggingValue
-	})
-	By("updating monitoringService", func() {
-		upgradedCluster.GKEConfig.MonitoringService = updateMonitoringValue
-	})
 	cluster, err := ctx.RancherClient.Management.Cluster.Update(cluster, &upgradedCluster)
 	Expect(err).To(BeNil())
 	err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 	Expect(err).To(BeNil())
-	Expect(cluster.GKEConfig.MonitoringService).To(BeEquivalentTo(updateMonitoringValue))
-	Expect(cluster.GKEConfig.LoggingService).To(BeEquivalentTo(updateLoggingValue))
+
+	Expect(*cluster.GKEConfig.MonitoringService).To(BeEquivalentTo(updateMonitoringValue))
+	Expect(*cluster.GKEConfig.LoggingService).To(BeEquivalentTo(updateLoggingValue))
 }
 
 // updateAutoScaling tests updating `autoscaling` for GKE node pools
-func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster) {
+func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster, autoscale bool) {
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.GKEConfig = cluster.GKEConfig
-	var enabled bool
-	for _, np := range upgradedCluster.GKEConfig.NodePools {
-		if np.Autoscaling.Enabled {
-			enabled = false
-		} else {
-			enabled = true
+	for i := range upgradedCluster.GKEConfig.NodePools {
+		upgradedCluster.GKEConfig.NodePools[i].Autoscaling = &management.GKENodePoolAutoscaling{
+			Enabled: autoscale,
 		}
-		np.Autoscaling.Enabled = enabled
 	}
 
 	cluster, err := ctx.RancherClient.Management.Cluster.Update(cluster, &upgradedCluster)
@@ -120,6 +98,6 @@ func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster) {
 	Expect(err).To(BeNil())
 
 	for _, np := range upgradedCluster.GKEConfig.NodePools {
-		Expect(np.Autoscaling.Enabled).To(BeEquivalentTo(enabled))
+		Expect(np.Autoscaling.Enabled).To(BeEquivalentTo(autoscale))
 	}
 }
