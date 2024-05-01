@@ -10,6 +10,7 @@ import (
 	"github.com/rancher/shepherd/pkg/config"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
+	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var _ = Describe("P1Provisioning", func() {
@@ -111,10 +112,9 @@ var _ = Describe("P1Provisioning", func() {
 
 		BeforeEach(func() {
 			var err error
-			//cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
-			//Expect(err).To(BeNil())
-			//cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
-			cluster, err = ctx.RancherClient.Management.Cluster.ByID("c-v5td6")
+			cluster, err = gke.CreateGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
 		})
 

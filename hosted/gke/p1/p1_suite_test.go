@@ -22,6 +22,7 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
+	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -48,8 +49,7 @@ var _ = BeforeEach(func() {
 	var err error
 	ctx, err = helpers.CommonBeforeSuite(helpers.Provider)
 	Expect(err).To(BeNil())
-	//clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-	clusterName = "auto-gke-hp-ci-ftyju"
+	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 	k8sVersion, err = helper.GetK8sVersion(ctx.RancherClient, project, ctx.CloudCred.ID, zone, "")
 	Expect(err).To(BeNil())
 })
