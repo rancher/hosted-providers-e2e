@@ -1,4 +1,4 @@
-package p0_test
+package p1_test
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("P0OtherImport", func() {
+var _ = Describe("P1Importing", func() {
 	var cluster *management.Cluster
 	var (
 		originalConfig = new(management.GKEClusterConfigSpec)
@@ -34,16 +34,6 @@ var _ = Describe("P0OtherImport", func() {
 		})
 	})
 	AfterEach(func() {
-		if ctx.ClusterCleanup {
-			if cluster != nil {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
-				Expect(err).To(BeNil())
-			}
-		} else {
-			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-		}
 		config.UpdateConfig(gke.GKEClusterConfigConfigurationFileKey, originalConfig)
 	})
 
@@ -60,6 +50,17 @@ var _ = Describe("P0OtherImport", func() {
 			Expect(err).To(BeNil())
 			// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
 			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
+		})
+
+		AfterEach(func() {
+			if ctx.ClusterCleanup {
+				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
+				Expect(err).To(BeNil())
+				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
+				Expect(err).To(BeNil())
+			} else {
+				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+			}
 		})
 
 		It("should fail to reimport an imported cluster", func() {
