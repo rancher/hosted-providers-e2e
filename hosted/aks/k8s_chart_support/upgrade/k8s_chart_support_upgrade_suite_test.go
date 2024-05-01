@@ -60,7 +60,7 @@ var _ = BeforeEach(func() {
 	Expect(err).To(BeNil())
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 
-	k8sVersion, err = helper.DefaultAKS(ctx.RancherClient, ctx.CloudCred.ID, location)
+	k8sVersion, err = helper.GetK8sVersion(ctx.RancherClient, ctx.CloudCred.ID, location)
 	Expect(err).To(BeNil())
 	Expect(k8sVersion).ToNot(BeEmpty())
 	GinkgoLogr.Info(fmt.Sprintf("Using AKS version %s", k8sVersion))

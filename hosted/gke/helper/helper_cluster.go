@@ -263,8 +263,8 @@ type ImportClusterConfig struct {
 	Labels    *map[string]string              `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
-// DefaultGKE returns the default GKE version used by Rancher
-func DefaultGKE(client *rancher.Client, projectID, cloudCredentialID, zone, region string) (defaultGKE string, err error) {
+// defaultGKE returns the default GKE version used by Rancher
+func defaultGKE(client *rancher.Client, projectID, cloudCredentialID, zone, region string) (defaultGKE string, err error) {
 	url := fmt.Sprintf("%s://%s/meta/gkeVersions", "https", client.RancherConfig.Host)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -309,5 +309,5 @@ func GetK8sVersion(client *rancher.Client, projectID, cloudCredentialID, zone, r
 	if k8sMinorVersion := helpers.DownstreamK8sMinorVersion; k8sMinorVersion != "" {
 		return GetK8sVersionVariantGKE(k8sMinorVersion, client, projectID, cloudCredentialID, zone, region)
 	}
-	return DefaultGKE(client, projectID, cloudCredentialID, zone, region)
+	return defaultGKE(client, projectID, cloudCredentialID, zone, region)
 }

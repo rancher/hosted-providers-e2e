@@ -47,7 +47,6 @@ var _ = Describe("K8sChartSupportImport", func() {
 	})
 
 	It("should successfully test k8s chart support import", func() {
-		GinkgoLogr.Info(fmt.Sprintf("Import testing on K8s %s on Rancher %s", k8sVersion, helpers.RancherVersion))
 		testCaseID = 319 // Report to Qase
 		commonchecks(&ctx, cluster)
 	})

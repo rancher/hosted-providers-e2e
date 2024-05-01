@@ -59,7 +59,7 @@ var _ = BeforeEach(func() {
 	ctx, err = helpers.CommonBeforeSuite(helpers.Provider)
 	Expect(err).To(BeNil())
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-	k8sVersion, err = helper.DefaultEKS(ctx.RancherClient)
+	k8sVersion, err = helper.GetK8sVersion(ctx.RancherClient)
 	Expect(err).To(BeNil())
 	Expect(k8sVersion).ToNot(BeEmpty())
 	GinkgoLogr.Info(fmt.Sprintf("Using EKS version %s", k8sVersion))

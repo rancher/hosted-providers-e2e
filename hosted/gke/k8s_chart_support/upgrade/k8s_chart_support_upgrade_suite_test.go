@@ -57,7 +57,7 @@ var _ = BeforeEach(func() {
 	Expect(err).To(BeNil())
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 
-	k8sVersion, err = helper.DefaultGKE(ctx.RancherClient, project, ctx.CloudCred.ID, zone, "")
+	k8sVersion, err = helper.GetK8sVersion(ctx.RancherClient, project, ctx.CloudCred.ID, zone, "")
 	Expect(err).To(BeNil())
 	GinkgoLogr.Info(fmt.Sprintf("Using GKE version %s", k8sVersion))
 

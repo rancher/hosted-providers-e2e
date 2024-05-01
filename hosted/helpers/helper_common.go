@@ -205,6 +205,7 @@ func HighestK8sVersionSupportedByUI(client *rancher.Client) (value string) {
 	uiValue, err := client.Management.Setting.ByID("ui-k8s-default-version-range")
 	Expect(err).To(BeNil())
 	value = uiValue.Value
+	Expect(value).ToNot(BeEmpty())
 	value = strings.TrimPrefix(value, "<=v")
 	value = strings.TrimSuffix(value, ".x")
 	return value
