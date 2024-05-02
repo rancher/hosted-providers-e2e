@@ -94,6 +94,11 @@ var _ = Describe("P1Importing", func() {
 			testCaseID = 85
 			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
+			clusterID := cluster.ID
+			Eventually(func() error {
+				_, err := ctx.RancherClient.Management.Cluster.ByID(clusterID)
+				return err
+			}, "10s", "1s").ShouldNot(BeNil())
 			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
