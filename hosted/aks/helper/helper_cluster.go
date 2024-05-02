@@ -276,7 +276,7 @@ type ImportClusterConfig struct {
 }
 
 // defaultAKS returns the default AKS version used by Rancher
-func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defaultEKS string, err error) {
+func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defaultAKS string, err error) {
 	url := fmt.Sprintf("%s://%s/meta/aksVersions", "https", client.RancherConfig.Host)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -303,13 +303,13 @@ func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defau
 		return
 	}
 
-	maxRange := helpers.HighestK8sVersionSupportedByUI(client)
+	maxValue := helpers.HighestK8sVersionSupportedByUI(client)
 
 	// Iterate in the reverse order to get the highest version
 	// We obtain the value similar to UI; ref: https://github.com/rancher/ui/blob/master/lib/shared/addon/components/cluster-driver/driver-azureaks/component.js#L140
 	for i := len(versions) - 1; i >= 0; i-- {
-		if strings.Contains(versions[i], maxRange) {
-			defaultEKS = versions[i]
+		if strings.Contains(versions[i], maxValue) {
+			defaultAKS = versions[i]
 			return
 		}
 	}

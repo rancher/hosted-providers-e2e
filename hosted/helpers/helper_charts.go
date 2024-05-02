@@ -57,7 +57,8 @@ func DowngradeProviderChart(downgradeChartVersion string) {
 	Expect(VersionCompare(downgradeChartVersion, currentChartVersion)).To(Equal(-1))
 }
 
-// WaitUntilOperatorChartInstallation waits until the current operator chart version compares to the input chartVersion
+// WaitUntilOperatorChartInstallation waits until the current operator chart version compares to the input chartVersion using the comparator.
+// comparator values can be >,<,<=,>=,==,!=
 // compareTo value can be 0 if current == input; -1 if current < input; 1 if current > input; defaults to 0
 // compareTo is helpful in case either of the chart version is unknown;
 // for e.g. after a rancher upgrade, if only the old chart version is known then we can wait until the current chart version is greater than it
