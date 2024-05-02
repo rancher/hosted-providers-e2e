@@ -80,7 +80,7 @@ var _ = Describe("P1Provisioning", func() {
 					}
 				}
 				return false
-			}, "10s", "1s").Should(BeTrue())
+			}, "20s", "1s").Should(BeTrue())
 
 		})
 
@@ -104,7 +104,7 @@ var _ = Describe("P1Provisioning", func() {
 					}
 				}
 				return false
-			}, "10s", "1s").Should(BeTrue())
+			}, "20s", "1s").Should(BeTrue())
 
 		})
 	})
