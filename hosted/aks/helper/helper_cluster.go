@@ -89,11 +89,11 @@ func ListSingleVariantAKSAvailableVersions(client *rancher.Client, cloudCredenti
 			oldMinor = currentMinor
 		}
 	}
-	return singleVersionList, nil
+	return helpers.FilterUIUnsupportedVersions(singleVersionList, client), nil
 }
 
 // GetK8sVersionVariantAKS returns a variant of a given minor K8s version
-func GetK8sVersionVariantAKS(minorVersion string, client *rancher.Client, cloudCredentialID, region string) (version string, err error) {
+func GetK8sVersionVariantAKS(minorVersion string, client *rancher.Client, cloudCredentialID, region string) (string, error) {
 	versions, err := ListSingleVariantAKSAvailableVersions(client, cloudCredentialID, region)
 	if err != nil {
 		return "", err
@@ -165,13 +165,17 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 }
 
 // ListAKSAvailableVersions is a function to list and return only available AKS versions for a specific cluster.
-func ListAKSAvailableVersions(client *rancher.Client, clusterID string) (availableVersions []string, err error) {
+func ListAKSAvailableVersions(client *rancher.Client, clusterID string) ([]string, error) {
 	// kubernetesversions.ListAKSAvailableVersions expects cluster.Version.GitVersion to be available, which it is not sometimes, so we fetch the cluster again to ensure it has all the available data
 	cluster, err := client.Management.Cluster.ByID(clusterID)
 	if err != nil {
 		return nil, err
 	}
-	return kubernetesversions.ListAKSAvailableVersions(client, cluster)
+	allAvailableVersions, err := kubernetesversions.ListAKSAvailableVersions(client, cluster)
+	if err != nil {
+		return nil, err
+	}
+	return helpers.FilterUIUnsupportedVersions(allAvailableVersions, client), nil
 }
 
 // Create Azure AKS cluster using AZ CLI
@@ -305,12 +309,11 @@ func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defau
 
 	maxValue := helpers.HighestK8sMinorVersionSupportedByUI(client)
 
-	// Iterate in the reverse order to get the highest version
+	// Compare with value obtained from helpers.HighestK8sMinorVersionSupportedByUI to get the second-highest version so that upgrade tests can be done
 	// We obtain the value similar to UI; ref: https://github.com/rancher/ui/blob/master/lib/shared/addon/components/cluster-driver/driver-azureaks/component.js#L140
-	for i := len(versions) - 1; i >= 0; i-- {
-		if strings.Contains(versions[i], maxValue) {
-			defaultAKS = versions[i]
-			return
+	for _, v := range versions {
+		if strings.Contains(v, maxValue) {
+			return v, nil
 		}
 	}
 
