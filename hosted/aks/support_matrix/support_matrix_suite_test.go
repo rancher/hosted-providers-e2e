@@ -18,6 +18,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rancher-sandbox/qase-ginkgo"
+	"github.com/rancher/shepherd/clients/rancher"
+	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters"
+	nodestat "github.com/rancher/shepherd/extensions/nodes"
+	"github.com/rancher/shepherd/extensions/workloads/pods"
 
 	"testing"
 
@@ -52,3 +57,25 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	// Add result in Qase if asked
 	Qase(testCaseID, report)
 })
+
+func supportMatrixChecks(client *rancher.Client, cluster *management.Cluster, clusterName string) {
+	By("checking cluster name is same", func() {
+		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
+	})
+
+	By("checking service account token secret", func() {
+		success, err := clusters.CheckServiceAccountTokenSecret(client, clusterName)
+		Expect(err).To(BeNil())
+		Expect(success).To(BeTrue())
+	})
+
+	By("checking all management nodes are ready", func() {
+		err := nodestat.AllManagementNodeReady(client, cluster.ID, helpers.Timeout)
+		Expect(err).To(BeNil())
+	})
+
+	By("checking all pods are ready", func() {
+		podErrors := pods.StatusPods(client, cluster.ID)
+		Expect(podErrors).To(BeEmpty())
+	})
+}
