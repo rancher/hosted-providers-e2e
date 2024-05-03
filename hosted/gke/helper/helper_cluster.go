@@ -180,7 +180,7 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	helpers.SetTempKubeConfig(clusterName)
 
 	fmt.Println("Creating GKE cluster ...")
-	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-cloud-logging", "--no-enable-cloud-monitoring", "--no-enable-master-authorized-networks"}
+	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks"}
 	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)

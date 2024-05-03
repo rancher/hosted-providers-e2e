@@ -1,6 +1,7 @@
 package p1_test
 
 import (
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -116,6 +117,17 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
 			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			if ctx.ClusterCleanup {
+				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
+				Expect(err).To(BeNil())
+				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
+				Expect(err).To(BeNil())
+			} else {
+				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+			}
 		})
 
 		It("should be able to update mutable parameter", func() {

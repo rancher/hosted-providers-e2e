@@ -28,10 +28,6 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-const (
-	increaseBy = 1
-)
-
 var (
 	ctx                     helpers.Context
 	clusterName, k8sVersion string
@@ -47,7 +43,7 @@ func TestP1(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	var err error
-	ctx, err = helpers.CommonBeforeSuite(helpers.Provider)
+	ctx = helpers.CommonBeforeSuite(helpers.Provider)
 	Expect(err).To(BeNil())
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 	k8sVersion, err = helper.GetK8sVersion(ctx.RancherClient, project, ctx.CloudCred.ID, zone, "")
@@ -87,15 +83,16 @@ func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster, autosca
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.GKEConfig = cluster.GKEConfig
-	for i := range upgradedCluster.GKEConfig.NodePools {
+	for i, np := range upgradedCluster.GKEConfig.NodePools {
+		if np.Autoscaling != nil {
+			Expect(np.Autoscaling.Enabled).ToNot(BeEquivalentTo(autoscale))
+		}
 		upgradedCluster.GKEConfig.NodePools[i].Autoscaling = &management.GKENodePoolAutoscaling{
 			Enabled: autoscale,
 		}
 	}
 
 	cluster, err := ctx.RancherClient.Management.Cluster.Update(cluster, &upgradedCluster)
-	Expect(err).To(BeNil())
-	err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 	Expect(err).To(BeNil())
 
 	for _, np := range upgradedCluster.GKEConfig.NodePools {
