@@ -72,7 +72,7 @@ var _ = Describe("P0Importing", func() {
 		It("should be able to upgrade k8s version of the cluster", func() {
 			// Report to Qase
 			testCaseID = 232
-			upgradeK8sVersionCheck(cluster)
+			p0upgradeK8sVersionCheck(cluster)
 		})
 
 	})

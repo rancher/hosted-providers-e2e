@@ -71,7 +71,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func upgradeK8sVersionCheck(cluster *management.Cluster) {
+func p0upgradeK8sVersionCheck(cluster *management.Cluster) {
 	currentVersion := cluster.AKSConfig.KubernetesVersion
 	versions, err := helper.ListAKSAvailableVersions(ctx.RancherClient, cluster.ID)
 	Expect(err).To(BeNil())
