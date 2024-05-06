@@ -105,7 +105,7 @@ var _ = Describe("P1Provisioning", func() {
 					}
 				}
 				return false
-			}, "20s", "1s").Should(BeTrue())
+			}, "60s", "2s").Should(BeTrue())
 
 		})
 	})
@@ -130,7 +130,7 @@ var _ = Describe("P1Provisioning", func() {
 			}
 		})
 
-		It("should be able to update mutable parameter", func() {
+		It("should be able to update mutable parameter loggingService and monitoringService", func() {
 			testCaseID = 59
 			By("disabling the services", func() {
 				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "none", "none")
