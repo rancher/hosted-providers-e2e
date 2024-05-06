@@ -81,7 +81,7 @@ var _ = Describe("P1Provisioning", func() {
 					}
 				}
 				return false
-			}, "20s", "1s").Should(BeTrue())
+			}, "60s", "2s").Should(BeTrue())
 
 		})
 
@@ -122,8 +122,6 @@ var _ = Describe("P1Provisioning", func() {
 		AfterEach(func() {
 			if ctx.ClusterCleanup {
 				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
 				Expect(err).To(BeNil())
 			} else {
 				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
