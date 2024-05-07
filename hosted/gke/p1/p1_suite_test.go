@@ -62,14 +62,8 @@ var _ = ReportAfterEach(func(report SpecReport) {
 
 // updateLoggingAndMonitoringServiceCheck tests updating `loggingService` and `monitoringService`
 func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *management.Cluster, updateMonitoringValue, updateLoggingValue string) {
-	upgradedCluster := new(management.Cluster)
-	upgradedCluster.Name = cluster.Name
-	upgradedCluster.GKEConfig = cluster.GKEConfig
-
-	upgradedCluster.GKEConfig.LoggingService = &updateLoggingValue
-	upgradedCluster.GKEConfig.MonitoringService = &updateMonitoringValue
-
-	cluster, err := ctx.RancherClient.Management.Cluster.Update(cluster, &upgradedCluster)
+	var err error
+	cluster, err = helper.UpdateMonitoringAndLoggingService(cluster, ctx.RancherClient, updateMonitoringValue, updateLoggingValue)
 	Expect(err).To(BeNil())
 	err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
 	Expect(err).To(BeNil())
@@ -80,22 +74,17 @@ func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *manage
 
 // updateAutoScaling tests updating `autoscaling` for GKE node pools
 func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster, autoscale bool) {
-	upgradedCluster := new(management.Cluster)
-	upgradedCluster.Name = cluster.Name
-	upgradedCluster.GKEConfig = cluster.GKEConfig
-	for i, np := range upgradedCluster.GKEConfig.NodePools {
+	for _, np := range cluster.GKEConfig.NodePools {
 		if np.Autoscaling != nil {
 			Expect(np.Autoscaling.Enabled).ToNot(BeEquivalentTo(autoscale))
 		}
-		upgradedCluster.GKEConfig.NodePools[i].Autoscaling = &management.GKENodePoolAutoscaling{
-			Enabled: autoscale,
-		}
 	}
 
-	cluster, err := ctx.RancherClient.Management.Cluster.Update(cluster, &upgradedCluster)
+	var err error
+	cluster, err = helper.UpdateAutoScaling(cluster, ctx.RancherClient, autoscale)
 	Expect(err).To(BeNil())
 
-	for _, np := range upgradedCluster.GKEConfig.NodePools {
+	for _, np := range cluster.GKEConfig.NodePools {
 		Expect(np.Autoscaling.Enabled).To(BeEquivalentTo(autoscale))
 	}
 }
