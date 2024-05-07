@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/onsi/ginkgo/v2"
+	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/pipeline"
+	"github.com/rancher/shepherd/extensions/workloads/pods"
 
 	. "github.com/onsi/gomega"
 	"github.com/rancher/shepherd/clients/rancher"
@@ -27,7 +29,9 @@ import (
 func CommonBeforeSuite(cloud string) Context {
 
 	rancherConfig := new(rancher.Config)
-	Eventually(rancherConfig, "10s").ShouldNot(BeNil())
+	// Workaround to ensure the config is
+	config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+	Expect(rancherConfig).ToNot(BeNil())
 
 	config.LoadAndUpdateConfig(rancher.ConfigurationFileKey, rancherConfig, func() {
 		rancherConfig.Host = RancherHostname
@@ -107,6 +111,31 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 		return nil, err
 	}
 	return client.Management.Cluster.ByID(cluster.ID)
+}
+
+// ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
+// TODO(pvala): Use for other providers.
+func ClusterIsReadyChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
+
+	ginkgo.By("checking cluster name is same", func() {
+		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
+	})
+
+	ginkgo.By("checking service account token secret", func() {
+		success, err := clusters.CheckServiceAccountTokenSecret(client, clusterName)
+		Expect(err).To(BeNil())
+		Expect(success).To(BeTrue())
+	})
+
+	ginkgo.By("checking all management nodes are ready", func() {
+		err := nodestat.AllManagementNodeReady(client, cluster.ID, Timeout)
+		Expect(err).To(BeNil())
+	})
+
+	ginkgo.By("checking all pods are ready", func() {
+		podErrors := pods.StatusPods(client, cluster.ID)
+		Expect(podErrors).To(BeEmpty())
+	})
 }
 
 // GetGKEZone fetches the value of GKE zone;
@@ -197,9 +226,9 @@ func SetTempKubeConfig(clusterName string) {
 	_ = os.Setenv("KUBECONFIG", tmpKubeConfig.Name())
 }
 
-// HighestK8sVersionSupportedByUI returns the highest k8s version supported by UI
+// HighestK8sMinorVersionSupportedByUI returns the highest k8s version supported by UI
 // TODO(pvala): Use this by default when fetching a list of k8s version for all the downstream providers.
-func HighestK8sVersionSupportedByUI(client *rancher.Client) (value string) {
+func HighestK8sMinorVersionSupportedByUI(client *rancher.Client) (value string) {
 	uiValue, err := client.Management.Setting.ByID("ui-k8s-default-version-range")
 	Expect(err).To(BeNil())
 	value = uiValue.Value
@@ -207,4 +236,18 @@ func HighestK8sVersionSupportedByUI(client *rancher.Client) (value string) {
 	value = strings.TrimPrefix(value, "<=v")
 	value = strings.TrimSuffix(value, ".x")
 	return value
+}
+
+// FilterUIUnsupportedVersions filters all k8s versions that are not supported by the UI
+func FilterUIUnsupportedVersions(versions []string, client *rancher.Client) (filteredVersions []string) {
+	maxValue := HighestK8sMinorVersionSupportedByUI(client)
+	for _, version := range versions {
+		// if the version is <= maxValue, then append it to the filtered list
+		if comparison := VersionCompare(version, maxValue); comparison < 1 {
+			filteredVersions = append(filteredVersions, version)
+		} else if strings.Contains(version, maxValue) {
+			filteredVersions = append(filteredVersions, version)
+		}
+	}
+	return
 }
