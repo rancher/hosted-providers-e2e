@@ -30,47 +30,61 @@ import (
 )
 
 var _ = Describe("P0Provisioning", func() {
+	for _, c := range []struct {
+		qaseID    int64
+		isUpgrade bool
+		testBody  func(cluster *management.Cluster)
+		testTitle string
+	}{
+		{
+			qaseID:    172,
+			isUpgrade: false,
+			testBody:  p0NodesChecks,
+			testTitle: "should successfully provision the cluster & add, delete, scale nodepool",
+		},
+		{
+			qaseID:    175,
+			isUpgrade: true,
+			testBody:  p0upgradeK8sVersionCheck,
+			testTitle: "should be able to upgrade k8s version of the cluster",
+		},
+	} {
+		c := c
+		When("a cluster is created", func() {
+			var cluster *management.Cluster
 
-	When("a cluster is created", func() {
-		var cluster *management.Cluster
+			BeforeEach(func() {
+				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, c.isUpgrade)
+				Expect(err).NotTo(HaveOccurred())
+				GinkgoLogr.Info("Using K8s version: " + k8sVersion)
 
-		BeforeEach(func() {
-			var err error
-			aksConfig := new(aks.ClusterConfig)
-			config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
-				aksConfig.ResourceGroup = clusterName
-				dnsPrefix := clusterName + "-dns"
-				aksConfig.DNSPrefix = &dnsPrefix
-				aksConfig.ResourceLocation = location
-				aksConfig.Tags = helper.GetTags()
-				aksConfig.KubernetesVersion = &k8sVersion
+				aksConfig := new(aks.ClusterConfig)
+				config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
+					aksConfig.ResourceGroup = clusterName
+					dnsPrefix := clusterName + "-dns"
+					aksConfig.DNSPrefix = &dnsPrefix
+					aksConfig.ResourceLocation = location
+					aksConfig.Tags = helper.GetTags()
+					aksConfig.KubernetesVersion = &k8sVersion
+				})
+
+				cluster, err = aks.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+				Expect(err).To(BeNil())
+				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+				Expect(err).To(BeNil())
 			})
-			cluster, err = aks.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
-			Expect(err).To(BeNil())
-			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
-			Expect(err).To(BeNil())
+			AfterEach(func() {
+				if ctx.ClusterCleanup {
+					err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
+					Expect(err).To(BeNil())
+				} else {
+					fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+				}
+			})
+			It(c.testTitle, func() {
+				testCaseID = c.qaseID
+				c.testBody(cluster)
+			})
 		})
-		AfterEach(func() {
-			if ctx.ClusterCleanup {
-				err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteAKSClusteronAzure(clusterName)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
-		})
-		It("should successfully provision the cluster & add, delete, scale nodepool", func() {
-			// Report to Qase
-			testCaseID = 173
-			p0Checks(cluster)
-		})
-
-		It("should be able to upgrade k8s version of the cluster", func() {
-			// Report to Qase
-			testCaseID = 175
-			p0upgradeK8sVersionCheck(cluster)
-		})
-	})
-
+	}
 })

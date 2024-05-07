@@ -279,8 +279,8 @@ type ImportClusterConfig struct {
 	NodePools        []*management.AKSNodePool `json:"nodePools" yaml:"nodePools"`
 }
 
-// defaultAKS returns the default AKS version used by Rancher
-func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defaultAKS string, err error) {
+// defaultAKS returns the default AKS version used by Rancher; if forUpgrade is true, it returns the second-highest minor k8s version
+func defaultAKS(client *rancher.Client, cloudCredentialID, region string, forUpgrade bool) (defaultAKS string, err error) {
 	url := fmt.Sprintf("%s://%s/meta/aksVersions", "https", client.RancherConfig.Host)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -309,11 +309,19 @@ func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defau
 
 	maxValue := helpers.HighestK8sMinorVersionSupportedByUI(client)
 
-	// Compare with value obtained from helpers.HighestK8sMinorVersionSupportedByUI to get the second-highest version so that upgrade tests can be done
+	// Iterate in the reverse order to get the highest version
 	// We obtain the value similar to UI; ref: https://github.com/rancher/ui/blob/master/lib/shared/addon/components/cluster-driver/driver-azureaks/component.js#L140
-	for _, v := range versions {
-		if strings.Contains(v, maxValue) {
-			return v, nil
+	// For upgrade tests, it returns a variant of the second-highest minor version
+	for i := len(versions) - 1; i >= 0; i-- {
+		version := versions[i]
+		if forUpgrade {
+			if result := helpers.VersionCompare(version, maxValue); result == -1 {
+				return version, nil
+			}
+		} else {
+			if strings.Contains(version, maxValue) {
+				return version, nil
+			}
 		}
 	}
 
@@ -321,10 +329,10 @@ func defaultAKS(client *rancher.Client, cloudCredentialID, region string) (defau
 }
 
 // GetK8sVersion returns the k8s version to be used by the test;
-// this value can either be envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by DefaultAKS.
-func GetK8sVersion(client *rancher.Client, cloudCredentialID, region string) (string, error) {
+// this value can either be a variant of envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by defaultAKS.
+func GetK8sVersion(client *rancher.Client, cloudCredentialID, region string, forUpgrade bool) (string, error) {
 	if k8sMinorVersion := helpers.DownstreamK8sMinorVersion; k8sMinorVersion != "" {
 		return GetK8sVersionVariantAKS(k8sMinorVersion, client, cloudCredentialID, region)
 	}
-	return defaultAKS(client, cloudCredentialID, region)
+	return defaultAKS(client, cloudCredentialID, region, forUpgrade)
 }

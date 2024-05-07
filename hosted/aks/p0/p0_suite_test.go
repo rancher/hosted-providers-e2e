@@ -35,10 +35,10 @@ const (
 )
 
 var (
-	ctx                     helpers.Context
-	clusterName, k8sVersion string
-	testCaseID              int64
-	location                = helpers.GetAKSLocation()
+	ctx         helpers.Context
+	clusterName string
+	testCaseID  int64
+	location    = helpers.GetAKSLocation()
 )
 
 func TestP0(t *testing.T) {
@@ -54,11 +54,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = BeforeEach(func() {
-	var err error
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location)
-	Expect(err).To(BeNil())
-	GinkgoLogr.Info("Using K8s version: " + k8sVersion)
 })
 
 var _ = ReportBeforeEach(func(report SpecReport) {
@@ -73,15 +69,15 @@ var _ = ReportAfterEach(func(report SpecReport) {
 
 func p0upgradeK8sVersionCheck(cluster *management.Cluster) {
 	currentVersion := cluster.AKSConfig.KubernetesVersion
-	versions, err := helper.ListAKSAvailableVersions(ctx.RancherClient, cluster.ID)
+	versions, err := helper.ListAKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
 	upgradeToVersion := &versions[0]
 
 	By("upgrading the ControlPlane", func() {
-		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient)
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherClient)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(upgradeToVersion))
 		for _, np := range cluster.AKSConfig.NodePools {
@@ -90,9 +86,9 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster) {
 	})
 
 	By("upgrading the NodePools", func() {
-		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherClient)
+		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(upgradeToVersion))
 		for _, np := range cluster.AKSConfig.NodePools {
@@ -101,25 +97,25 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster) {
 	})
 }
 
-func p0Checks(cluster *management.Cluster) {
+func p0NodesChecks(cluster *management.Cluster) {
 
 	By("checking cluster name is same", func() {
 		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
 	})
 
 	By("checking service account token secret", func() {
-		success, err := clusters.CheckServiceAccountTokenSecret(ctx.RancherClient, clusterName)
+		success, err := clusters.CheckServiceAccountTokenSecret(ctx.RancherAdminClient, clusterName)
 		Expect(err).To(BeNil())
 		Expect(success).To(BeTrue())
 	})
 
 	By("checking all management nodes are ready", func() {
-		err := nodestat.AllManagementNodeReady(ctx.RancherClient, cluster.ID, helpers.Timeout)
+		err := nodestat.AllManagementNodeReady(ctx.RancherAdminClient, cluster.ID, helpers.Timeout)
 		Expect(err).To(BeNil())
 	})
 
 	By("checking all pods are ready", func() {
-		podErrors := pods.StatusPods(ctx.RancherClient, cluster.ID)
+		podErrors := pods.StatusPods(ctx.RancherAdminClient, cluster.ID)
 		Expect(podErrors).To(BeEmpty())
 	})
 
@@ -128,26 +124,26 @@ func p0Checks(cluster *management.Cluster) {
 
 	By("adding a nodepool", func() {
 		var err error
-		cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherClient)
+		cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 	})
 	By("deleting the nodepool", func() {
 		var err error
-		cluster, err = helper.DeleteNodePool(cluster, ctx.RancherClient)
+		cluster, err = helper.DeleteNodePool(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber))
 	})
 
 	By("scaling up the nodepool", func() {
 		var err error
-		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount+1)
+		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherAdminClient, initialNodeCount+1)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.AKSConfig.NodePools {
 			Expect(*cluster.AKSConfig.NodePools[i].Count).To(BeNumerically("==", initialNodeCount+1))
@@ -156,9 +152,9 @@ func p0Checks(cluster *management.Cluster) {
 
 	By("scaling down the nodepool", func() {
 		var err error
-		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherClient, initialNodeCount)
+		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherAdminClient, initialNodeCount)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.AKSConfig.NodePools {
 			Expect(*cluster.AKSConfig.NodePools[i].Count).To(BeNumerically("==", initialNodeCount))
