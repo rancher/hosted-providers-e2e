@@ -31,7 +31,7 @@ import (
 )
 
 var _ = Describe("P0Provisioning", func() {
-	for _, c := range []struct {
+	for _, testData := range []struct {
 		qaseID    int64
 		isUpgrade bool
 		testBody  func(cluster *management.Cluster, client *rancher.Client, clusterName string)
@@ -50,12 +50,12 @@ var _ = Describe("P0Provisioning", func() {
 			testTitle: "should be able to upgrade k8s version of the cluster",
 		},
 	} {
-		c := c
+		testData := testData
 		When("a cluster is created", func() {
 			var cluster *management.Cluster
 
 			BeforeEach(func() {
-				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, c.isUpgrade)
+				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, testData.isUpgrade)
 				Expect(err).NotTo(HaveOccurred())
 				GinkgoLogr.Info("Using K8s version: " + k8sVersion)
 
@@ -82,9 +82,9 @@ var _ = Describe("P0Provisioning", func() {
 					fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 				}
 			})
-			It(c.testTitle, func() {
-				testCaseID = c.qaseID
-				c.testBody(cluster, ctx.RancherClient, clusterName)
+			It(testData.testTitle, func() {
+				testCaseID = testData.qaseID
+				testData.testBody(cluster, ctx.RancherAdminClient, clusterName)
 			})
 		})
 	}

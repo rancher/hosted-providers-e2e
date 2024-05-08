@@ -15,6 +15,7 @@ limitations under the License.
 package p0_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -72,6 +73,7 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Clien
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
 	upgradeToVersion := &versions[0]
+	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", *upgradeToVersion))
 
 	By("upgrading the ControlPlane", func() {
 		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
