@@ -91,26 +91,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
-
-	By("checking cluster name is same", func() {
-		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
-	})
-
-	By("checking service account token secret", func() {
-		success, err := clusters.CheckServiceAccountTokenSecret(ctx.RancherAdminClient, clusterName)
-		Expect(err).To(BeNil())
-		Expect(success).To(BeTrue())
-	})
-
-	By("checking all management nodes are ready", func() {
-		err := nodestat.AllManagementNodeReady(ctx.RancherAdminClient, cluster.ID, helpers.Timeout)
-		Expect(err).To(BeNil())
-	})
-
-	By("checking all pods are ready", func() {
-		podErrors := pods.StatusPods(ctx.RancherAdminClient, cluster.ID)
-		Expect(podErrors).To(BeEmpty())
-	})
+	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
 	var originalChartVersion string
 
@@ -159,7 +140,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 	})
 
 	By("making sure the local cluster is ready", func() {
-		localClusterID := "local"
+		const localClusterID = "local"
 		By("checking all management nodes are ready", func() {
 			err := nodestat.AllManagementNodeReady(ctx.RancherAdminClient, localClusterID, helpers.Timeout)
 			Expect(err).To(BeNil())

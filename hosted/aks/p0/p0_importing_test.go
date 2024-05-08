@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters/aks"
 	"github.com/rancher/shepherd/pkg/config"
@@ -31,7 +32,7 @@ var _ = Describe("P0Importing", func() {
 	for _, c := range []struct {
 		qaseID    int64
 		isUpgrade bool
-		testBody  func(cluster *management.Cluster)
+		testBody  func(cluster *management.Cluster, client *rancher.Client, clusterName string)
 		testTitle string
 	}{
 		{
@@ -87,7 +88,7 @@ var _ = Describe("P0Importing", func() {
 
 			It(c.testTitle, func() {
 				testCaseID = c.qaseID
-				c.testBody(cluster)
+				c.testBody(cluster, ctx.RancherClient, clusterName)
 			})
 		})
 	}

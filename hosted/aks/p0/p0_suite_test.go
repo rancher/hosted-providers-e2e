@@ -20,10 +20,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rancher-sandbox/qase-ginkgo"
+	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
-	nodestat "github.com/rancher/shepherd/extensions/nodes"
-	"github.com/rancher/shepherd/extensions/workloads/pods"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
@@ -67,7 +66,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func p0upgradeK8sVersionCheck(cluster *management.Cluster) {
+func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Client, clusterName string) {
 	currentVersion := cluster.AKSConfig.KubernetesVersion
 	versions, err := helper.ListAKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
 	Expect(err).To(BeNil())
@@ -97,27 +96,9 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster) {
 	})
 }
 
-func p0NodesChecks(cluster *management.Cluster) {
+func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
 
-	By("checking cluster name is same", func() {
-		Expect(cluster.Name).To(BeEquivalentTo(clusterName))
-	})
-
-	By("checking service account token secret", func() {
-		success, err := clusters.CheckServiceAccountTokenSecret(ctx.RancherAdminClient, clusterName)
-		Expect(err).To(BeNil())
-		Expect(success).To(BeTrue())
-	})
-
-	By("checking all management nodes are ready", func() {
-		err := nodestat.AllManagementNodeReady(ctx.RancherAdminClient, cluster.ID, helpers.Timeout)
-		Expect(err).To(BeNil())
-	})
-
-	By("checking all pods are ready", func() {
-		podErrors := pods.StatusPods(ctx.RancherAdminClient, cluster.ID)
-		Expect(podErrors).To(BeEmpty())
-	})
+	helpers.ClusterIsReadyChecks(cluster, client, clusterName)
 
 	currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
 	initialNodeCount := *cluster.AKSConfig.NodePools[0].Count

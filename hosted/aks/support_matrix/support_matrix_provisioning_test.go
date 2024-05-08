@@ -71,7 +71,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 			It("should successfully provision the cluster", func() {
 				// Report to Qase
 				testCaseID = 249
-				supportMatrixChecks(ctx.RancherAdminClient, cluster, clusterName)
+				helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 			})
 		})
 	}
