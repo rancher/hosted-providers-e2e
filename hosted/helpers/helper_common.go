@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"strings"
+	"time"
 
 	"github.com/onsi/ginkgo/v2"
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
@@ -29,20 +30,18 @@ import (
 func CommonBeforeSuite(cloud string) Context {
 
 	rancherConfig := new(rancher.Config)
-	// Workaround to ensure the config is
-	config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
-	Expect(rancherConfig).ToNot(BeNil())
 
-	config.LoadAndUpdateConfig(rancher.ConfigurationFileKey, rancherConfig, func() {
-		rancherConfig.Host = RancherHostname
-	})
+	// Attempt at manually loading and updating the rancher config to avoid `nil map entry assignment`
+	config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+
+	rancherConfig.Host = RancherHostname
+	time.Sleep(2 * time.Second)
 
 	token, err := pipeline.CreateAdminToken(RancherPassword, rancherConfig)
 	Expect(err).To(BeNil())
+	rancherConfig.AdminToken = token
 
-	config.LoadAndUpdateConfig(rancher.ConfigurationFileKey, rancherConfig, func() {
-		rancherConfig.AdminToken = token
-	})
+	config.UpdateConfig(rancher.ConfigurationFileKey, rancherConfig)
 
 	testSession := session.NewSession()
 	rancherClient, err := rancher.NewClient(rancherConfig.AdminToken, testSession)
@@ -220,10 +219,14 @@ func GetCommonMetadataLabels() map[string]string {
 }
 
 func SetTempKubeConfig(clusterName string) {
-	tmpKubeConfig, err := os.CreateTemp("", clusterName)
-	Expect(err).To(BeNil())
-	_ = os.Setenv(DownstreamKubeconfig(clusterName), tmpKubeConfig.Name())
-	_ = os.Setenv("KUBECONFIG", tmpKubeConfig.Name())
+	downstreamKubeconfig := os.Getenv(DownstreamKubeconfig(clusterName))
+	if downstreamKubeconfig == "" {
+		tmpKubeConfig, err := os.CreateTemp("", clusterName)
+		Expect(err).To(BeNil())
+		downstreamKubeconfig = tmpKubeConfig.Name()
+		_ = os.Setenv(DownstreamKubeconfig(clusterName), downstreamKubeconfig)
+	}
+	_ = os.Setenv("KUBECONFIG", downstreamKubeconfig)
 }
 
 // HighestK8sMinorVersionSupportedByUI returns the highest k8s version supported by UI
