@@ -36,12 +36,17 @@ var (
 func TestSupportMatrix(t *testing.T) {
 	RegisterFailHandler(Fail)
 	var err error
-	ctx = helpers.CommonBeforeSuite(helpers.Provider)
+	ctx = helpers.CommonBeforeSuite()
 	availableVersionList, err = kubernetesversions.ListEKSAllVersions(ctx.RancherClient)
 	Expect(err).To(BeNil())
 	Expect(availableVersionList).ToNot(BeEmpty())
 	RunSpecs(t, "SupportMatrix Suite")
 }
+
+var _ = SynchronizedBeforeSuite(func() []byte {
+	helpers.CommonSynchronizedBeforeSuite()
+	return nil
+}, func() {})
 
 var _ = ReportBeforeEach(func(report SpecReport) {
 	// Reset case ID
