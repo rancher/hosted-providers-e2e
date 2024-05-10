@@ -34,17 +34,13 @@ var (
 
 func TestSupportMatrix(t *testing.T) {
 	RegisterFailHandler(Fail)
-	var err error
+	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
+	var err error
 	availableVersionList, err = helper.ListSingleVariantAKSAvailableVersions(ctx.RancherClient, ctx.CloudCred.ID, location)
 	Expect(err).To(BeNil())
 	RunSpecs(t, "SupportMatrix Suite")
 }
-
-var _ = SynchronizedBeforeSuite(func() []byte {
-	helpers.CommonSynchronizedBeforeSuite()
-	return nil
-}, func() {})
 
 var _ = ReportBeforeEach(func(report SpecReport) {
 	// Reset case ID
