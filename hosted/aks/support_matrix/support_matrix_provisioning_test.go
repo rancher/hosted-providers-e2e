@@ -21,8 +21,6 @@ import (
 	"fmt"
 
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/clusters/aks"
-	"github.com/rancher/shepherd/pkg/config"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
@@ -42,16 +40,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 			BeforeEach(func() {
 				clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 				var err error
-				aksConfig := new(aks.ClusterConfig)
-				config.LoadAndUpdateConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig, func() {
-					aksConfig.ResourceGroup = clusterName
-					dnsPrefix := clusterName + "-dns"
-					aksConfig.DNSPrefix = &dnsPrefix
-					aksConfig.ResourceLocation = location
-					aksConfig.KubernetesVersion = &version
-					aksConfig.Tags = helper.GetTags()
-				})
-				cluster, err = aks.CreateAKSHostedCluster(ctx.StdUserClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
+				cluster, err = helper.CreateAKSHostedCluster(ctx.StdUserClient, ctx.CloudCred.ID, clusterName, version, location, helpers.GetCommonMetadataLabels())
 				Expect(err).To(BeNil())
 				// Requires RancherAdminClient
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
@@ -71,7 +60,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 			It("should successfully provision the cluster", func() {
 				// Report to Qase
 				testCaseID = 249
-				helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+				helpers.ClusterIsReadyChecks(cluster, ctx.StdUserClient, clusterName)
 			})
 		})
 	}

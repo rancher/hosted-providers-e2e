@@ -28,16 +28,6 @@ var (
 	subscriptionID = os.Getenv("AKS_SUBSCRIPTION_ID")
 )
 
-func GetTags() map[string]string {
-	aksConfig := new(management.AKSClusterConfigSpec)
-	config.LoadConfig(aks.AKSClusterConfigConfigurationFileKey, aksConfig)
-	tags := helpers.GetCommonMetadataLabels()
-	for key, value := range aksConfig.Tags {
-		tags[key] = value
-	}
-	return tags
-}
-
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
 func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersion *string, client *rancher.Client) (*management.Cluster, error) {
 	upgradedCluster := new(management.Cluster)
@@ -66,6 +56,57 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 		return nil, err
 	}
 	return cluster, nil
+}
+
+func CreateAKSHostedCluster(client *rancher.Client, cloudCredentialID, clusterName, k8sVersion, location string, tags map[string]string) (*management.Cluster, error) {
+	var aksClusterConfig aks.ClusterConfig
+	config.LoadConfig(aks.AKSClusterConfigConfigurationFileKey, &aksClusterConfig)
+	var aksNodePools []management.AKSNodePool
+	for _, aksNodePoolConfig := range *aksClusterConfig.NodePools {
+		aksNodePool := management.AKSNodePool{
+			AvailabilityZones:   aksNodePoolConfig.AvailabilityZones,
+			Count:               aksNodePoolConfig.NodeCount,
+			EnableAutoScaling:   aksNodePoolConfig.EnableAutoScaling,
+			MaxPods:             aksNodePoolConfig.MaxPods,
+			MaxCount:            aksNodePoolConfig.MaxCount,
+			MinCount:            aksNodePoolConfig.MinCount,
+			Mode:                aksNodePoolConfig.Mode,
+			Name:                aksNodePoolConfig.Name,
+			OrchestratorVersion: &k8sVersion,
+			OsDiskSizeGB:        aksNodePoolConfig.OsDiskSizeGB,
+			OsDiskType:          aksNodePoolConfig.OsDiskType,
+			OsType:              aksNodePoolConfig.OsType,
+			VMSize:              aksNodePoolConfig.VMSize,
+		}
+		aksNodePools = append(aksNodePools, aksNodePool)
+	}
+
+	cluster := &management.Cluster{
+		AKSConfig: &management.AKSClusterConfigSpec{
+			AzureCredentialSecret: cloudCredentialID,
+			ClusterName:           clusterName,
+			DNSPrefix:             pointer.String(clusterName + "-dns"),
+			Imported:              false,
+			KubernetesVersion:     &k8sVersion,
+			LinuxAdminUsername:    aksClusterConfig.LinuxAdminUsername,
+			LoadBalancerSKU:       aksClusterConfig.LoadBalancerSKU,
+			NetworkPlugin:         aksClusterConfig.NetworkPlugin,
+			NodePools:             aksNodePools,
+			PrivateCluster:        aksClusterConfig.PrivateCluster,
+			ResourceGroup:         clusterName,
+			ResourceLocation:      location,
+			Tags:                  tags,
+		},
+		DockerRootDir: "/var/lib/docker",
+		Name:          clusterName,
+	}
+
+	clusterResp, err := client.Management.Cluster.Create(cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterResp, err
 }
 
 // DeleteAKSHostCluster deletes the AKS cluster
@@ -112,10 +153,9 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.AKSConfig = cluster.AKSConfig
-	nodeConfig := AksHostNodeConfig()
 
 	for i := 1; i <= increaseBy; i++ {
-		for _, np := range nodeConfig {
+		for _, np := range cluster.AKSConfig.NodePools {
 			newNodepool := management.AKSNodePool{
 				Count:             pointer.Int64(1),
 				VMSize:            np.VMSize,
@@ -179,8 +219,7 @@ func ListAKSAvailableVersions(client *rancher.Client, clusterID string) ([]strin
 }
 
 // Create Azure AKS cluster using AZ CLI
-func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion string, nodes string) error {
-	tags := GetTags()
+func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion string, nodes string, tags map[string]string) error {
 	formattedTags := convertMapToAKSString(tags)
 	fmt.Println("Creating AKS resource group ...")
 	rgargs := []string{"group", "create", "--location", location, "--resource-group", clusterName, "--subscription", subscriptionID}
@@ -231,17 +270,19 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 	return nil
 }
 
-func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID string, enableClusterAlerting, enableClusterMonitoring, enableNetworkPolicy, windowsPreferedCluster bool, labels map[string]string) (*management.Cluster, error) {
-	aksHostCluster := AksHostClusterConfig(displayName, cloudCredentialID)
+// ImportAKSHostedCluster imports an AKS cluster to Rancher
+func ImportAKSHostedCluster(client *rancher.Client, clusterName, cloudCredentialID, location string, tags map[string]string) (*management.Cluster, error) {
 	cluster := &management.Cluster{
-		DockerRootDir:           "/var/lib/docker",
-		AKSConfig:               aksHostCluster,
-		Name:                    displayName,
-		EnableClusterAlerting:   enableClusterAlerting,
-		EnableClusterMonitoring: enableClusterMonitoring,
-		EnableNetworkPolicy:     &enableNetworkPolicy,
-		Labels:                  labels,
-		WindowsPreferedCluster:  windowsPreferedCluster,
+		DockerRootDir: "/var/lib/docker",
+		AKSConfig: &management.AKSClusterConfigSpec{
+			AzureCredentialSecret: cloudCredentialID,
+			ClusterName:           clusterName,
+			Imported:              true,
+			ResourceLocation:      location,
+			ResourceGroup:         clusterName,
+			Tags:                  tags,
+		},
+		Name: clusterName,
 	}
 
 	clusterResp, err := client.Management.Cluster.Create(cluster)
@@ -249,34 +290,6 @@ func ImportAKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 		return nil, err
 	}
 	return clusterResp, err
-}
-
-func AksHostClusterConfig(displayName, cloudCredentialID string) *management.AKSClusterConfigSpec {
-	var aksClusterConfig ImportClusterConfig
-	config.LoadConfig("aksClusterConfig", &aksClusterConfig)
-
-	return &management.AKSClusterConfigSpec{
-		AzureCredentialSecret: cloudCredentialID,
-		ClusterName:           displayName,
-		Imported:              aksClusterConfig.Imported,
-		ResourceLocation:      aksClusterConfig.ResourceLocation,
-		ResourceGroup:         aksClusterConfig.ResourceGroup,
-	}
-}
-
-func AksHostNodeConfig() []management.AKSNodePool {
-	var nodeConfig management.AKSClusterConfigSpec
-	config.LoadConfig("aksClusterConfig", &nodeConfig)
-
-	return nodeConfig.NodePools
-}
-
-type ImportClusterConfig struct {
-	ResourceGroup    string                    `json:"resourceGroup" yaml:"resourceGroup"`
-	ResourceLocation string                    `json:"resourceLocation" yaml:"resourceLocation"`
-	Tags             map[string]string         `json:"tags,omitempty" yaml:"tags,omitempty"`
-	Imported         bool                      `json:"imported" yaml:"imported"`
-	NodePools        []*management.AKSNodePool `json:"nodePools" yaml:"nodePools"`
 }
 
 // defaultAKS returns the default AKS version used by Rancher; if forUpgrade is true, it returns the second-highest minor k8s version

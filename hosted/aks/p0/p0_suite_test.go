@@ -73,7 +73,7 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Clien
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
 	upgradeToVersion := &versions[0]
-	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", *upgradeToVersion))
+	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to AKS version %s", *upgradeToVersion))
 
 	By("upgrading the ControlPlane", func() {
 		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
