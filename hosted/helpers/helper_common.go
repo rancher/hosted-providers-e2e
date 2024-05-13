@@ -44,8 +44,7 @@ func CommonSynchronizedBeforeSuite() {
 
 	config.UpdateConfig(rancher.ConfigurationFileKey, rancherConfig)
 
-	provider := Provider
-	switch provider {
+	switch Provider {
 	case "aks":
 		credentialConfig := new(cloudcredentials.AzureCredentialConfig)
 		config.LoadAndUpdateConfig("azureCredentials", credentialConfig, func() {
