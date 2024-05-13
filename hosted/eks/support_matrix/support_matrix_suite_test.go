@@ -38,7 +38,7 @@ func TestSupportMatrix(t *testing.T) {
 	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
 	var err error
-	availableVersionList, err = kubernetesversions.ListEKSAllVersions(ctx.RancherClient)
+	availableVersionList, err = kubernetesversions.ListEKSAllVersions(ctx.StdUserClient)
 	Expect(err).To(BeNil())
 	Expect(availableVersionList).ToNot(BeEmpty())
 	RunSpecs(t, "SupportMatrix Suite")

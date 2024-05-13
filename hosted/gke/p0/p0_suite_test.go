@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rancher-sandbox/qase-ginkgo"
-	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
@@ -68,18 +67,21 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Client, clusterName string) {
+func p0upgradeK8sVersionChecks(cluster *management.Cluster, clusterName string) {
+	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+
 	currentVersion := cluster.GKEConfig.KubernetesVersion
-	versions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
+	versions, err := helper.ListGKEAvailableVersions(ctx.RancherAdminClient, cluster.ID)
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
 	upgradeToVersion := &versions[0]
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", *upgradeToVersion))
 
 	By("upgrading the ControlPlane", func() {
-		cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, client, false)
+		cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, false)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		// Requires RancherAdminClient
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(cluster.GKEConfig.KubernetesVersion).To(BeEquivalentTo(upgradeToVersion))
 		for _, np := range cluster.GKEConfig.NodePools {
@@ -88,9 +90,10 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Clien
 	})
 
 	By("upgrading the NodePools", func() {
-		cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, client, true)
+		cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, true)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		// Requires RancherAdminClient
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 
 		Expect(cluster.GKEConfig.KubernetesVersion).To(BeEquivalentTo(upgradeToVersion))
@@ -100,17 +103,18 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Clien
 	})
 }
 
-func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
-	helpers.ClusterIsReadyChecks(cluster, client, clusterName)
+func p0NodesChecks(cluster *management.Cluster, clusterName string) {
+	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
 	currentNodePoolNumber := len(cluster.GKEConfig.NodePools)
 	initialNodeCount := *cluster.GKEConfig.NodePools[0].InitialNodeCount
 
 	By("scaling up the nodepool", func() {
 		var err error
-		cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount+1)
+		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherAdminClient, initialNodeCount+1)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		// Requires RancherAdminClient
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.GKEConfig.NodePools {
 			Expect(*cluster.GKEConfig.NodePools[i].InitialNodeCount).To(BeNumerically("==", initialNodeCount+1))
@@ -119,9 +123,10 @@ func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterN
 
 	By("scaling down the nodepool", func() {
 		var err error
-		cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount)
+		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherAdminClient, initialNodeCount)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		// Requires RancherAdminClient
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.GKEConfig.NodePools {
 			Expect(*cluster.GKEConfig.NodePools[i].InitialNodeCount).To(BeNumerically("==", initialNodeCount))
@@ -130,9 +135,10 @@ func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterN
 
 	By("adding a nodepool", func() {
 		var err error
-		cluster, err = helper.AddNodePool(cluster, increaseBy, client)
+		cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		// Requires RancherAdminClient
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(len(cluster.GKEConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 		for _, np := range cluster.GKEConfig.NodePools {
@@ -142,9 +148,10 @@ func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterN
 	})
 	By("deleting the nodepool", func() {
 		var err error
-		cluster, err = helper.DeleteNodePool(cluster, client)
+		cluster, err = helper.DeleteNodePool(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		// Requires RancherAdminClient
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(len(cluster.GKEConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber))
 

@@ -55,10 +55,11 @@ type HelmChart struct {
 }
 
 type Context struct {
-	CloudCred      *cloudcredentials.CloudCredential
-	RancherClient  *rancher.Client
-	Session        *session.Session
-	ClusterCleanup bool
+	CloudCred          *cloudcredentials.CloudCredential
+	RancherAdminClient *rancher.Client
+	StdUserClient      *rancher.Client
+	Session            *session.Session
+	ClusterCleanup     bool
 }
 
 type RancherVersionInfo struct {
