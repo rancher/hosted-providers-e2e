@@ -172,12 +172,15 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, latestK8sVersion, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
-		Expect(err).To(BeNil())
 		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestK8sVersion))
 		for _, np := range cluster.AKSConfig.NodePools {
 			Expect(np.OrchestratorVersion).To(BeEquivalentTo(currentVersion))
 		}
+		Eventually(func() string {
+			cluster, err = ctx.RancherClient.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
+		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(ContainSubstring(*latestK8sVersion))
 	})
 
 	var downgradeVersion string

@@ -17,9 +17,11 @@ package p0_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
@@ -78,12 +80,15 @@ func p0upgradeK8sVersionCheck(cluster *management.Cluster, client *rancher.Clien
 	By("upgrading the ControlPlane", func() {
 		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
-		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
-		Expect(err).To(BeNil())
 		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(upgradeToVersion))
 		for _, np := range cluster.AKSConfig.NodePools {
 			Expect(np.OrchestratorVersion).To(BeEquivalentTo(currentVersion))
 		}
+		Eventually(func() string {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
+		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(ContainSubstring(*upgradeToVersion))
 	})
 
 	By("upgrading the NodePools", func() {
