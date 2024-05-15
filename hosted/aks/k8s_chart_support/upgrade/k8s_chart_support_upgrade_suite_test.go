@@ -12,7 +12,6 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/clusters"
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/pipeline"
 	"github.com/rancher/shepherd/extensions/workloads/pods"
@@ -160,27 +159,15 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 	})
 
-	var latestK8sVersion *string
+	var latestK8sVersion string
 	By(fmt.Sprintf("fetching a list of available k8s versions and ensure the v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
 		versions, err := helper.ListAKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
-		latestK8sVersion = &versions[len(versions)-1]
-		Expect(*latestK8sVersion).To(ContainSubstring(k8sUpgradedVersion))
-		Expect(helpers.VersionCompare(*latestK8sVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
-
-		currentVersion := cluster.AKSConfig.KubernetesVersion
-
-		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, latestK8sVersion, ctx.RancherAdminClient)
+		latestK8sVersion = versions[len(versions)-1]
+		Expect(latestK8sVersion).To(ContainSubstring(k8sUpgradedVersion))
+		Expect(helpers.VersionCompare(latestK8sVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, latestK8sVersion, ctx.RancherAdminClient, true)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestK8sVersion))
-		for _, np := range cluster.AKSConfig.NodePools {
-			Expect(np.OrchestratorVersion).To(BeEquivalentTo(currentVersion))
-		}
-		Eventually(func() string {
-			cluster, err = ctx.RancherClient.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
-			return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
-		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(ContainSubstring(*latestK8sVersion))
 	})
 
 	var downgradeVersion string
@@ -194,14 +181,8 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 
 	By("making a change to the cluster to validate functionality after chart downgrade", func() {
 		var err error
-		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, latestK8sVersion, ctx.RancherAdminClient)
+		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, latestK8sVersion, ctx.RancherAdminClient, true, true)
 		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
-		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.KubernetesVersion).To(BeEquivalentTo(latestK8sVersion))
-		for _, np := range cluster.AKSConfig.NodePools {
-			Expect(np.OrchestratorVersion).To(BeEquivalentTo(latestK8sVersion))
-		}
 	})
 
 	By("uninstalling the operator chart", func() {
@@ -211,16 +192,25 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
 		currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
 		var err error
-		cluster, err = helper.AddNodePool(cluster, 1, ctx.RancherAdminClient)
+		cluster, err = helper.AddNodePool(cluster, 1, ctx.RancherAdminClient, false, false)
 		Expect(err).To(BeNil())
+		Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 
 		By("ensuring that the chart is re-installed to the latest/upgraded version", func() {
 			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, "", 0)
 		})
 
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		cluster, err = helpers.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
-		Expect(len(cluster.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
+		// Check if the desired config has been applied in Rancher
+		Eventually(func() int {
+			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
+		}, tools.SetTimeout(10*time.Minute), 3*time.Second).Should(BeNumerically("==", currentNodePoolNumber+1))
+
+		// Check if the desired config has been applied on cloud console
+		Expect(len(cluster.AppliedSpec.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 	})
 
 }

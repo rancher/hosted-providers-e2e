@@ -168,6 +168,15 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 	return client.Management.Cluster.ByID(cluster.ID)
 }
 
+// WaitClusterToBeUpgraded waits for the cluster to be upgraded and then returns the updated cluster
+//
+//	TODO(pvala): To be used in GKE and EKS and replace [GKE/EKS]Config with [GKE/EKS]Status.UpstreamSpec for testing the updates.
+func WaitClusterToBeUpgraded(client *rancher.Client, clusterID string) (*management.Cluster, error) {
+	err := clusters.WaitClusterToBeUpgraded(client, clusterID)
+	Expect(err).To(BeNil())
+	return client.Management.Cluster.ByID(clusterID)
+}
+
 // ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
 func ClusterIsReadyChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
 
