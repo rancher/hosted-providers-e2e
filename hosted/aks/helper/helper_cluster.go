@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	"github.com/rancher/shepherd/extensions/clusters/aks"
@@ -53,21 +54,30 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 			Expect(*np.OrchestratorVersion).To(Equal(currentVersion))
 		}
 
+		// Check if the desired config has been applied on cloud console
+		Eventually(func() string {
+			ginkgo.GinkgoLogr.Info("Waiting for k8s upgrade to appear in AppliedSpec.AKSConfig ...")
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			if cluster.AppliedSpec.AKSConfig == nil {
+				return ""
+			}
+			return *cluster.AppliedSpec.AKSConfig.KubernetesVersion
+		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(Equal(upgradeToVersion))
+		// ensure nodepool version is same on console
+		for _, np := range cluster.AppliedSpec.AKSConfig.NodePools {
+			Expect(*np.OrchestratorVersion).To(Equal(currentVersion))
+		}
+
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() string {
+			ginkgo.GinkgoLogr.Info("Waiting for k8s upgrade to appear in AKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).NotTo(HaveOccurred())
 			return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
 		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(Equal(upgradeToVersion))
 		// ensure nodepool version is same in Rancher
 		for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
-			Expect(*np.OrchestratorVersion).To(Equal(currentVersion))
-		}
-
-		// Check if the desired config has been applied on cloud console
-		Expect(*cluster.AppliedSpec.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
-		// ensure nodepool version is same on console
-		for _, np := range cluster.AppliedSpec.AKSConfig.NodePools {
 			Expect(*np.OrchestratorVersion).To(Equal(currentVersion))
 		}
 
@@ -104,8 +114,13 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 	}
 
 	if check {
+		// Check if the desired config has been applied on cloud console
+		for _, np := range cluster.AppliedSpec.AKSConfig.NodePools {
+			Expect(*np.OrchestratorVersion).To(Equal(upgradeToVersion))
+		}
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() bool {
+			ginkgo.GinkgoLogr.Info("waiting for the nodepool upgrade to appear in AKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
@@ -115,11 +130,6 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 			}
 			return true
 		}, tools.SetTimeout(10*time.Minute), 2*time.Second).Should(BeTrue())
-
-		// Check if the desired config has been applied on cloud console
-		for _, np := range cluster.AppliedSpec.AKSConfig.NodePools {
-			Expect(*np.OrchestratorVersion).To(Equal(upgradeToVersion))
-		}
 	}
 	return cluster, nil
 }
@@ -234,6 +244,7 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 			upgradedCluster.AKSConfig.NodePools = append(upgradedCluster.AKSConfig.NodePools, newNodepool)
 		}
 	}
+
 	var err error
 	cluster, err = client.Management.Cluster.Update(cluster, &upgradedCluster)
 	if err != nil {
@@ -252,15 +263,16 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 		}
 	}
 	if check {
+		// Check if the desired config has been applied on cloud console
+		Expect(len(cluster.AppliedSpec.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+increaseBy))
+
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {
+			ginkgo.GinkgoLogr.Info("Waiting for the total nodepool count to increase in AKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
 		}, tools.SetTimeout(10*time.Minute), 3*time.Second).Should(BeNumerically("==", currentNodePoolNumber+increaseBy))
-
-		// Check if the desired config has been applied on cloud console
-		Expect(len(cluster.AppliedSpec.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+increaseBy))
 	}
 	return cluster, nil
 }
@@ -292,15 +304,16 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 		}
 	}
 	if check {
+		// Check if the desired config has been applied on cloud console
+		Expect(len(cluster.AppliedSpec.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber-1))
+
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {
+			ginkgo.GinkgoLogr.Info("Waiting for the total nodepool count to decrease in AKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
 		}, tools.SetTimeout(10*time.Minute), 3*time.Second).Should(BeNumerically("==", currentNodePoolNumber-1))
-
-		// Check if the desired config has been applied on cloud console
-		Expect(len(cluster.AppliedSpec.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber-1))
 	}
 	return cluster, nil
 }
@@ -335,8 +348,13 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 	}
 
 	if check {
+		// check that the desired config is applied on cloud console
+		for i := range cluster.AppliedSpec.AKSConfig.NodePools {
+			Expect(*cluster.AppliedSpec.AKSConfig.NodePools[i].Count).To(BeNumerically("==", nodeCount))
+		}
 		// check that the desired config is applied on Rancher
 		Eventually(func() bool {
+			ginkgo.GinkgoLogr.Info("Waiting for the node count change to appear in AKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			for i := range cluster.AKSStatus.UpstreamSpec.NodePools {
@@ -346,11 +364,6 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 			}
 			return true
 		}, tools.SetTimeout(10*time.Minute), 2*time.Second).Should(BeTrue())
-
-		// check that the desired config is applied on cloud console
-		for i := range cluster.AppliedSpec.AKSConfig.NodePools {
-			Expect(*cluster.AppliedSpec.AKSConfig.NodePools[i].Count).To(BeNumerically("==", nodeCount))
-		}
 	}
 
 	return cluster, nil
