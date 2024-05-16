@@ -59,7 +59,7 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 			ginkgo.GinkgoLogr.Info("Waiting for k8s upgrade to appear in AppliedSpec.AKSConfig ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).NotTo(HaveOccurred())
-			if cluster.AppliedSpec.AKSConfig == nil {
+			if cluster.AppliedSpec.AKSConfig.KubernetesVersion == nil {
 				return ""
 			}
 			return *cluster.AppliedSpec.AKSConfig.KubernetesVersion
