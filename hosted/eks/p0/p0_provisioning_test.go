@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rancher/shepherd/pkg/config"
 
+	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters/eks"
 
@@ -31,7 +32,7 @@ import (
 var _ = Describe("P0Provisioning", func() {
 	for _, testData := range []struct {
 		qaseID    int64
-		testBody  func(cluster *management.Cluster, clusterName string)
+		testBody  func(cluster *management.Cluster, client *rancher.Client, clusterName string)
 		testTitle string
 	}{
 		{
@@ -61,7 +62,6 @@ var _ = Describe("P0Provisioning", func() {
 
 				cluster, err = eks.CreateEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 				Expect(err).To(BeNil())
-				// Requires RancherAdminClient
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			})
@@ -77,7 +77,7 @@ var _ = Describe("P0Provisioning", func() {
 
 			It(testData.testTitle, func() {
 				testCaseID = testData.qaseID
-				testData.testBody(cluster, clusterName)
+				testData.testBody(cluster, ctx.RancherAdminClient, clusterName)
 			})
 
 		})

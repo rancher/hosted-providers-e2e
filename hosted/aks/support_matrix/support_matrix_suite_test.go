@@ -36,6 +36,7 @@ func TestSupportMatrix(t *testing.T) {
 	RegisterFailHandler(Fail)
 	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
+	helpers.CreateStdUserClient(&ctx)
 	var err error
 	availableVersionList, err = helper.ListSingleVariantAKSAvailableVersions(ctx.StdUserClient, ctx.CloudCred.ID, location)
 	Expect(err).To(BeNil())

@@ -56,6 +56,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				})
 				cluster, err = aks.CreateAKSHostedCluster(ctx.StdUserClient, clusterName, ctx.CloudCred.ID, false, false, false, false, map[string]string{})
 				Expect(err).To(BeNil())
+				// Requires RancherAdminClient
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			})

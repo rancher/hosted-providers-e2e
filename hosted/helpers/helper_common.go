@@ -92,6 +92,31 @@ func CommonBeforeSuite() Context {
 	_, err = rancherAdminClient.Management.Setting.Update(resp, setting)
 	Expect(err).To(BeNil())
 
+	var cloudCredential *cloudcredentials.CloudCredential
+
+	switch Provider {
+	case "aks":
+		cloudCredential, err = azure.CreateAzureCloudCredentials(rancherAdminClient)
+		Expect(err).To(BeNil())
+	case "eks":
+		cloudCredential, err = aws.CreateAWSCloudCredentials(rancherAdminClient)
+		Expect(err).To(BeNil())
+	case "gke":
+		cloudCredential, err = google.CreateGoogleCloudCredentials(rancherAdminClient)
+		Expect(err).To(BeNil())
+	}
+
+	return Context{
+		CloudCred:          cloudCredential,
+		RancherAdminClient: rancherAdminClient,
+		Session:            testSession,
+		ClusterCleanup:     clusterCleanup,
+	}
+}
+
+func CreateStdUserClient(ctx *Context) {
+	ginkgo.GinkgoLogr.Info("Creating Std User client ...")
+
 	var stduser = namegen.AppendRandomString("stduser-")
 	var stduserpassword = password.GenerateUserPassword("testpass-")
 	newuser := &management.User{
@@ -101,15 +126,14 @@ func CommonBeforeSuite() Context {
 		Enabled:  pointer.Bool(true),
 	}
 
-	stdUser, err := users.CreateUserWithRole(rancherAdminClient, newuser, "user")
+	stdUser, err := users.CreateUserWithRole(ctx.RancherAdminClient, newuser, "user")
 	Expect(err).To(BeNil())
 
 	stdUser.Password = newuser.Password
-	stdUserClient, err := rancherAdminClient.AsUser(stdUser)
+	stdUserClient, err := ctx.RancherAdminClient.AsUser(stdUser)
 	Expect(err).To(BeNil())
 
 	var cloudCredential *cloudcredentials.CloudCredential
-
 	switch Provider {
 	case "aks":
 		cloudCredential, err = azure.CreateAzureCloudCredentials(stdUserClient)
@@ -122,13 +146,8 @@ func CommonBeforeSuite() Context {
 		Expect(err).To(BeNil())
 	}
 
-	return Context{
-		CloudCred:          cloudCredential,
-		RancherAdminClient: rancherAdminClient,
-		StdUserClient:      stdUserClient,
-		Session:            testSession,
-		ClusterCleanup:     clusterCleanup,
-	}
+	ctx.CloudCred = cloudCredential
+	ctx.StdUserClient = stdUserClient
 }
 
 // WaitUntilClusterIsReady waits until the cluster is in a Ready state,

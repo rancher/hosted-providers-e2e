@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 
+	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
@@ -71,10 +72,10 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func p0upgradeK8sVersionChecks(cluster *management.Cluster, clusterName string) {
-	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
+	helpers.ClusterIsReadyChecks(cluster, client, clusterName)
 
-	versions, err := helper.ListEKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
+	versions, err := helper.ListEKSAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
 	upgradeToVersion := &versions[0]
@@ -82,10 +83,9 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, clusterName string) 
 
 	By("upgrading the ControlPlane", func() {
 		var err error
-		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, client)
 		Expect(err).To(BeNil())
-		// Requires RancherAdminClient
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(cluster.EKSConfig.KubernetesVersion).To(BeEquivalentTo(upgradeToVersion))
 	})
@@ -97,10 +97,9 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, clusterName string) 
 		if strings.Contains(tag, "p0_provisioning_test") {
 			By("upgrading the NodeGroups", func() {
 				var err error
-				cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient)
+				cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, client)
 				Expect(err).To(BeNil())
-				// Requires RancherAdminClient
-				err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+				err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 				Expect(err).To(BeNil())
 				for _, ng := range cluster.EKSConfig.NodeGroups {
 					Expect(ng.Version).To(BeEquivalentTo(upgradeToVersion))
@@ -110,18 +109,17 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, clusterName string) 
 	}
 }
 
-func p0NodesChecks(cluster *management.Cluster, clusterName string) {
-	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
+	helpers.ClusterIsReadyChecks(cluster, client, clusterName)
 
 	currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
 	initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
 
 	By("scaling up the NodeGroup", func() {
 		var err error
-		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherAdminClient, initialNodeCount+1)
+		cluster, err = helper.ScaleNodeGroup(cluster, client, initialNodeCount+1)
 		Expect(err).To(BeNil())
-		// Requires RancherAdminClient
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.EKSConfig.NodeGroups {
 			Expect(*cluster.EKSConfig.NodeGroups[i].DesiredSize).To(BeNumerically("==", initialNodeCount+1))
@@ -130,10 +128,9 @@ func p0NodesChecks(cluster *management.Cluster, clusterName string) {
 
 	By("scaling down the NodeGroup", func() {
 		var err error
-		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherAdminClient, initialNodeCount)
+		cluster, err = helper.ScaleNodeGroup(cluster, client, initialNodeCount)
 		Expect(err).To(BeNil())
-		// Requires RancherAdminClient
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		Expect(err).To(BeNil())
 		for i := range cluster.EKSConfig.NodeGroups {
 			Expect(*cluster.EKSConfig.NodeGroups[i].DesiredSize).To(BeNumerically("==", initialNodeCount))
@@ -142,19 +139,17 @@ func p0NodesChecks(cluster *management.Cluster, clusterName string) {
 
 	By("adding a NodeGroup", func() {
 		var err error
-		cluster, err = helper.AddNodeGroup(cluster, increaseBy, ctx.RancherAdminClient)
+		cluster, err = helper.AddNodeGroup(cluster, increaseBy, client)
 		Expect(err).To(BeNil())
-		// Requires RancherAdminClient
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(len(cluster.EKSConfig.NodeGroups)).To(BeNumerically("==", currentNodeGroupNumber+1))
 	})
 	By("deleting the NodeGroup", func() {
 		var err error
-		cluster, err = helper.DeleteNodeGroup(cluster, ctx.RancherAdminClient)
+		cluster, err = helper.DeleteNodeGroup(cluster, client)
 		Expect(err).To(BeNil())
-		// Requires RancherAdminClient
-		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		Expect(err).To(BeNil())
 		Expect(len(cluster.EKSConfig.NodeGroups)).To(BeNumerically("==", currentNodeGroupNumber))
 

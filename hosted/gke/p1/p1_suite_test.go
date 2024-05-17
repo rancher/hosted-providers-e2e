@@ -70,7 +70,6 @@ func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *manage
 	var err error
 	cluster, err = helper.UpdateMonitoringAndLoggingService(cluster, ctx.RancherAdminClient, updateMonitoringValue, updateLoggingValue)
 	Expect(err).To(BeNil())
-	// Requires RancherAdminClient
 	err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 	Expect(err).To(BeNil())
 
