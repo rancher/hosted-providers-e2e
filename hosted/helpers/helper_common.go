@@ -170,7 +170,6 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 }
 
 // ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
-// TODO(pvala): Use for other providers.
 func ClusterIsReadyChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
 
 	ginkgo.By("checking cluster name is same", func() {

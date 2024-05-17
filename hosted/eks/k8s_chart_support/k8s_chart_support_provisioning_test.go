@@ -29,7 +29,6 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
-		// TODO Check if EKS cluster deleted on AWS
 		if ctx.ClusterCleanup {
 			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())

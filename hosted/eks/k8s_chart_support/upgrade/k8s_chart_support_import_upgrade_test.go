@@ -41,7 +41,6 @@ var _ = Describe("K8sChartSupportUpgradeImport", func() {
 			Expect(err).To(BeNil())
 			err = helper.DeleteEKSClusterOnAWS(region, clusterName)
 			Expect(err).To(BeNil())
-			// TODO: Force delete EKS cluster
 		} else {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}

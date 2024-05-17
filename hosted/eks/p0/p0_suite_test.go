@@ -91,21 +91,18 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Clie
 	})
 
 	// Does not upgrades version since using custom LT, skip for imported cluster
-	tags := helpers.GetCommonMetadataLabels()
-	for _, tag := range tags {
-		fmt.Println(tag)
-		if strings.Contains(tag, "p0_provisioning_test") {
-			By("upgrading the NodeGroups", func() {
-				var err error
-				cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, client)
-				Expect(err).To(BeNil())
-				err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
-				Expect(err).To(BeNil())
-				for _, ng := range cluster.EKSConfig.NodeGroups {
-					Expect(ng.Version).To(BeEquivalentTo(upgradeToVersion))
-				}
-			})
-		}
+	Expect(helpers.TestConfig).ToNot(BeEmpty())
+	if strings.Contains(helpers.TestConfig, "provisioning") {
+		By("upgrading the NodeGroups", func() {
+			var err error
+			cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, client)
+			Expect(err).To(BeNil())
+			err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+			Expect(err).To(BeNil())
+			for _, ng := range cluster.EKSConfig.NodeGroups {
+				Expect(ng.Version).To(BeEquivalentTo(upgradeToVersion))
+			}
+		})
 	}
 }
 

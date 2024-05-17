@@ -45,6 +45,7 @@ var (
 	}
 	K8sUpgradedMinorVersion   = os.Getenv("K8S_UPGRADE_MINOR_VERSION")
 	DownstreamK8sMinorVersion = os.Getenv("DOWNSTREAM_K8S_MINOR_VERSION")
+	TestConfig                = os.Getenv("CATTLE_TEST_CONFIG")
 )
 
 type HelmChart struct {
