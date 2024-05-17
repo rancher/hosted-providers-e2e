@@ -235,7 +235,6 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 	}
 
 	if check {
-		// TODO: Modify these checks to check for nodepool name too, do the same in DeleteNodePool and ScaleNodePool
 		// Check if the desired config is set correctly
 		Expect(len(cluster.AKSConfig.NodePools)).Should(BeNumerically("==", currentNodePoolNumber+increaseBy))
 		for i, np := range cluster.AKSConfig.NodePools {

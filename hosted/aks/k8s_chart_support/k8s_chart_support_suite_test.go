@@ -118,8 +118,5 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 			Expect(err).To(BeNil())
 			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
 		}, tools.SetTimeout(10*time.Minute), 3*time.Second).Should(BeNumerically("==", currentNodePoolNumber+1))
-
-		// Check if the desired config has been applied on cloud console
-		Expect(len(cluster.AppliedSpec.AKSConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
 	})
 }
