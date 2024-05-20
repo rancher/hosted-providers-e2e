@@ -10,6 +10,7 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
@@ -110,7 +111,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster) {
 			helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "", 0)
 		})
 
-		cluster, err = helpers.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {

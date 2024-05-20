@@ -12,6 +12,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
+	"github.com/rancher/shepherd/extensions/clusters"
 	"github.com/rancher/shepherd/extensions/clusters/aks"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -32,8 +33,9 @@ var (
 	subscriptionID = os.Getenv("AKS_SUBSCRIPTION_ID")
 )
 
-// UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
-func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersion string, client *rancher.Client, check bool) (*management.Cluster, error) {
+// UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersio;
+// if checkClusterConfig is set to true, it will validate that the cluster control plane has been upgrade successfully
+func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersion string, client *rancher.Client, checkClusterConfig bool) (*management.Cluster, error) {
 	currentVersion := *cluster.AKSConfig.KubernetesVersion
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
@@ -46,7 +48,7 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 		return nil, err
 	}
 
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config is set correctly
 		Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 		// ensure nodepool version is still the same when config is applied
@@ -70,21 +72,23 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 	return cluster, nil
 }
 
-// UpgradeNodeKubernetesVersion upgrades the k8s version of nodepool to the value defined by upgradeToVersion.
-func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion string, client *rancher.Client, wait, check bool) (*management.Cluster, error) {
+// UpgradeNodeKubernetesVersion upgrades the k8s version of nodepool to the value defined by upgradeToVersion;
+// if wait is set to true, it will wait until the cluster finishes upgrading;
+// if checkClusterConfig is set to true, it will validate that nodepool has been upgraded successfully
+func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion string, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.AKSConfig = cluster.AKSConfig
 	for i := range upgradedCluster.AKSConfig.NodePools {
 		upgradedCluster.AKSConfig.NodePools[i].OrchestratorVersion = &upgradeToVersion
 	}
-
-	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
+	var err error
+	cluster, err = client.Management.Cluster.Update(cluster, &upgradedCluster)
 	if err != nil {
 		return nil, err
 	}
 
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config is set correctly
 		for _, np := range cluster.AKSConfig.NodePools {
 			Expect(*np.OrchestratorVersion).To(Equal(upgradeToVersion))
@@ -92,13 +96,13 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 	}
 
 	if wait {
-		cluster, err = helpers.WaitClusterToBeUpgraded(client, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() bool {
 			ginkgo.GinkgoLogr.Info("waiting for the nodepool upgrade to appear in AKSStatus.UpstreamSpec ...")
@@ -110,7 +114,7 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 				}
 			}
 			return true
-		}, tools.SetTimeout(12*time.Minute), 2*time.Second).Should(BeTrue())
+		}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(BeTrue())
 	}
 	return cluster, nil
 }
@@ -205,8 +209,9 @@ func GetK8sVersionVariantAKS(minorVersion string, client *rancher.Client, cloudC
 	return "", fmt.Errorf("version %s not found", minorVersion)
 }
 
-// AddNodePool adds a nodepool to the list
-func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Client, wait, check bool) (*management.Cluster, error) {
+// AddNodePool adds a nodepool to the list; if wait is set to true, it will wait until the cluster finishes upgrading;
+// if checkClusterConfig is set to true, it will validate that nodepool has been added successfully
+func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
 
 	upgradedCluster := new(management.Cluster)
@@ -234,7 +239,7 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 		return nil, err
 	}
 
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config is set correctly
 		Expect(len(cluster.AKSConfig.NodePools)).Should(BeNumerically("==", currentNodePoolNumber+increaseBy))
 		for i, np := range cluster.AKSConfig.NodePools {
@@ -243,19 +248,19 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 	}
 
 	if wait {
-		cluster, err = helpers.WaitClusterToBeUpgraded(client, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {
 			ginkgo.GinkgoLogr.Info("Waiting for the total nodepool count to increase in AKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
-		}, tools.SetTimeout(12*time.Minute), 3*time.Second).Should(BeNumerically("==", currentNodePoolNumber+increaseBy))
+		}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodePoolNumber+increaseBy))
 
 		for i, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
 			Expect(np.Name).To(Equal(updateNodePoolsList[i].Name))
@@ -264,9 +269,10 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 	return cluster, nil
 }
 
-// DeleteNodePool deletes a nodepool from the list
+// DeleteNodePool deletes a nodepool from the list; if wait is set to true, it will wait until the cluster finishes upgrading;
+// if checkClusterConfig is set to true, it will validate that nodepool has been deleted successfully
 // TODO: Modify this method to delete a custom qty of DeleteNodePool, perhaps by adding an `decreaseBy int` arg
-func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, check bool) (*management.Cluster, error) {
+func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	currentNodePoolNumber := len(cluster.AKSConfig.NodePools)
 
 	upgradedCluster := new(management.Cluster)
@@ -281,7 +287,7 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 		return nil, err
 	}
 
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config is set correctly
 		Expect(len(cluster.AKSConfig.NodePools)).Should(BeNumerically("==", currentNodePoolNumber-1))
 		for i, np := range cluster.AKSConfig.NodePools {
@@ -289,12 +295,12 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 		}
 	}
 	if wait {
-		cluster, err = helpers.WaitClusterToBeUpgraded(client, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if check {
+	if checkClusterConfig {
 
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {
@@ -302,7 +308,7 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
-		}, tools.SetTimeout(12*time.Minute), 3*time.Second).Should(BeNumerically("==", currentNodePoolNumber-1))
+		}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodePoolNumber-1))
 		for i, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
 			Expect(np.Name).To(Equal(updatedNodePoolsList[i].Name))
 		}
@@ -310,8 +316,10 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 	return cluster, nil
 }
 
-// ScaleNodePool modifies the number of initialNodeCount of all the nodepools as defined by nodeCount
-func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCount int64, wait, check bool) (*management.Cluster, error) {
+// ScaleNodePool modifies the number of initialNodeCount of all the nodepools as defined by nodeCount;
+// if wait is set to true, it will wait until the cluster finishes upgrading;
+// if checkClusterConfig is set to true, it will validate that nodepool has been scaled successfully
+func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCount int64, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.AKSConfig = cluster.AKSConfig
@@ -325,7 +333,7 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 		return nil, err
 	}
 
-	if check {
+	if checkClusterConfig {
 		// Check if the desired config is set correctly
 		for i := range cluster.AKSConfig.NodePools {
 			Expect(*cluster.AKSConfig.NodePools[i].Count).To(BeNumerically("==", nodeCount))
@@ -333,13 +341,13 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 	}
 
 	if wait {
-		cluster, err = helpers.WaitClusterToBeUpgraded(client, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if check {
+	if checkClusterConfig {
 		// check that the desired config is applied on Rancher
 		Eventually(func() bool {
 			ginkgo.GinkgoLogr.Info("Waiting for the node count change to appear in AKSStatus.UpstreamSpec ...")
@@ -351,7 +359,7 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 				}
 			}
 			return true
-		}, tools.SetTimeout(12*time.Minute), 2*time.Second).Should(BeTrue())
+		}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(BeTrue())
 	}
 
 	return cluster, nil

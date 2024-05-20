@@ -12,6 +12,7 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters"
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/pipeline"
 	"github.com/rancher/shepherd/extensions/workloads/pods"
@@ -200,7 +201,7 @@ func commonchecks(ctx *helpers.Context, cluster *management.Cluster, clusterName
 			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, "", 0)
 		})
 
-		cluster, err = helpers.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {
