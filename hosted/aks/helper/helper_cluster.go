@@ -97,9 +97,7 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 
 	if wait {
 		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
-		if err != nil {
-			return nil, err
-		}
+		Expect(err).To(BeNil())
 	}
 
 	if checkClusterConfig {
@@ -249,9 +247,7 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 
 	if wait {
 		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
-		if err != nil {
-			return nil, err
-		}
+		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {
 		// Check if the desired config has been applied in Rancher
@@ -296,9 +292,7 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 	}
 	if wait {
 		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
-		if err != nil {
-			return nil, err
-		}
+		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {
 
@@ -342,9 +336,7 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 
 	if wait {
 		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
-		if err != nil {
-			return nil, err
-		}
+		Expect(err).To(BeNil())
 	}
 
 	if checkClusterConfig {
