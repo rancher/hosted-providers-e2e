@@ -71,7 +71,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-// commonChartSupportUpgrade runs the common checks required for testing chart support
+// commonChartSupport runs the common checks required for testing chart support
 func commonChartSupport(client *rancher.Client, cluster *management.Cluster) {
 	var originalChartVersion string
 	By("checking the chart version", func() {
