@@ -71,7 +71,7 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 	if checkClusterConfig {
 		Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 		for _, np := range cluster.GKEConfig.NodePools {
-			Expect(np.Version).To(BeEquivalentTo(nodepoolVersionToCompare))
+			Expect(*np.Version).To(BeEquivalentTo(nodepoolVersionToCompare))
 		}
 	}
 	if wait {
@@ -88,7 +88,7 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(Equal(upgradeToVersion))
 
 		for _, np := range cluster.GKEConfig.NodePools {
-			Expect(np.Version).To(BeEquivalentTo(nodepoolVersionToCompare))
+			Expect(*np.Version).To(BeEquivalentTo(nodepoolVersionToCompare))
 		}
 	}
 	return cluster, nil
