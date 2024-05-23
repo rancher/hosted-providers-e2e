@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
@@ -68,13 +67,8 @@ var _ = ReportAfterEach(func(report SpecReport) {
 // updateLoggingAndMonitoringServiceCheck tests updating `loggingService` and `monitoringService`
 func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *management.Cluster, updateMonitoringValue, updateLoggingValue string) {
 	var err error
-	cluster, err = helper.UpdateMonitoringAndLoggingService(cluster, ctx.RancherAdminClient, updateMonitoringValue, updateLoggingValue)
+	cluster, err = helper.UpdateMonitoringAndLoggingService(cluster, ctx.RancherAdminClient, updateMonitoringValue, updateLoggingValue, true, true)
 	Expect(err).To(BeNil())
-	err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
-	Expect(err).To(BeNil())
-
-	Expect(*cluster.GKEConfig.MonitoringService).To(BeEquivalentTo(updateMonitoringValue))
-	Expect(*cluster.GKEConfig.LoggingService).To(BeEquivalentTo(updateLoggingValue))
 }
 
 // updateAutoScaling tests updating `autoscaling` for GKE node pools
@@ -86,10 +80,6 @@ func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster, autosca
 	}
 
 	var err error
-	cluster, err = helper.UpdateAutoScaling(cluster, ctx.RancherAdminClient, autoscale)
+	cluster, err = helper.UpdateAutoScaling(cluster, ctx.RancherAdminClient, autoscale, true, true)
 	Expect(err).To(BeNil())
-
-	for _, np := range cluster.GKEConfig.NodePools {
-		Expect(np.Autoscaling.Enabled).To(BeEquivalentTo(autoscale))
-	}
 }
