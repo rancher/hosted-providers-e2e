@@ -23,7 +23,6 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
@@ -84,8 +83,6 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Clie
 
 	By("upgrading the NodePools", func() {
 		cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, client, true, true, true)
-		Expect(err).To(BeNil())
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 		Expect(err).To(BeNil())
 	})
 }

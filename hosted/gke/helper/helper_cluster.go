@@ -50,7 +50,13 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.GKEConfig = cluster.GKEConfig
-	upgradedCluster.GKEConfig.KubernetesVersion = &upgradeToVersion
+
+	var upgradeCP bool
+	if *cluster.GKEConfig.KubernetesVersion != upgradeToVersion {
+		upgradedCluster.GKEConfig.KubernetesVersion = &upgradeToVersion
+		upgradeCP = true
+	}
+
 	if upgradeNodePool {
 		for i := range upgradedCluster.GKEConfig.NodePools {
 			upgradedCluster.GKEConfig.NodePools[i].Version = &upgradeToVersion
@@ -77,6 +83,21 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {
+		if upgradeCP {
+			Eventually(func() string {
+				ginkgo.GinkgoLogr.Info("Waiting for k8s upgrade to appear in GKEStatus.UpstreamSpec ...")
+				cluster, err = client.Management.Cluster.ByID(cluster.ID)
+				Expect(err).NotTo(HaveOccurred())
+				return *cluster.GKEStatus.UpstreamSpec.KubernetesVersion
+			}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion))
+
+			if !upgradeNodePool {
+				for _, np := range cluster.GKEConfig.NodePools {
+					Expect(*np.Version).To(BeEquivalentTo(currentVersion))
+				}
+			}
+		}
+
 		if upgradeNodePool {
 			Eventually(func() bool {
 				ginkgo.GinkgoLogr.Info("waiting for the nodepool upgrade to appear in GKEStatus.UpstreamSpec ...")
@@ -89,20 +110,9 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 				}
 				return true
 			}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(BeTrue())
-		} else {
-			// Check if the desired config has been applied in Rancher
-			Eventually(func() string {
-				ginkgo.GinkgoLogr.Info("Waiting for k8s upgrade to appear in GKEStatus.UpstreamSpec ...")
-				cluster, err = client.Management.Cluster.ByID(cluster.ID)
-				Expect(err).NotTo(HaveOccurred())
-				return *cluster.GKEStatus.UpstreamSpec.KubernetesVersion
-			}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(Equal(upgradeToVersion))
-
-			for _, np := range cluster.GKEConfig.NodePools {
-				Expect(*np.Version).To(BeEquivalentTo(currentVersion))
-			}
 		}
 
+		Expect(*cluster.GKEStatus.UpstreamSpec.KubernetesVersion).To(Equal(upgradeToVersion))
 	}
 	return cluster, nil
 }
