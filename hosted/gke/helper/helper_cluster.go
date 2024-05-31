@@ -117,6 +117,18 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 	return cluster, nil
 }
 
+func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, project string) (*management.Cluster, error) {
+	var gkeClusterConfig gke.ClusterConfig
+	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
+
+	gkeClusterConfig.ProjectID = project
+	gkeClusterConfig.Zone = zone
+	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
+	gkeClusterConfig.KubernetesVersion = &k8sVersion
+
+	return gke.CreateGKEHostedCluster(client, displayName, cloudCredentialID, gkeClusterConfig, false, false, false, false, nil)
+}
+
 // DeleteGKEHostCluster deletes the GKE cluster
 func DeleteGKEHostCluster(cluster *management.Cluster, client *rancher.Client) error {
 	return client.Management.Cluster.Delete(cluster)
@@ -293,7 +305,7 @@ func UpdateMonitoringAndLoggingService(cluster *management.Cluster, client *ranc
 	}
 	if checkClusterConfig {
 		Eventually(func() bool {
-			ginkgo.GinkgoLogr.Info("Waiting for the node count change to appear in GKEStatus.UpstreamSpec ...")
+			ginkgo.GinkgoLogr.Info("Waiting for the service change to appear in GKEStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return *cluster.GKEStatus.UpstreamSpec.MonitoringService == monitoringService && *cluster.GKEStatus.UpstreamSpec.LoggingService == loggingService
@@ -329,7 +341,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 	}
 	if checkClusterConfig {
 		Eventually(func() bool {
-			ginkgo.GinkgoLogr.Info("Waiting for the node count change to appear in GKEStatus.UpstreamSpec ...")
+			ginkgo.GinkgoLogr.Info("Waiting for the autoscaling update to appear in GKEStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
