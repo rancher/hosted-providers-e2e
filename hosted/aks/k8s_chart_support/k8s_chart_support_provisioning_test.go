@@ -17,7 +17,7 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 	)
 	BeforeEach(func() {
 		var err error
-		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, ctx.CloudCred.ID, clusterName, k8sVersion, location, helpers.GetCommonMetadataLabels())
+		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, ctx.CloudCred.ID, clusterName, k8sVersion, location)
 		Expect(err).To(BeNil())
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())

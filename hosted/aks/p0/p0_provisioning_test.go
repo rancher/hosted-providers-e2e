@@ -56,7 +56,7 @@ var _ = Describe("P0Provisioning", func() {
 				Expect(err).NotTo(HaveOccurred())
 				GinkgoLogr.Info("Using K8s version: " + k8sVersion)
 
-				cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, ctx.CloudCred.ID, clusterName, k8sVersion, location, helpers.GetCommonMetadataLabels())
+				cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, ctx.CloudCred.ID, clusterName, k8sVersion, location)
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
