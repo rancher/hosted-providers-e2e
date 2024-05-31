@@ -9,6 +9,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
+
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -25,71 +26,14 @@ import (
 )
 
 // CreateEKSHostedCluster is a helper function that creates an EKS hosted cluster
-func CreateEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID, kubernetesVersion, region string, tags map[string]string) (*management.Cluster, error) {
+func CreateEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID, kubernetesVersion, region string) (*management.Cluster, error) {
 	var eksClusterConfig eks.ClusterConfig
 	config.LoadConfig(eks.EKSClusterConfigConfigurationFileKey, &eksClusterConfig)
+	eksClusterConfig.Region = region
+	eksClusterConfig.Tags = helpers.GetCommonMetadataLabels()
+	eksClusterConfig.KubernetesVersion = &kubernetesVersion
 
-	var nodeGroups []management.NodeGroup
-	for _, nodeGroupConfig := range *eksClusterConfig.NodeGroupsConfig {
-		var launchTemplate *management.LaunchTemplate
-		if nodeGroupConfig.LaunchTemplateConfig != nil {
-			launchTemplate = &management.LaunchTemplate{
-				Name:    nodeGroupConfig.LaunchTemplateConfig.Name,
-				Version: nodeGroupConfig.LaunchTemplateConfig.Version,
-			}
-		}
-		nodeGroup := management.NodeGroup{
-			DesiredSize:          nodeGroupConfig.DesiredSize,
-			DiskSize:             nodeGroupConfig.DiskSize,
-			Ec2SshKey:            nodeGroupConfig.Ec2SshKey,
-			Gpu:                  nodeGroupConfig.Gpu,
-			ImageID:              nodeGroupConfig.ImageID,
-			InstanceType:         nodeGroupConfig.InstanceType,
-			Labels:               &nodeGroupConfig.Labels,
-			LaunchTemplate:       launchTemplate,
-			MaxSize:              nodeGroupConfig.MaxSize,
-			MinSize:              nodeGroupConfig.MinSize,
-			NodegroupName:        nodeGroupConfig.NodegroupName,
-			NodeRole:             nodeGroupConfig.NodeRole,
-			RequestSpotInstances: nodeGroupConfig.RequestSpotInstances,
-			ResourceTags:         &nodeGroupConfig.ResourceTags,
-			SpotInstanceTypes:    &nodeGroupConfig.SpotInstanceTypes,
-			Subnets:              &nodeGroupConfig.Subnets,
-			Tags:                 &nodeGroupConfig.Tags,
-			UserData:             nodeGroupConfig.UserData,
-			Version:              &kubernetesVersion,
-		}
-		nodeGroups = append(nodeGroups, nodeGroup)
-	}
-
-	cluster := &management.Cluster{
-		DockerRootDir: "/var/lib/docker",
-		EKSConfig: &management.EKSClusterConfigSpec{
-			AmazonCredentialSecret: cloudCredentialID,
-			DisplayName:            displayName,
-			Imported:               false,
-			KmsKey:                 eksClusterConfig.KmsKey,
-			KubernetesVersion:      &kubernetesVersion,
-			LoggingTypes:           &eksClusterConfig.LoggingTypes,
-			NodeGroups:             nodeGroups,
-			PrivateAccess:          eksClusterConfig.PrivateAccess,
-			PublicAccess:           eksClusterConfig.PublicAccess,
-			PublicAccessSources:    &eksClusterConfig.PublicAccessSources,
-			Region:                 region,
-			SecretsEncryption:      eksClusterConfig.SecretsEncryption,
-			SecurityGroups:         &eksClusterConfig.SecurityGroups,
-			ServiceRole:            eksClusterConfig.ServiceRole,
-			Subnets:                &eksClusterConfig.Subnets,
-			Tags:                   &tags,
-		},
-		Name: displayName,
-	}
-
-	clusterResp, err := client.Management.Cluster.Create(cluster)
-	if err != nil {
-		return nil, err
-	}
-	return clusterResp, err
+	return eks.CreateEKSHostedCluster(client, displayName, cloudCredentialID, eksClusterConfig, false, false, false, false, nil)
 }
 
 func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID, region string) (*management.Cluster, error) {
