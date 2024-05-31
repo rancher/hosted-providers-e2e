@@ -74,18 +74,17 @@ e2e-provisioning-tests: deps ## Run the 'P0Provisioning' test suite for a given 
 	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Provisioning" ./hosted/${PROVIDER}/p0/
 
 e2e-p1-import-tests: deps	## Run the 'P1Importing' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "P1Importing" ./hosted/${PROVIDER}/p1/
+	ginkgo ${STANDARD_TEST_OPTIONS}  --nodes 2 --focus "P1Importing" ./hosted/${PROVIDER}/p1/
 
 e2e-p1-provisioning-tests: deps ## Run the 'P1Provisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "P1Provisioning" ./hosted/${PROVIDER}/p1/
+	ginkgo ${STANDARD_TEST_OPTIONS}  --nodes 2 --focus "P1Provisioning" ./hosted/${PROVIDER}/p1/
 
 
-#TODO: Parallelize supportmatrix tests
 e2e-support-matrix-importing-tests: deps ## Run the 'SupportMatrixImporting' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "SupportMatrixImporting" ./hosted/${PROVIDER}/support_matrix/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SupportMatrixImporting" ./hosted/${PROVIDER}/support_matrix/
 
 e2e-support-matrix-provisioning-tests: deps ## Run the 'SupportMatrixProvisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "SupportMatrixProvisioning" ./hosted/${PROVIDER}/support_matrix/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SupportMatrixProvisioning" ./hosted/${PROVIDER}/support_matrix/
 
 e2e-k8s-chart-support-importing-tests-upgrade: deps ## Run the 'K8sChartSupportUpgradeImport' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportUpgradeImport" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
