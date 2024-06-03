@@ -132,29 +132,29 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 	return cluster, nil
 }
 
-// AddNodeGroup adds a nodegroup to the list
+// AddNodeGroup adds a nodegroup to the list; it uses the nodegroup template defined in CATTLE_TEST_CONFIG file
 // if checkClusterConfig is set to true, it will validate that nodegroup has been added successfully
 func AddNodeGroup(cluster *management.Cluster, increaseBy int, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
 	currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
 
 	// Workaround for eks-operator/issues/406
+	// We use management.EKSClusterConfigSpec instead of the usual eks.ClusterConfig to unmarshal the data without the need of a lot of post-processing.
 	var eksClusterConfig management.EKSClusterConfigSpec
 	config.LoadConfig(eks.EKSClusterConfigConfigurationFileKey, &eksClusterConfig)
+	ngTemplate := eksClusterConfig.NodeGroups[0]
 
-	updateNodeGroupsList := upgradedCluster.EKSConfig.NodeGroups
+	updateNodeGroupsList := cluster.EKSConfig.NodeGroups
 	for i := 1; i <= increaseBy; i++ {
-		for _, ng := range eksClusterConfig.NodeGroups {
-			newNodeGroup := management.NodeGroup{
-				NodegroupName: pointer.String(namegen.AppendRandomString("nodegroup")),
-				DesiredSize:   ng.DesiredSize,
-				DiskSize:      ng.DiskSize,
-				InstanceType:  ng.InstanceType,
-				MaxSize:       ng.MaxSize,
-				MinSize:       ng.MinSize,
-			}
-			updateNodeGroupsList = append([]management.NodeGroup{newNodeGroup}, updateNodeGroupsList...)
+		newNodeGroup := management.NodeGroup{
+			NodegroupName: pointer.String(namegen.AppendRandomString("nodegroup")),
+			DesiredSize:   ngTemplate.DesiredSize,
+			DiskSize:      ngTemplate.DiskSize,
+			InstanceType:  ngTemplate.InstanceType,
+			MaxSize:       ngTemplate.MaxSize,
+			MinSize:       ngTemplate.MinSize,
 		}
+		updateNodeGroupsList = append([]management.NodeGroup{newNodeGroup}, updateNodeGroupsList...)
 	}
 	upgradedCluster.EKSConfig.NodeGroups = updateNodeGroupsList
 

@@ -30,6 +30,45 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+// CreateGKEHostedCluster creates the GKE cluster
+func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, project string) (*management.Cluster, error) {
+	var gkeClusterConfig gke.ClusterConfig
+	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
+
+	gkeClusterConfig.ProjectID = project
+	gkeClusterConfig.Zone = zone
+	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
+	gkeClusterConfig.KubernetesVersion = &k8sVersion
+
+	return gke.CreateGKEHostedCluster(client, displayName, cloudCredentialID, gkeClusterConfig, false, false, false, false, nil)
+}
+
+// ImportGKEHostedCluster imports the GKE cluster
+func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, zone, project string) (*management.Cluster, error) {
+	cluster := &management.Cluster{
+		DockerRootDir: "/var/lib/docker",
+		GKEConfig: &management.GKEClusterConfigSpec{
+			GoogleCredentialSecret: cloudCredentialID,
+			ClusterName:            displayName,
+			Imported:               true,
+			Zone:                   zone,
+			ProjectID:              project,
+		},
+		Name: displayName,
+	}
+
+	clusterResp, err := client.Management.Cluster.Create(cluster)
+	if err != nil {
+		return nil, err
+	}
+	return clusterResp, err
+}
+
+// DeleteGKEHostCluster deletes the GKE cluster
+func DeleteGKEHostCluster(cluster *management.Cluster, client *rancher.Client) error {
+	return client.Management.Cluster.Delete(cluster)
+}
+
 // UpgradeKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion; if upgradeNodePool is true, it also upgrades nodepool k8s version;
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion string, client *rancher.Client, upgradeNodePool, wait, checkClusterConfig bool) (*management.Cluster, error) {
@@ -104,44 +143,7 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 	return cluster, nil
 }
 
-func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, project string) (*management.Cluster, error) {
-	var gkeClusterConfig gke.ClusterConfig
-	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
-
-	gkeClusterConfig.ProjectID = project
-	gkeClusterConfig.Zone = zone
-	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
-	gkeClusterConfig.KubernetesVersion = &k8sVersion
-
-	return gke.CreateGKEHostedCluster(client, displayName, cloudCredentialID, gkeClusterConfig, false, false, false, false, nil)
-}
-
-func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, zone, project string) (*management.Cluster, error) {
-	cluster := &management.Cluster{
-		DockerRootDir: "/var/lib/docker",
-		GKEConfig: &management.GKEClusterConfigSpec{
-			GoogleCredentialSecret: cloudCredentialID,
-			ClusterName:            displayName,
-			Imported:               true,
-			Zone:                   zone,
-			ProjectID:              project,
-		},
-		Name: displayName,
-	}
-
-	clusterResp, err := client.Management.Cluster.Create(cluster)
-	if err != nil {
-		return nil, err
-	}
-	return clusterResp, err
-}
-
-// DeleteGKEHostCluster deletes the GKE cluster
-func DeleteGKEHostCluster(cluster *management.Cluster, client *rancher.Client) error {
-	return client.Management.Cluster.Delete(cluster)
-}
-
-// AddNodePool adds a nodepool to the list
+// AddNodePool adds a nodepool to the list; it uses the nodepool template defined in CATTLE_TEST_CONFIG file
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 // TODO(pvala): Enhance this method to accept a nodepool with different configuration
 func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
@@ -150,21 +152,23 @@ func AddNodePool(cluster *management.Cluster, increaseBy int, client *rancher.Cl
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.GKEConfig = cluster.GKEConfig
 
-	updateNodePoolsList := cluster.GKEConfig.NodePools
+	// We use management.GKENodePoolConfig instead of the usual gke.ClusterConfig to unmarshal the data without the need of a lot of post-processing.
+	var gkeConfigTemplate management.GKEClusterConfigSpec
+	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeConfigTemplate)
+	npTemplate := gkeConfigTemplate.NodePools[0]
 
+	updateNodePoolsList := cluster.GKEConfig.NodePools
 	for i := 1; i <= increaseBy; i++ {
-		for _, np := range cluster.GKEConfig.NodePools {
-			newNodepool := management.GKENodePoolConfig{
-				InitialNodeCount:  np.InitialNodeCount,
-				Version:           cluster.GKEConfig.KubernetesVersion,
-				Config:            np.Config,
-				Autoscaling:       np.Autoscaling,
-				Management:        np.Management,
-				MaxPodsConstraint: np.MaxPodsConstraint,
-				Name:              pointer.String(namegen.RandStringLower(5)),
-			}
-			updateNodePoolsList = append(updateNodePoolsList, newNodepool)
+		newNodepool := management.GKENodePoolConfig{
+			InitialNodeCount:  npTemplate.InitialNodeCount,
+			Version:           cluster.GKEConfig.KubernetesVersion,
+			Config:            npTemplate.Config,
+			Autoscaling:       npTemplate.Autoscaling,
+			Management:        npTemplate.Management,
+			MaxPodsConstraint: npTemplate.MaxPodsConstraint,
+			Name:              pointer.String(namegen.RandStringLower(5)),
 		}
+		updateNodePoolsList = append(updateNodePoolsList, newNodepool)
 	}
 	upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
 

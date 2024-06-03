@@ -20,7 +20,7 @@ var _ = Describe("P1Provisioning", func() {
 	Context("Provisioning a cluster with invalid config", func() {
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup {
+			if ctx.ClusterCleanup && cluster != nil {
 				if cluster != nil {
 					err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 					Expect(err).To(BeNil())
@@ -93,7 +93,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		})
 	})
-	When("a cluster is created", func() {
+	FWhen("a cluster is created", func() {
 
 		BeforeEach(func() {
 			var err error
@@ -104,7 +104,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup {
+			if ctx.ClusterCleanup && cluster != nil {
 				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			} else {

@@ -21,7 +21,7 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
-		if ctx.ClusterCleanup {
+		if ctx.ClusterCleanup && cluster != nil {
 			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		} else {

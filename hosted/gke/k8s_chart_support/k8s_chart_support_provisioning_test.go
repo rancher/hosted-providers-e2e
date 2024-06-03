@@ -25,7 +25,7 @@ var _ = Describe("K8sChartSupportProvisioning", func() {
 	})
 
 	AfterEach(func() {
-		if ctx.ClusterCleanup {
+		if ctx.ClusterCleanup && cluster != nil {
 			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		} else {

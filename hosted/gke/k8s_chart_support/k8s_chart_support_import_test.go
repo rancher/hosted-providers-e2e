@@ -30,7 +30,7 @@ var _ = Describe("K8sChartSupportImport", func() {
 	})
 
 	AfterEach(func() {
-		if ctx.ClusterCleanup {
+		if ctx.ClusterCleanup && cluster != nil {
 			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 			err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)

@@ -54,7 +54,7 @@ var _ = Describe("P0Importing", func() {
 			BeforeEach(func() {
 				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", testData.isUpgrade)
 				Expect(err).NotTo(HaveOccurred())
-				GinkgoLogr.Info("Using K8s version: " + k8sVersion)
+				GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
 
 				err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
 				Expect(err).To(BeNil())
@@ -67,7 +67,7 @@ var _ = Describe("P0Importing", func() {
 				cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
 			})
 			AfterEach(func() {
-				if ctx.ClusterCleanup {
+				if ctx.ClusterCleanup && cluster != nil {
 					err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 					Expect(err).To(BeNil())
 					err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
