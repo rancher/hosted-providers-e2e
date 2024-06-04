@@ -58,6 +58,7 @@ func ImportEKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 // DeleteEKSHostCluster deletes the EKS cluster
 func DeleteEKSHostCluster(cluster *management.Cluster, client *rancher.Client) error {
 	return client.Management.Cluster.Delete(cluster)
+
 }
 
 // UpgradeClusterKubernetesVersion upgrades the k8s version to the value defined by upgradeToVersion.
@@ -315,7 +316,7 @@ func DeleteEKSClusterOnAWS(eks_region string, clusterName string) error {
 	_ = os.Setenv("KUBECONFIG", downstreamKubeconfig)
 
 	fmt.Println("Deleting EKS cluster ...")
-	args := []string{"delete", "cluster", "--region=" + eks_region, "--name=" + clusterName, "--disable-nodegroup-eviction"}
+	args := []string{"delete", "cluster", "--region=" + eks_region, "--name=" + clusterName, "--wait", "--force"}
 	fmt.Printf("Running command: eksctl %v\n", args)
 	out, err := proc.RunW("eksctl", args...)
 	if err != nil {
