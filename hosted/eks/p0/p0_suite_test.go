@@ -18,9 +18,11 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
 
 	"github.com/rancher/shepherd/clients/rancher"
@@ -74,6 +76,18 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Clie
 	// Default version is highest supported version
 	upgradeToVersion, err := helper.GetK8sVersion(client, false)
 	Expect(err).To(BeNil())
+
+	Eventually(func() bool {
+		GinkgoLogr.Info("waiting for the nodegroups to appear in EKSStatus.UpstreamSpec ...")
+		// Check if the desired config has been applied in Rancher
+		currentVersion := *cluster.EKSConfig.KubernetesVersion
+		for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+			if *ng.Version != currentVersion {
+				return false
+			}
+		}
+		return true
+	}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(BeTrue())
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to EKS version %s", upgradeToVersion))
 
 	By("upgrading the ControlPlane", func() {

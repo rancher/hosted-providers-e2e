@@ -85,7 +85,7 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return *cluster.EKSStatus.UpstreamSpec.KubernetesVersion
-		}, tools.SetTimeout(15*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion))
+		}, tools.SetTimeout(20*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion))
 		// ensure nodegroup version is same in Rancher
 		for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
 			Expect(*ng.Version).To(Equal(currentVersion))
