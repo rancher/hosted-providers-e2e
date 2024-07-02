@@ -108,6 +108,11 @@ jobs:
     outputs:
       PUBLIC_IP: ${{ steps.runner-ip.outputs.PUBLIC_IP }}
     steps:
+      - name: Add /usr/local/bin into PATH
+        run: |
+          echo "/usr/local/bin/" >> ${GITHUB_PATH}
+          echo 'Defaults secure_path="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin"' | sudo tee /etc/sudoers.d/0-custom_secure_path
+
       - name: Checkout
         uses: actions/checkout@v4
 
