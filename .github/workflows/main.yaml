@@ -105,6 +105,9 @@ jobs:
   installation-and-e2e-tests:
     runs-on: ${{ needs.create-runner.outputs.uuid }}
     needs: create-runner
+    env:
+      # For some reason the go doesn't link by default against system libresolv library
+      CGO_LDFLAGS: -O2 -g -lresolv
     outputs:
       PUBLIC_IP: ${{ steps.runner-ip.outputs.PUBLIC_IP }}
     steps:
