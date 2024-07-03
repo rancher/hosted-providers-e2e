@@ -290,7 +290,7 @@ jobs:
           make e2e-k8s-chart-support-importing-tests
 
       - name: Sync provisioning tests
-        if: ${{ !cancelled() && contains(inputs.tests_to_run, 'run_sync_provisioning_tests') }}
+        if: ${{ !cancelled() && contains(inputs.tests_to_run, 'sync_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -301,7 +301,7 @@ jobs:
           make e2e-sync-provisioning-tests
 
       - name: Sync importing tests
-        if: ${{ !cancelled() && contains(inputs.tests_to_run, 'run_sync_importing_tests') }}
+        if: ${{ !cancelled() && contains(inputs.tests_to_run, 'sync_importing') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}

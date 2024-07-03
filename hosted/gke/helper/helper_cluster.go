@@ -333,9 +333,6 @@ func UpdateMonitoringAndLoggingService(cluster *management.Cluster, client *ranc
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 // TODO: Facilitate passing minCount and maxCount values when autoscaling is enabled.
 func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enabled, wait, checkClusterConfig bool) (*management.Cluster, error) {
-	if helpers.IsImport {
-		cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
-	}
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
 	upgradedCluster.GKEConfig = cluster.GKEConfig
