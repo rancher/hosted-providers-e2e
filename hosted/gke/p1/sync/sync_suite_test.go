@@ -1,7 +1,6 @@
 package sync_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -38,11 +37,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = BeforeEach(func() {
-	var err error
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", false)
-	Expect(err).To(BeNil())
-	GinkgoLogr.Info(fmt.Sprintf("Using GKE version %s", k8sVersion))
 })
 
 var _ = ReportBeforeEach(func(report SpecReport) {
@@ -53,12 +48,14 @@ var _ = ReportBeforeEach(func(report SpecReport) {
 var _ = ReportAfterEach(func(report SpecReport) {
 	// Add result in Qase if asked
 	Qase(testCaseID, report)
+
 })
 
 func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Client) {
 	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	upgradeToVersion := availableVersions[0]
+	GinkgoLogr.Info("Upgrading to version " + upgradeToVersion)
 
 	By("upgrading control plane", func() {
 		currentVersion := cluster.GKEConfig.KubernetesVersion
@@ -73,7 +70,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return *cluster.GKEStatus.UpstreamSpec.KubernetesVersion
-		}, tools.SetTimeout(5*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion))
+		}, tools.SetTimeout(7*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion), "Failed while waiting for k8s upgrade to appear in GKEStatus.UpstreamSpec")
 
 		// Ensure nodepool version is still the same.
 		for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
@@ -84,7 +81,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
 			Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 			for _, np := range cluster.GKEConfig.NodePools {
-				Expect(np.Version).To(BeEquivalentTo(currentVersion))
+				Expect(np.Version).To(BeEquivalentTo(currentVersion), "GKEConfig.NodePools check failed")
 			}
 		}
 	})
@@ -106,12 +103,12 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 				}
 			}
 			return true
-		}, tools.SetTimeout(5*time.Minute), 10*time.Second).Should(BeTrue())
+		}, tools.SetTimeout(5*time.Minute), 10*time.Second).Should(BeTrue(), "GKEStatus.UpstreamSpec.NodePools upgrade check failed")
 
 		if !helpers.IsImport {
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
 			for _, np := range cluster.GKEConfig.NodePools {
-				Expect(*np.Version).To(BeEquivalentTo(upgradeToVersion))
+				Expect(*np.Version).To(BeEquivalentTo(upgradeToVersion), "GKEConfig.NodePools upgrade check failed")
 			}
 		}
 	})
@@ -119,7 +116,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 
 func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
-	const poolName = "new-node-pool"
+	var poolName = namegen.AppendRandomString("new-np")
 	currentNodeCount := len(cluster.GKEConfig.NodePools)
 
 	By("adding a nodepool", func() {
@@ -133,7 +130,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(cluster.GKEStatus.UpstreamSpec.NodePools)
-		}, tools.SetTimeout(3*time.Minute), 2*time.Second).Should(Equal(currentNodeCount + 1))
+		}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(Equal(currentNodeCount + 1))
 
 		// check that the new node pool has been added
 		Expect(func() bool {
@@ -144,7 +141,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 			}
 			return false
 
-		}()).To(BeTrue())
+		}()).To(BeTrue(), "GKEStatus.UpstreamSpec.NodePools increase check failed")
 
 		if !helpers.IsImport {
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
@@ -157,7 +154,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 					}
 				}
 				return false
-			}()).To(BeTrue())
+			}()).To(BeTrue(), "GKEConfig.NodePools increase check failed")
 		}
 	})
 
@@ -181,7 +178,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 			}
 			return false
 
-		}()).To(BeFalse())
+		}()).To(BeFalse(), "GKEStatus.UpstreamSpec.NodePools decrease check failed")
 
 		if !helpers.IsImport {
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
@@ -194,7 +191,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 					}
 				}
 				return false
-			}()).To(BeFalse())
+			}()).To(BeFalse(), "GKEConfig.NodePools decrease check failed")
 		}
 	})
 }

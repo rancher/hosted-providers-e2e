@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
@@ -12,33 +13,53 @@ import (
 )
 
 var _ = Describe("SyncProvisioning", func() {
-	When("a cluster is created", func() {
-		var cluster *management.Cluster
-		BeforeEach(func() {
-			var err error
-			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project)
-			Expect(err).To(BeNil())
-			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
-			Expect(err).To(BeNil())
-			Expect(err).NotTo(HaveOccurred())
-		})
-		AfterEach(func() {
-			if ctx.ClusterCleanup {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
+	for _, testData := range []struct {
+		qaseID    int64
+		isUpgrade bool
+		testBody  func(cluster *management.Cluster, client *rancher.Client)
+		testTitle string
+	}{
+		{
+			qaseID:    43,
+			isUpgrade: false,
+			testBody:  syncNodepoolsCheck,
+			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
+		},
+		{
+			qaseID:    42,
+			isUpgrade: true,
+			testBody:  syncK8sVersionUpgradeCheck,
+			testTitle: "should Sync from GCE to Rancher - changed k8s version",
+		},
+	} {
+		testData := testData
+		When("a cluster is created", func() {
+			var cluster *management.Cluster
+
+			BeforeEach(func() {
+				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", testData.isUpgrade)
+				Expect(err).NotTo(HaveOccurred())
+				GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
+
+				cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project)
 				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
-		})
+				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+				Expect(err).To(BeNil())
+			})
 
-		It("should Sync from GCE to Rancher - changed k8s version", func() {
-			testCaseID = 42
-			syncK8sVersionUpgradeCheck(cluster, ctx.RancherAdminClient)
-		})
+			AfterEach(func() {
+				if ctx.ClusterCleanup && cluster != nil {
+					err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
+					Expect(err).To(BeNil())
+				} else {
+					fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+				}
+			})
 
-		It("should Sync from GCE to Rancher - add/delete nodepool", func() {
-			testCaseID = 43
-			syncNodepoolsCheck(cluster, ctx.RancherAdminClient)
+			It(testData.testTitle, func() {
+				testCaseID = testData.qaseID
+				testData.testBody(cluster, ctx.RancherAdminClient)
+			})
 		})
-	})
+	}
 })
