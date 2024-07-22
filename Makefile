@@ -114,7 +114,7 @@ e2e-sync-provisioning-tests: deps ## Run "SyncProvisioning" test suite for a giv
 	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SyncProvisioning" ./hosted/${PROVIDER}/p1/sync
 
 e2e-sync-importing-tests: deps ## Run "SyncImport" test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SyncImport" ./hosted/${PROVIDER}/p1/sync
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "SyncImport" ./hosted/${PROVIDER}/p1/sync
 
 clean-k3s:	## Uninstall k3s cluster
 	/usr/local/bin/k3s-uninstall.sh
