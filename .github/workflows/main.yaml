@@ -148,6 +148,7 @@ jobs:
         if: ${{ inputs.rancher_installed == 'hostname/password' && inputs.proxy == true }}
         run: |
           docker run -d --name squid_proxy -v $(pwd)/.github/scripts/squid.conf:/etc/squid/squid.conf -p 3128:3128 wernight/squid
+
       - name: Install K3s / Helm / Rancher
         if: ${{ inputs.rancher_installed == 'hostname/password' }}
         env:
@@ -160,7 +161,7 @@ jobs:
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
             make prepare-e2e-ci-rancher-hosted-nightly-chart
-          if [ ${{ inputs.proxy }} == true ]; then
+          elif [ ${{ inputs.proxy }} == true ]; then
             make prepare-e2e-ci-rancher-behind-proxy
           else
             make prepare-e2e-ci-rancher
