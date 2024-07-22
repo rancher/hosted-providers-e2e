@@ -147,7 +147,7 @@ jobs:
       - name: Install Proxy
         if: ${{ inputs.rancher_installed == 'hostname/password' && inputs.proxy == true }}
         run: |
-          docker run -d --name squid_proxy -v $(pwd)/tests/assets/squid.conf:/etc/squid/squid.conf -p 3128:3128 wernight/squid
+          docker run -d --name squid_proxy -v $(pwd)/.github/scripts/squid.conf:/etc/squid/squid.conf -p 3128:3128 wernight/squid
       - name: Install K3s / Helm / Rancher
         if: ${{ inputs.rancher_installed == 'hostname/password' }}
         env:
