@@ -59,6 +59,23 @@ install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted pr
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
 	helm install ${PROVIDER}-operator oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator --version ${BUILD_DATE} --namespace cattle-system
 
+install-rancher-behind-proxy:
+	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
+	helm repo update
+	helm install rancher --devel rancher-latest/rancher \
+		--namespace cattle-system \
+		--create-namespace \
+		--version ${RANCHER_VERSION} \
+		--set global.cattle.psp.enabled=false \
+		--set hostname=${RANCHER_HOSTNAME} \
+		--set bootstrapPassword=${RANCHER_PASSWORD} \
+		--set replicas=1 \
+		--set rancherImageTag=v${RANCHER_VERSION} \
+		--set proxy=http://172.17.0.1:3128 \
+        --set noProxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local \
+		--wait
+	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
+
 deps: ## Install the Go dependencies
 	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
 	go install -mod=mod github.com/onsi/gomega
@@ -66,6 +83,7 @@ deps: ## Install the Go dependencies
 
 prepare-e2e-ci-rancher-hosted-nightly-chart: install-k3s install-helm install-cert-manager install-rancher-hosted-nightly-chart ## Setup Rancher with nightly hosted provider charts on the local machine
 prepare-e2e-ci-rancher: install-k3s install-helm install-cert-manager install-rancher ## Setup Rancher on the local machine
+prepare-e2e-ci-rancher-behind-proxy: install-k3s install-helm install-cert-manager install-rancher-behind-proxy ## Setup Rancher behind proxy on the local machine
 
 e2e-import-tests: deps	## Run the 'P0Import' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Import" ./hosted/${PROVIDER}/p0/
