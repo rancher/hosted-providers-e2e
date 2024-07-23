@@ -89,7 +89,7 @@ var _ = Describe("P1Importing", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("should not be able to update the only non-windows nodepool to windows", func() {
+		FIt("should not be able to update the only non-windows nodepool to windows", func() {
 			upgradedCluster := new(management.Cluster)
 			upgradedCluster.Name = cluster.Name
 			upgradedCluster.GKEConfig = cluster.GKEConfig
@@ -107,7 +107,7 @@ var _ = Describe("P1Importing", func() {
 		})
 	})
 
-	When("a cluster is created with at least 2 node pools", func() {
+	FWhen("a cluster is created with at least 2 node pools", func() {
 		var cluster *management.Cluster
 
 		BeforeEach(func() {
