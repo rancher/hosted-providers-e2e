@@ -196,7 +196,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		FIt("should not be able to update the only non-windows nodepool to windows", func() {
+		It("should not be able to update the only non-windows nodepool to windows", func() {
 			upgradedCluster := new(management.Cluster)
 			upgradedCluster.Name = cluster.Name
 			upgradedCluster.GKEConfig = cluster.GKEConfig
@@ -214,7 +214,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
-	FWhen("creating a cluster with at least 2 nodepools", func() {
+	When("creating a cluster with at least 2 nodepools", func() {
 		BeforeEach(func() {
 			var err error
 			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 2)
