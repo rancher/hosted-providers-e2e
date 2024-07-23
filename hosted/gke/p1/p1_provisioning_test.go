@@ -31,7 +31,7 @@ var _ = Describe("P1Provisioning", func() {
 		It("should fail to provision a cluster when creating cluster with invalid name", func() {
 			testCaseID = 36
 			var err error
-			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, "@!invalid-gke-name-@#", ctx.CloudCred.ID, k8sVersion, zone, project)
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, "@!invalid-gke-name-@#", ctx.CloudCred.ID, k8sVersion, zone, project, 1)
 			Expect(err).ToNot(BeNil())
 			Expect(err.Error()).To(ContainSubstring("InvalidFormat"))
 		})
@@ -97,7 +97,7 @@ var _ = Describe("P1Provisioning", func() {
 	It("deleting a cluster while it is in creation state should delete the it from rancher and cloud console", func() {
 		testCaseID = 25
 		var err error
-		cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project)
+		cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 1)
 		Expect(err).To(BeNil())
 
 		// Wait for the cluster to appear on cloud console before deleting it
@@ -127,7 +127,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		BeforeEach(func() {
 			var err error
-			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project)
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 1)
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
@@ -155,7 +155,7 @@ var _ = Describe("P1Provisioning", func() {
 				return exists
 			}, "1m", "5s").Should(BeFalse())
 
-			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project)
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 1)
 			Expect(err).To(BeNil())
 
 			// wait until the error is visible on the provisioned cluster
@@ -194,6 +194,63 @@ var _ = Describe("P1Provisioning", func() {
 			var err error
 			_, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "WINDOWS_LTSC_CONTAINERD", true, true)
 			Expect(err).To(BeNil())
+		})
+
+		FIt("should not be able to update the only non-windows nodepool to windows", func() {
+			upgradedCluster := new(management.Cluster)
+			upgradedCluster.Name = cluster.Name
+			upgradedCluster.GKEConfig = cluster.GKEConfig
+
+			updateNodePoolsList := cluster.GKEConfig.NodePools
+			for i := 0; i < len(updateNodePoolsList); i++ {
+				updateNodePoolsList[i].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
+			}
+
+			upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
+
+			_, err := ctx.RancherAdminClient.Management.Cluster.Update(cluster, &upgradedCluster)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("require at least one other Linux node pool"))
+		})
+	})
+
+	FWhen("creating a cluster with at least 2 nodepools", func() {
+		BeforeEach(func() {
+			var err error
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 2)
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			if ctx.ClusterCleanup && cluster != nil {
+				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
+				Expect(err).To(BeNil())
+			} else {
+				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+			}
+		})
+
+		It("For a given NodePool with a non-windows imageType, updating it to a windows imageType should fail", func() {
+			testCaseID = 34
+			upgradedCluster := new(management.Cluster)
+			upgradedCluster.Name = cluster.Name
+			upgradedCluster.GKEConfig = cluster.GKEConfig
+
+			updateNodePoolsList := cluster.GKEConfig.NodePools
+			updateNodePoolsList[0].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
+
+			upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
+
+			cluster, err := ctx.RancherAdminClient.Management.Cluster.Update(cluster, &upgradedCluster)
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Node pools cannot be upgraded between Windows and non-Windows image families")
+			}, "30s", "2s").Should(BeTrue())
 		})
 	})
 

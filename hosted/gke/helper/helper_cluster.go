@@ -31,7 +31,7 @@ import (
 )
 
 // CreateGKEHostedCluster creates the GKE cluster
-func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, project string) (*management.Cluster, error) {
+func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, project string, npSize int) (*management.Cluster, error) {
 	var gkeClusterConfig gke.ClusterConfig
 	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
 
@@ -39,6 +39,25 @@ func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 	gkeClusterConfig.Zone = zone
 	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
 	gkeClusterConfig.KubernetesVersion = &k8sVersion
+
+	if npSize > 1 {
+		var updateNodePoolsList []gke.NodePool
+		npTemplate := gkeClusterConfig.NodePools[0]
+
+		for i := 0; i < npSize; i++ {
+			newNodePool := gke.NodePool{
+				Autoscaling:       npTemplate.Autoscaling,
+				Config:            npTemplate.Config,
+				InitialNodeCount:  npTemplate.InitialNodeCount,
+				Management:        npTemplate.Management,
+				MaxPodsConstraint: npTemplate.MaxPodsConstraint,
+				Name:              pointer.String(namegen.AppendRandomString(*npTemplate.Name)),
+				Version:           pointer.String(k8sVersion),
+			}
+			updateNodePoolsList = append(updateNodePoolsList, newNodePool)
+		}
+		gkeClusterConfig.NodePools = updateNodePoolsList
+	}
 
 	return gke.CreateGKEHostedCluster(client, displayName, cloudCredentialID, gkeClusterConfig, false, false, false, false, nil)
 }
@@ -443,6 +462,28 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	fmt.Println("Created GKE cluster: ", clusterName)
 
 	return nil
+}
+
+// AddNodePoolOnGCloud adds a nodepool to the GKE cluster via gcloud CLI
+func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ...string) error {
+	if npName == "" {
+		npName = namegen.AppendRandomString("np")
+	}
+
+	fmt.Println("Adding nodepool to the GKE cluster ...")
+	args := []string{"container", "node-pools", "create", npName, "--cluster", clusterName, "--project", project, "--zone", zone, "--num-nodes", "1"}
+
+	args = append(args, extraArgs...)
+	fmt.Printf("Running command: gcloud %v\n", args)
+	out, err := proc.RunW("gcloud", args...)
+	if err != nil {
+		return errors.Wrap(err, "Failed to add nodepool to the cluster: "+out)
+	}
+
+	fmt.Println("Added nodepool to GKE cluster: ", clusterName)
+
+	return nil
+
 }
 
 // ClusterExistsOnGCloud gets a list of cluster based on the name filter and returns true if the cluster is in RUNNING or PROVISIONING state;
