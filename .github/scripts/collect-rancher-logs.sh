@@ -14,5 +14,7 @@ curl -L ${RANCHER_LOG_COLLECTER} -o rancherlogcollector.sh
 chmod +x rancherlogcollector.sh
 sudo ./rancherlogcollector.sh -d ../logs
 
+docker exec squid_proxy cat /var/log/squid/access.log > ../logs/squid.log
+
 # Done!
 exit 0
