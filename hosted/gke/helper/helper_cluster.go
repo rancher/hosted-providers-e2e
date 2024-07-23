@@ -456,7 +456,7 @@ func DeleteGKEClusterOnGCloud(zone, project, clusterName string) error {
 	_ = os.Setenv("KUBECONFIG", downstreamKubeconfig)
 
 	fmt.Println("Deleting GKE cluster ...")
-	args := []string{"container", "clusters", "delete", clusterName, "--zone", zone, "--quiet", "--project", project}
+	args := []string{"container", "clusters", "delete", clusterName, "--zone", zone, "--quiet", "--project", project, "--async"}
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)
 	if err != nil {
