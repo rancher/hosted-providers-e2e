@@ -210,7 +210,7 @@ var _ = Describe("P1Provisioning", func() {
 
 			_, err := ctx.RancherAdminClient.Management.Cluster.Update(cluster, &upgradedCluster)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("require at least one other Linux node pool"))
+			Expect(err.Error()).To(ContainSubstring("at least 1 Linux node pool is required"))
 		})
 	})
 
