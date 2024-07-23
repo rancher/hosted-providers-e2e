@@ -45,5 +45,7 @@ Ref: https://github.com/crust-gather/crust-gather
 EOF
 
 
+docker exec squid_proxy cat /var/log/squid/access.log > ../logs/squid.log
+
 # Done!
 exit 0
