@@ -389,6 +389,17 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 	return cluster, nil
 }
 
+// UpdateCluster is a generic function to update a cluster
+func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFunc func(*management.Cluster)) (*management.Cluster, error) {
+	upgradedCluster := new(management.Cluster)
+	upgradedCluster.Name = cluster.Name
+	upgradedCluster.GKEConfig = cluster.GKEConfig
+
+	updateFunc(upgradedCluster)
+
+	return client.Management.Cluster.Update(cluster, &upgradedCluster)
+}
+
 // ListGKEAvailableVersions is a function to list and return only available GKE versions for a specific cluster.
 func ListGKEAvailableVersions(client *rancher.Client, clusterID string) ([]string, error) {
 	// kubernetesversions.ListGKEAvailableVersions expects cluster.Version.GitVersion to be available, which it is not sometimes, so we fetch the cluster again to ensure it has all the available data
@@ -467,7 +478,7 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 // AddNodePoolOnGCloud adds a nodepool to the GKE cluster via gcloud CLI
 func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ...string) error {
 	if npName == "" {
-		npName = namegen.AppendRandomString("np")
+		npName = namegen.AppendRandomString("default-pool")
 	}
 
 	fmt.Println("Adding nodepool to the GKE cluster ...")
@@ -483,7 +494,6 @@ func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ..
 	fmt.Println("Added nodepool to GKE cluster: ", clusterName)
 
 	return nil
-
 }
 
 // ClusterExistsOnGCloud gets a list of cluster based on the name filter and returns true if the cluster is in RUNNING or PROVISIONING state;

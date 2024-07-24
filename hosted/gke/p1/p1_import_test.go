@@ -89,21 +89,16 @@ var _ = Describe("P1Importing", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("should not be able to update the only non-windows nodepool to windows", func() {
+		It("updating a cluster to all windows nodepool should fail", func() {
 			testCaseID = 264
+			_, err := helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
+				updateNodePoolsList := cluster.GKEConfig.NodePools
+				for i := 0; i < len(updateNodePoolsList); i++ {
+					updateNodePoolsList[i].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
+				}
 
-			upgradedCluster := new(management.Cluster)
-			upgradedCluster.Name = cluster.Name
-			upgradedCluster.GKEConfig = cluster.GKEConfig
-
-			updateNodePoolsList := cluster.GKEConfig.NodePools
-			for i := 0; i < len(updateNodePoolsList); i++ {
-				updateNodePoolsList[i].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
-			}
-
-			upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
-
-			_, err := ctx.RancherAdminClient.Management.Cluster.Update(cluster, &upgradedCluster)
+				upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
+			})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("at least 1 Linux node pool is required"))
 		})
@@ -139,19 +134,16 @@ var _ = Describe("P1Importing", func() {
 			}
 		})
 
-		It("For a given NodePool with a non-windows imageType, updating it to a windows imageType should fail", func() {
+		It("for a given NodePool with a non-windows imageType, updating it to a windows imageType should fail", func() {
 			testCaseID = 55
-			upgradedCluster := new(management.Cluster)
-			upgradedCluster.Name = cluster.Name
-			upgradedCluster.GKEConfig = cluster.GKEConfig
+			var err error
+			cluster, err = helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
+				updateNodePoolsList := cluster.GKEConfig.NodePools
+				updateNodePoolsList[0].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
 
-			updateNodePoolsList := cluster.GKEConfig.NodePools
-			updateNodePoolsList[0].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
+				upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
+			})
 
-			upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
-
-			cluster, err := ctx.RancherAdminClient.Management.Cluster.Update(cluster, &upgradedCluster)
-			Expect(err).To(BeNil())
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
