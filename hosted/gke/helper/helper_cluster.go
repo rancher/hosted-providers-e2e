@@ -478,7 +478,7 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 // AddNodePoolOnGCloud adds a nodepool to the GKE cluster via gcloud CLI
 func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ...string) error {
 	if npName == "" {
-		npName = namegen.AppendRandomString("default-pool")
+		npName = namegen.AppendRandomString("np")
 	}
 
 	fmt.Println("Adding nodepool to the GKE cluster ...")

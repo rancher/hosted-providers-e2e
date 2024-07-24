@@ -89,7 +89,7 @@ var _ = Describe("P1Importing", func() {
 			Expect(err).To(BeNil())
 		})
 
-		FIt("updating a cluster to all windows nodepool should fail", func() {
+		It("updating a cluster to all windows nodepool should fail", func() {
 			testCaseID = 264
 			_, err := helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
 				updateNodePoolsList := cluster.GKEConfig.NodePools
@@ -104,7 +104,7 @@ var _ = Describe("P1Importing", func() {
 		})
 	})
 
-	FWhen("a cluster is created with at least 2 node pools", func() {
+	When("a cluster is created with at least 2 node pools", func() {
 		var cluster *management.Cluster
 
 		BeforeEach(func() {
