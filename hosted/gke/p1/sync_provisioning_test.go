@@ -1,4 +1,4 @@
-package sync_test
+package p1_test
 
 import (
 	"fmt"
