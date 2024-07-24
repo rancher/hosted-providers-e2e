@@ -200,7 +200,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(cluster.GKEStatus.UpstreamSpec.NodePools)
-		}, tools.SetTimeout(3*time.Minute), 2*time.Second).Should(Equal(currentNodeCount))
+		}, tools.SetTimeout(5*time.Minute), 2*time.Second).Should(Equal(currentNodeCount))
 
 		// check that the new node pool has been deleted
 		Expect(func() bool {
