@@ -120,7 +120,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 	currentNodeCount := len(cluster.GKEConfig.NodePools)
 
 	By("adding a nodepool", func() {
-		err := helper.AddNodePoolOnGCloud(zone, project, clusterName, poolName)
+		err := helper.AddNodePoolOnGCloud(clusterName, zone, project, poolName)
 		Expect(err).To(BeNil())
 
 		// The cluster does not go into updating state, so we simply wait until the number of nodepools increases

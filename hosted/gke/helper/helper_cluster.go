@@ -465,10 +465,16 @@ func ClusterExistsOnGCloud(clusterName, project, zone string) (bool, error) {
 	return false, nil
 }
 
-// AddNodePoolOnGCloud adds a node pool to GKE using gcloud cli
-func AddNodePoolOnGCloud(zone, project, clusterName, poolName string) error {
-	fmt.Println("Adding node pool on GKE cluster ...")
-	args := []string{"container", "node-pools", "create", poolName, "--cluster", clusterName, "--project", project, "--zone", zone}
+// AddNodePoolOnGCloud adds a nodepool to the GKE cluster via gcloud CLI
+func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ...string) error {
+	if npName == "" {
+		npName = namegen.AppendRandomString("np")
+	}
+
+	fmt.Println("Adding nodepool to the GKE cluster ...")
+	args := []string{"container", "node-pools", "create", npName, "--cluster", clusterName, "--project", project, "--zone", zone, "--num-nodes", "1"}
+
+	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)
 	if err != nil {
