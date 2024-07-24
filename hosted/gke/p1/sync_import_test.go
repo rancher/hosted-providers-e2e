@@ -20,16 +20,16 @@ var _ = Describe("SyncImport", func() {
 		testTitle string
 	}{
 		{
-			qaseID:    341,
-			isUpgrade: false,
-			testBody:  syncNodepoolsCheck,
-			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
-		},
-		{
-			qaseID:    86,
+			qaseID:    58,
 			isUpgrade: true,
 			testBody:  syncK8sVersionUpgradeCheck,
 			testTitle: "should Sync from GCE to Rancher - changed k8s version",
+		},
+		{
+			qaseID:    61,
+			isUpgrade: false,
+			testBody:  syncNodepoolsCheck,
+			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
 		},
 	} {
 		testData := testData

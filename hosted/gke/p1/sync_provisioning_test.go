@@ -20,16 +20,16 @@ var _ = Describe("SyncProvisioning", func() {
 		testTitle string
 	}{
 		{
-			qaseID:    43,
-			isUpgrade: false,
-			testBody:  syncNodepoolsCheck,
-			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
-		},
-		{
-			qaseID:    42,
+			qaseID:    39,
 			isUpgrade: true,
 			testBody:  syncK8sVersionUpgradeCheck,
 			testTitle: "should Sync from GCE to Rancher - changed k8s version",
+		},
+		{
+			qaseID:    40,
+			isUpgrade: false,
+			testBody:  syncNodepoolsCheck,
+			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
 		},
 	} {
 		testData := testData
