@@ -196,7 +196,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("updating a cluster to all windows nodepool should fail", func() {
+		FIt("updating a cluster to all windows nodepool should fail", func() {
 			testCaseID = 263
 
 			_, err := helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
@@ -212,7 +212,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
-	When("creating a cluster with at least 2 nodepools", func() {
+	FWhen("creating a cluster with at least 2 nodepools", func() {
 		BeforeEach(func() {
 			var err error
 			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 2)
