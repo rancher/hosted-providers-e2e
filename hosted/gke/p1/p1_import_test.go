@@ -19,7 +19,7 @@ var _ = Describe("P1Import", func() {
 		var err error
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", false)
 		Expect(err).To(BeNil())
-		GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
+		GinkgoLogr.Info(fmt.Sprintf("While importing, using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 	})
 
 	AfterEach(func() {
@@ -170,7 +170,7 @@ var _ = Describe("P1Import", func() {
 
 		It("should successfully update a cluster while it is still in updating state", func() {
 			testCaseID = 265
-			updateClusterInUpdatingStateCheck(cluster, ctx.RancherAdminClient)
+			updateClusterInUpdatingState(cluster, ctx.RancherAdminClient)
 		})
 
 	})

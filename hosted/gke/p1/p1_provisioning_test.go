@@ -21,7 +21,7 @@ var _ = Describe("P1Provisioning", func() {
 		var err error
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", false)
 		Expect(err).To(BeNil())
-		GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
+		GinkgoLogr.Info(fmt.Sprintf("While provisioning, using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 	})
 
 	AfterEach(func() {
@@ -124,7 +124,8 @@ var _ = Describe("P1Provisioning", func() {
 			return exists
 		}, "10m", "10s").Should(BeFalse())
 
-		_, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+		// Keep the cluster variable as is so that there is no error in AfterEach; failed delete operation will return an empty cluster
+		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("not found"))
 
@@ -263,7 +264,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		It("should successfully update a cluster while it is still in updating state", func() {
 			testCaseID = 35
-			updateClusterInUpdatingStateCheck(cluster, ctx.RancherAdminClient)
+			updateClusterInUpdatingState(cluster, ctx.RancherAdminClient)
 		})
 	})
 })
