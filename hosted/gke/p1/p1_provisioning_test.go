@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters"
 	"github.com/rancher/shepherd/extensions/clusters/gke"
 	"github.com/rancher/shepherd/pkg/config"
 
@@ -24,16 +25,16 @@ var _ = Describe("P1Provisioning", func() {
 		GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 	})
 
-	Context("Provisioning a cluster with invalid config", func() {
+	AfterEach(func() {
+		if ctx.ClusterCleanup && cluster != nil {
+			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+		} else {
+			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+		}
+	})
 
-		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
-				if cluster != nil {
-					err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
-					Expect(err).To(BeNil())
-				}
-			}
-		})
+	Context("Provisioning a cluster with invalid config", func() {
 
 		It("should fail to provision a cluster when creating cluster with invalid name", func() {
 			testCaseID = 36
@@ -140,15 +141,6 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
-		})
-
 		It("recreating a cluster while it is being deleted should recreate the cluster", func() {
 			testCaseID = 26
 
@@ -217,6 +209,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("at least 1 Linux node pool is required"))
 		})
+
 	})
 
 	When("creating a cluster with at least 2 nodepools", func() {
@@ -255,4 +248,50 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
+	When("a cluster is created for upgrade scenarios", func() {
+		var upgradeK8sVersion string
+
+		BeforeEach(func() {
+			var err error
+			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", true)
+			Expect(err).To(BeNil())
+			GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
+
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 1)
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+
+			var availableVersions []string
+			availableVersions, err = helper.ListGKEAvailableVersions(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+			upgradeK8sVersion = availableVersions[0]
+		})
+
+		It("should successfully update a cluster while it is still in updating state", func() {
+			testCaseID = 35
+			var err error
+			currentNodePoolCount := len(cluster.GKEConfig.NodePools)
+			cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeK8sVersion, ctx.RancherAdminClient, false, false, false)
+			Expect(err).To(BeNil())
+			Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeK8sVersion))
+
+			err = clusters.WaitClusterToBeInUpgrade(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+
+			cluster, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "", false, false)
+			Expect(err).To(BeNil())
+
+			Expect(len(cluster.GKEConfig.NodePools)).Should(BeNumerically("==", currentNodePoolCount+1))
+
+			err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return len(cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
+			}, "5m", "5s").Should(BeTrue())
+		})
+	})
 })

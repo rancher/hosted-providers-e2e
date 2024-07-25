@@ -187,7 +187,7 @@ func AddNodePool(cluster *management.Cluster, client *rancher.Client, increaseBy
 			Autoscaling:       npTemplate.Autoscaling,
 			Management:        npTemplate.Management,
 			MaxPodsConstraint: npTemplate.MaxPodsConstraint,
-			Name:              pointer.String(namegen.RandStringLower(5)),
+			Name:              pointer.String(namegen.AppendRandomString("np")),
 		}
 		updateNodePoolsList = append(updateNodePoolsList, newNodepool)
 	}

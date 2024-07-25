@@ -7,12 +7,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var _ = Describe("P1Import", func() {
+	var cluster *management.Cluster
 
 	var _ = BeforeEach(func() {
 		var err error
@@ -21,8 +23,18 @@ var _ = Describe("P1Import", func() {
 		GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 	})
 
+	AfterEach(func() {
+		if ctx.ClusterCleanup && cluster != nil {
+			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+			err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
+			Expect(err).To(BeNil())
+		} else {
+			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+		}
+	})
+
 	When("a cluster is created", func() {
-		var cluster *management.Cluster
 
 		BeforeEach(func() {
 			var err error
@@ -35,17 +47,6 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 			// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
 			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
-		})
-
-		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
 		})
 
 		It("should fail to reimport an imported cluster", func() {
@@ -131,17 +132,6 @@ var _ = Describe("P1Import", func() {
 			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
 		})
 
-		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
-		})
-
 		It("for a given NodePool with a non-windows imageType, updating it to a windows imageType should fail", func() {
 			testCaseID = 55
 			var err error
@@ -158,6 +148,59 @@ var _ = Describe("P1Import", func() {
 				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Node pools cannot be upgraded between Windows and non-Windows image families")
 			}, "30s", "2s").Should(BeTrue())
 		})
+	})
+
+	When("a cluster is created for upgrade scenario", func() {
+		var upgradeK8sVersion string
+
+		BeforeEach(func() {
+			var err error
+			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "", true)
+			Expect(err).To(BeNil())
+			GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
+
+			err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
+			Expect(err).To(BeNil())
+
+			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, zone, project)
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+			// Workaround to add new Nodegroup till https://github.com/rancher/aks-operator/issues/251 is fixed
+			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
+
+			var availableVersions []string
+			availableVersions, err = helper.ListGKEAvailableVersions(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+			upgradeK8sVersion = availableVersions[0]
+		})
+
+		It("should successfully update a cluster while it is still in updating state", func() {
+			testCaseID = 35
+			var err error
+			currentNodePoolCount := len(cluster.GKEConfig.NodePools)
+			cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeK8sVersion, ctx.RancherAdminClient, false, false, false)
+			Expect(err).To(BeNil())
+			Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeK8sVersion))
+
+			err = clusters.WaitClusterToBeInUpgrade(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+
+			cluster, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "", false, false)
+			Expect(err).To(BeNil())
+
+			Expect(len(cluster.GKEConfig.NodePools)).Should(BeNumerically("==", currentNodePoolCount+1))
+
+			err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return len(cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
+			}, "5m", "5s").Should(BeTrue())
+		})
+
 	})
 
 })
