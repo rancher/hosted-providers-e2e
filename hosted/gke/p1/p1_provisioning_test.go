@@ -170,20 +170,20 @@ var _ = Describe("P1Provisioning", func() {
 		It("should be able to update mutable parameter loggingService and monitoringService", func() {
 			testCaseID = 28
 			By("disabling the services", func() {
-				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "none", "none")
+				updateLoggingAndMonitoringServiceCheck(cluster, ctx.RancherAdminClient, "none", "none")
 			})
 			By("enabling the services", func() {
-				updateLoggingAndMonitoringServiceCheck(ctx, cluster, "monitoring.googleapis.com/kubernetes", "logging.googleapis.com/kubernetes")
+				updateLoggingAndMonitoringServiceCheck(cluster, ctx.RancherAdminClient, "monitoring.googleapis.com/kubernetes", "logging.googleapis.com/kubernetes")
 			})
 		})
 
 		It("should be able to update autoscaling", func() {
 			testCaseID = 29
 			By("enabling autoscaling", func() {
-				updateAutoScaling(ctx, cluster, true)
+				updateAutoScaling(cluster, ctx.RancherAdminClient, true)
 			})
 			By("disabling autoscaling", func() {
-				updateAutoScaling(ctx, cluster, false)
+				updateAutoScaling(cluster, ctx.RancherAdminClient, false)
 			})
 		})
 

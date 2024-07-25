@@ -66,14 +66,14 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 // updateLoggingAndMonitoringServiceCheck tests updating `loggingService` and `monitoringService`
-func updateLoggingAndMonitoringServiceCheck(ctx helpers.Context, cluster *management.Cluster, updateMonitoringValue, updateLoggingValue string) {
+func updateLoggingAndMonitoringServiceCheck(cluster *management.Cluster, client *rancher.Client, updateMonitoringValue, updateLoggingValue string) {
 	var err error
-	cluster, err = helper.UpdateMonitoringAndLoggingService(cluster, ctx.RancherAdminClient, updateMonitoringValue, updateLoggingValue, true, true)
+	cluster, err = helper.UpdateMonitoringAndLoggingService(cluster, client, updateMonitoringValue, updateLoggingValue, true, true)
 	Expect(err).To(BeNil())
 }
 
 // updateAutoScaling tests updating `autoscaling` for GKE node pools
-func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster, autoscale bool) {
+func updateAutoScaling(cluster *management.Cluster, client *rancher.Client, autoscale bool) {
 	for _, np := range cluster.GKEConfig.NodePools {
 		if np.Autoscaling != nil {
 			Expect(np.Autoscaling.Enabled).ToNot(BeEquivalentTo(autoscale))
@@ -81,7 +81,7 @@ func updateAutoScaling(ctx helpers.Context, cluster *management.Cluster, autosca
 	}
 
 	var err error
-	cluster, err = helper.UpdateAutoScaling(cluster, ctx.RancherAdminClient, autoscale, true, true)
+	cluster, err = helper.UpdateAutoScaling(cluster, client, autoscale, true, true)
 	Expect(err).To(BeNil())
 }
 
