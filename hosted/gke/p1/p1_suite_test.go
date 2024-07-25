@@ -24,6 +24,7 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
@@ -227,4 +228,32 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 			}()).To(BeFalse(), "GKEConfig.NodePools decrease check failed")
 		}
 	})
+}
+
+func updateClutserInUpdatingStateCheck(cluster *management.Cluster, client *rancher.Client) {
+	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
+	Expect(err).To(BeNil())
+	upgradeK8sVersion := availableVersions[0]
+	currentNodePoolCount := len(cluster.GKEConfig.NodePools)
+	cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeK8sVersion, client, false, false, false)
+	Expect(err).To(BeNil())
+	Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeK8sVersion))
+
+	err = clusters.WaitClusterToBeInUpgrade(client, cluster.ID)
+	Expect(err).To(BeNil())
+
+	cluster, err = helper.AddNodePool(cluster, client, 1, "", false, false)
+	Expect(err).To(BeNil())
+
+	Expect(len(cluster.GKEConfig.NodePools)).Should(BeNumerically("==", currentNodePoolCount+1))
+
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
+
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return len(cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
+	}, "5m", "5s").Should(BeTrue())
+
 }
