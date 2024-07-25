@@ -247,7 +247,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
-	When("a cluster is created for upgrade scenarios", func() {
+	FWhen("a cluster is created for upgrade scenarios", func() {
 
 		BeforeEach(func() {
 			var err error

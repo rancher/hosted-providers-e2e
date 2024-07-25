@@ -234,6 +234,7 @@ func updateClutserInUpdatingStateCheck(cluster *management.Cluster, client *ranc
 	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	upgradeK8sVersion := availableVersions[0]
+
 	currentNodePoolCount := len(cluster.GKEConfig.NodePools)
 	cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeK8sVersion, client, false, false, false)
 	Expect(err).To(BeNil())

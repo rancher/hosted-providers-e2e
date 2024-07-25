@@ -108,6 +108,8 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 		}
 	}
 
+	ginkgo.GinkgoLogr.Info(fmt.Sprintf("Kubernetes version for cluster %s will be upgraded to %s", cluster.Name, upgradeToVersion))
+
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
 	if err != nil {
 		return nil, err
