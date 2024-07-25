@@ -113,7 +113,6 @@ var _ = Describe("P1Import", func() {
 	})
 
 	When("a cluster is created with at least 2 node pools", func() {
-		var cluster *management.Cluster
 
 		BeforeEach(func() {
 			var err error
@@ -140,6 +139,7 @@ var _ = Describe("P1Import", func() {
 
 				upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
 			})
+			Expect(err).To(BeNil())
 
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
