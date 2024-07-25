@@ -149,7 +149,7 @@ var _ = Describe("P1Import", func() {
 		})
 	})
 
-	FWhen("a cluster is created for upgrade scenario", func() {
+	When("a cluster is created for upgrade scenario", func() {
 
 		BeforeEach(func() {
 			var err error
@@ -170,7 +170,7 @@ var _ = Describe("P1Import", func() {
 
 		It("should successfully update a cluster while it is still in updating state", func() {
 			testCaseID = 265
-			updateClutserInUpdatingStateCheck(cluster, ctx.RancherAdminClient)
+			updateClusterInUpdatingStateCheck(cluster, ctx.RancherAdminClient)
 		})
 
 	})
