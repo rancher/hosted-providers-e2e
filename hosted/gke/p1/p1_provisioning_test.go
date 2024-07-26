@@ -130,6 +130,52 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(err.Error()).To(ContainSubstring("not found"))
 	})
 
+	It("should be able to create a cluster with CP K8s version v-XX and NP K8s version v-XX-1 should use v-XX for both CP and NP", func() {
+		testCaseID = 33
+
+		k8sVersions, err := helper.ListSingleVariantGKEAvailableVersions(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "")
+		Expect(err).To(BeNil())
+		Expect(len(k8sVersions)).To(BeNumerically(">=", 2))
+		npK8sVersion := k8sVersions[0]
+		cpK8sVersion := k8sVersions[1]
+
+		var gkeClusterConfig gke.ClusterConfig
+		config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
+		gkeClusterConfig.ProjectID = project
+		gkeClusterConfig.Zone = zone
+		gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
+		gkeClusterConfig.KubernetesVersion = &cpK8sVersion
+		for _, np := range gkeClusterConfig.NodePools {
+			*np.Version = npK8sVersion
+		}
+
+		cluster, err = gke.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, gkeClusterConfig, false, false, false, false, map[string]string{})
+		Expect(err).To(BeNil())
+
+		Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(cpK8sVersion))
+		for _, np := range cluster.GKEConfig.NodePools {
+			Expect(*np.Version).To(Equal(cpK8sVersion))
+		}
+
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+		Expect(err).To(BeNil())
+
+		Eventually(func() bool {
+			clusterState, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			if *clusterState.GKEStatus.UpstreamSpec.KubernetesVersion != cpK8sVersion {
+				return false
+			}
+
+			for _, np := range clusterState.GKEStatus.UpstreamSpec.NodePools {
+				if *np.Version != cpK8sVersion {
+					return false
+				}
+			}
+			return true
+		}, "5m", "5s").Should(BeTrue())
+	})
+
 	When("a cluster is created", func() {
 
 		BeforeEach(func() {
@@ -209,6 +255,10 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err.Error()).To(ContainSubstring("at least 1 Linux node pool is required"))
 		})
 
+		It("should be able to update combination mutable parameter", func() {
+			testCaseID = 31
+			combinationMutableParameterUpdate(cluster, ctx.RancherAdminClient)
+		})
 	})
 
 	When("creating a cluster with at least 2 nodepools", func() {

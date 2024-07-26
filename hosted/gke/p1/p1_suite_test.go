@@ -26,6 +26,7 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
+	"k8s.io/utils/pointer"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -257,5 +258,51 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 		Expect(err).To(BeNil())
 		return len(cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
 	}, "5m", "5s").Should(BeTrue())
+}
 
+// combinationMutableParameterUpdate runs checks to test if mutable parameters can be updated in combination
+func combinationMutableParameterUpdate(cluster *management.Cluster, client *rancher.Client) {
+	const (
+		disableService = "none"
+		maxCount       = int64(5)
+		minCount       = int64(2)
+	)
+	var err error
+	cluster, err = helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
+		for _, np := range upgradedCluster.GKEConfig.NodePools {
+			*np.InitialNodeCount = minCount
+			*np.Autoscaling = management.GKENodePoolAutoscaling{
+				Enabled:      true,
+				MaxNodeCount: maxCount,
+				MinNodeCount: minCount,
+			}
+		}
+		upgradedCluster.GKEConfig.LoggingService = pointer.String(disableService)
+		upgradedCluster.GKEConfig.MonitoringService = pointer.String(disableService)
+	})
+	Expect(err).To(BeNil())
+
+	Expect(*cluster.GKEConfig.LoggingService).To(Equal(disableService))
+	Expect(*cluster.GKEConfig.MonitoringService).To(Equal(disableService))
+	for _, np := range cluster.GKEConfig.NodePools {
+		Expect(*np.InitialNodeCount).Should(Equal(minCount))
+		Expect(np.Autoscaling.Enabled).Should(BeTrue())
+		Expect(np.Autoscaling.MaxNodeCount).Should(Equal(maxCount))
+		Expect(np.Autoscaling.MinNodeCount).Should(Equal(minCount))
+	}
+
+	err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+	Expect(err).To(BeNil())
+
+	Eventually(func() bool {
+		clusterState, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		npUpgraded := *clusterState.GKEStatus.UpstreamSpec.LoggingService == disableService && *clusterState.GKEStatus.UpstreamSpec.MonitoringService == disableService
+		for _, np := range clusterState.GKEStatus.UpstreamSpec.NodePools {
+			if !(npUpgraded && np.Autoscaling.Enabled && np.Autoscaling.MinNodeCount == minCount && np.Autoscaling.MaxNodeCount == maxCount && *np.InitialNodeCount == minCount) {
+				return false
+			}
+		}
+		return true
+	}, "5m", "5s").Should(BeTrue())
 }
