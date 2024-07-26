@@ -268,15 +268,27 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 		minCount       = int64(2)
 	)
 	var err error
-	cluster, err = helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
-		for _, np := range upgradedCluster.GKEConfig.NodePools {
-			*np.InitialNodeCount = minCount
-			*np.Autoscaling = management.GKENodePoolAutoscaling{
-				Enabled:      true,
-				MaxNodeCount: maxCount,
-				MinNodeCount: minCount,
+	cluster, err = helper.UpdateCluster(cluster, client, func(upgradedCluster *management.Cluster) {
+		updatedNp := upgradedCluster.GKEConfig.NodePools
+		for i := range updatedNp {
+			np := updatedNp[i]
+			// update autoscaling and initial node count
+			updatedNp[i] = management.GKENodePoolConfig{
+				Autoscaling: &management.GKENodePoolAutoscaling{
+					Enabled:      true,
+					MaxNodeCount: maxCount,
+					MinNodeCount: minCount,
+				},
+				Config:            np.Config,
+				InitialNodeCount:  pointer.Int64(minCount),
+				Management:        np.Management,
+				MaxPodsConstraint: np.MaxPodsConstraint,
+				Name:              np.Name,
+				Version:           np.Version,
 			}
 		}
+
+		upgradedCluster.GKEConfig.NodePools = updatedNp
 		upgradedCluster.GKEConfig.LoggingService = pointer.String(disableService)
 		upgradedCluster.GKEConfig.MonitoringService = pointer.String(disableService)
 	})
@@ -291,15 +303,19 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 		Expect(np.Autoscaling.MinNodeCount).Should(Equal(minCount))
 	}
 
-	err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 	Expect(err).To(BeNil())
 
 	Eventually(func() bool {
-		clusterState, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+		var clusterState *management.Cluster
+		clusterState, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
-		npUpgraded := *clusterState.GKEStatus.UpstreamSpec.LoggingService == disableService && *clusterState.GKEStatus.UpstreamSpec.MonitoringService == disableService
+		if !(*clusterState.GKEStatus.UpstreamSpec.LoggingService == disableService && *clusterState.GKEStatus.UpstreamSpec.MonitoringService == disableService) {
+			return false
+		}
+
 		for _, np := range clusterState.GKEStatus.UpstreamSpec.NodePools {
-			if !(npUpgraded && np.Autoscaling.Enabled && np.Autoscaling.MinNodeCount == minCount && np.Autoscaling.MaxNodeCount == maxCount && *np.InitialNodeCount == minCount) {
+			if np.Autoscaling != nil && !(np.Autoscaling.Enabled && np.Autoscaling.MinNodeCount == minCount && np.Autoscaling.MaxNodeCount == maxCount && *np.InitialNodeCount == minCount) {
 				return false
 			}
 		}
