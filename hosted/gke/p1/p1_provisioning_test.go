@@ -25,7 +25,7 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	AfterEach(func() {
-		if ctx.ClusterCleanup && cluster != nil {
+		if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
 			err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		} else {
@@ -101,7 +101,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
-	It("deleting a cluster while it is in creation state should delete the it from rancher and cloud console", func() {
+	It("deleting a cluster while it is in creation state should delete it from rancher and cloud console", func() {
 		testCaseID = 25
 		var err error
 		cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, zone, project, 1)
@@ -128,7 +128,6 @@ var _ = Describe("P1Provisioning", func() {
 		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("not found"))
-
 	})
 
 	When("a cluster is created", func() {
@@ -219,15 +218,6 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
-		})
-
-		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
-				err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
 		})
 
 		It("for a given NodePool with a non-windows imageType, updating it to a windows imageType should fail", func() {

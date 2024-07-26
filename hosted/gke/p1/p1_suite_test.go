@@ -230,7 +230,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 	})
 }
 
-// updateClusterInUpdatingStateCheck runs checks to ensure cluster in an updating state can be updated
+// updateClusterInUpdatingState runs checks to ensure cluster in an updating state can be updated
 func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.Client) {
 	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
