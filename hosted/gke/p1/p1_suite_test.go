@@ -308,7 +308,7 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 	Expect(err).To(BeNil())
 
 	Eventually(func() bool {
-		GinkgoLogr.Info("Waiting for the changes to appear in GKEStatus.UpstreamSpec...")
+		GinkgoLogr.Info("Waiting for the combination changes to appear in GKEStatus.UpstreamSpec...")
 		var clusterState *management.Cluster
 		clusterState, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())

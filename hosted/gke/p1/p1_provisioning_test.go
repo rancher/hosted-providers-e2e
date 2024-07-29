@@ -130,7 +130,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(err.Error()).To(ContainSubstring("not found"))
 	})
 
-	It("should be able to create a cluster with CP K8s version v-XX-a and NP K8s version v-XX should use v-XX-1 for both CP and NP", func() {
+	It("should be able to create a cluster with CP K8s version v-XX-1 and NP K8s version v-XX should use v-XX-1 for both CP and NP", func() {
 		testCaseID = 33
 
 		k8sVersions, err := helper.ListSingleVariantGKEAvailableVersions(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "")
@@ -161,6 +161,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
+			GinkgoLogr.Info("Waiting for the k8s upgrade to appear in GKEStatus.UpstreamSpec...")
 			clusterState, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			if *clusterState.GKEStatus.UpstreamSpec.KubernetesVersion != cpK8sVersion {
@@ -173,7 +174,7 @@ var _ = Describe("P1Provisioning", func() {
 				}
 			}
 			return true
-		}, "5m", "5s").Should(BeTrue())
+		}, "5m", "5s").Should(BeTrue(), "Failed while waiting for k8s upgrade.")
 	})
 
 	When("a cluster is created", func() {
