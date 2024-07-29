@@ -254,6 +254,7 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 	Expect(err).To(BeNil())
 
 	Eventually(func() bool {
+		GinkgoLogr.Info("Waiting for the changes to appear in GKEStatus.UpstreamSpec ...")
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		return len(cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
@@ -307,6 +308,7 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 	Expect(err).To(BeNil())
 
 	Eventually(func() bool {
+		GinkgoLogr.Info("Waiting for the changes to appear in GKEStatus.UpstreamSpec...")
 		var clusterState *management.Cluster
 		clusterState, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())

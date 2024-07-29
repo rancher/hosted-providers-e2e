@@ -130,7 +130,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(err.Error()).To(ContainSubstring("not found"))
 	})
 
-	It("should be able to create a cluster with CP K8s version v-XX and NP K8s version v-XX-1 should use v-XX for both CP and NP", func() {
+	It("should be able to create a cluster with CP K8s version v-XX-a and NP K8s version v-XX should use v-XX-1 for both CP and NP", func() {
 		testCaseID = 33
 
 		k8sVersions, err := helper.ListSingleVariantGKEAvailableVersions(ctx.RancherAdminClient, project, ctx.CloudCred.ID, zone, "")
