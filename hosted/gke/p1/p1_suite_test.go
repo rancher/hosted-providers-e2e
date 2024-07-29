@@ -149,6 +149,102 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 	})
 }
 
+// syncSameK8sVersionUpgradeCheck checks updating the same k8s version from both rancher and gcloud
+func syncSameK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Client) {
+	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
+	Expect(err).To(BeNil())
+	upgradeToVersion := availableVersions[0]
+	GinkgoLogr.Info("Upgrading to version " + upgradeToVersion)
+
+	// upgrading control plane
+	currentVersion := cluster.GKEConfig.KubernetesVersion
+
+	err = helper.UpgradeGKEClusterOnGCloud(zone, clusterName, project, upgradeToVersion, false, "", "--async")
+	Expect(err).To(BeNil())
+
+	// TODO: might have to add a wait until cluster is inactive
+
+	cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, client, false, false, false)
+	Expect(err).To(BeNil())
+
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
+
+	if !helpers.IsImport {
+		// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
+		Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+		for _, np := range cluster.GKEConfig.NodePools {
+			Expect(np.Version).To(BeEquivalentTo(currentVersion), "GKEConfig.NodePools check failed")
+		}
+	}
+
+	var output string
+	output, err = helper.GetClusterOnGCloud(cluster.Name, project, zone)
+	Expect(err).To(BeNil())
+	Expect(output).To(ContainSubstring(upgradeToVersion))
+
+	Eventually(func() string {
+		GinkgoLogr.Info("Waiting for k8s upgrade to appear in GKEStatus.UpstreamSpec ...")
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return *cluster.GKEStatus.UpstreamSpec.KubernetesVersion
+	}, tools.SetTimeout(7*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion), "Failed while waiting for k8s upgrade to appear in GKEStatus.UpstreamSpec")
+
+	// Ensure node pool version is still the same.
+	for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+		Expect(np.Version).To(BeEquivalentTo(currentVersion))
+	}
+
+}
+
+func syncUpdateOnDifferentFields(cluster *management.Cluster, client *rancher.Client) {
+	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
+	Expect(err).To(BeNil())
+	upgradeToVersion := availableVersions[0]
+	GinkgoLogr.Info("Upgrading to version " + upgradeToVersion)
+
+	// upgrading control plane
+	nodePoolName := namegen.AppendRandomString("new-np")
+	err = helper.UpgradeGKEClusterOnGCloud(zone, clusterName, project, upgradeToVersion, false, nodePoolName, "--async")
+	Expect(err).To(BeNil())
+
+	cluster, err = helper.AddNodePool(cluster, client, 1, "", false, false)
+	Expect(err).To(BeNil())
+
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
+
+	if !helpers.IsImport {
+		// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
+		Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+		var nodePoolFound bool
+		for _, np := range cluster.GKEConfig.NodePools {
+			if *np.Name == nodePoolName {
+				nodePoolFound = true
+			}
+		}
+		Expect(nodePoolFound).To(BeTrue())
+	}
+
+	var output string
+	output, err = helper.GetClusterOnGCloud(cluster.Name, project, zone)
+	Expect(err).To(BeNil())
+	Expect(output).To(ContainSubstring(upgradeToVersion))
+
+	Eventually(func() bool {
+		GinkgoLogr.Info("Waiting for k8s upgrade and node pool addition to appear in GKEStatus.UpstreamSpec ...")
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		var nodePoolFound bool
+		for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+			if *np.Name == nodePoolName {
+				nodePoolFound = true
+			}
+		}
+		return *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion && nodePoolFound
+	}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(BeTrue(), "Failed while waiting for k8s upgrade and node pool addition to appear in GKEStatus.UpstreamSpec")
+}
+
 func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 	var poolName = namegen.AppendRandomString("new-np")

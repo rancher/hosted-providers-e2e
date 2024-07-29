@@ -497,6 +497,19 @@ func ClusterExistsOnGCloud(clusterName, project, zone string) (bool, error) {
 	return false, nil
 }
 
+// GetClusterOnGCloud fetches the cluster by listing and filtering it and returns the output
+func GetClusterOnGCloud(clusterName, project, zone string) (string, error) {
+	fmt.Println("Listing GKE cluster ...")
+	args := []string{"container", "clusters", "list", "--filter", clusterName, "--project", project, "--zone", zone}
+
+	fmt.Printf("Running command: gcloud %v\n", args)
+	out, err := proc.RunW("gcloud", args...)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to list cluster: "+out)
+	}
+	return out, nil
+}
+
 // AddNodePoolOnGCloud adds a nodepool to the GKE cluster via gcloud CLI
 func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ...string) error {
 	if npName == "" {
