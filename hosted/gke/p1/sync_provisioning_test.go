@@ -19,29 +19,23 @@ var _ = Describe("SyncProvisioning", func() {
 		testBody  func(cluster *management.Cluster, client *rancher.Client)
 		testTitle string
 	}{
-		//{
-		//	qaseID:    39,
-		//	isUpgrade: true,
-		//	testBody:  syncK8sVersionUpgradeCheck,
-		//	testTitle: "should Sync from GCE to Rancher - changed k8s version",
-		//},
-		//{
-		//	qaseID:    40,
-		//	isUpgrade: false,
-		//	testBody:  syncNodepoolsCheck,
-		//	testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
-		//},
+		{
+			qaseID:    39,
+			isUpgrade: true,
+			testBody:  syncK8sVersionUpgradeCheck,
+			testTitle: "should Sync from GCE to Rancher - changed k8s version",
+		},
+		{
+			qaseID:    40,
+			isUpgrade: false,
+			testBody:  syncNodepoolsCheck,
+			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
+		},
 		{
 			qaseID:    46,
 			isUpgrade: true,
 			testBody:  syncSameK8sVersionUpgradeCheck,
 			testTitle: "Updating to the same k8s version from GCP and Rancher",
-		},
-		{
-			qaseID:    42,
-			isUpgrade: true,
-			testBody:  nil,
-			testTitle: "Sync from GCE to Rancher - But edit from Rancher before the sync finishes (edit on different fields)",
 		},
 	} {
 		testData := testData
@@ -68,7 +62,7 @@ var _ = Describe("SyncProvisioning", func() {
 				}
 			})
 
-			FIt(testData.testTitle, func() {
+			It(testData.testTitle, func() {
 				testCaseID = testData.qaseID
 				testData.testBody(cluster, ctx.RancherAdminClient)
 			})

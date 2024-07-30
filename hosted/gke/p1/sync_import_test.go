@@ -31,6 +31,12 @@ var _ = Describe("SyncImport", func() {
 			testBody:  syncNodepoolsCheck,
 			testTitle: "should Sync from GCE to Rancher - add/delete nodepool",
 		},
+		{
+			qaseID:    59,
+			isUpgrade: true,
+			testBody:  syncSameK8sVersionUpgradeCheck,
+			testTitle: "Updating to the same k8s version from GCP and Rancher",
+		},
 	} {
 		testData := testData
 		When("a cluster is import", func() {
