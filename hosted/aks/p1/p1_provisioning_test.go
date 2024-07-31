@@ -12,8 +12,8 @@ import (
 )
 
 var _ = Describe("P1Provisioning", func() {
-	var cluster *management.Cluster
 	When("a cluster is created", func() {
+		var cluster *management.Cluster
 		BeforeEach(func() {
 			k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, false)
 			Expect(err).NotTo(HaveOccurred())
@@ -23,9 +23,6 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).NotTo(HaveOccurred())
-			//var err error
-			//cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID("c-cdzqv")
-			//Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
 			if ctx.ClusterCleanup && cluster != nil {
@@ -36,10 +33,9 @@ var _ = Describe("P1Provisioning", func() {
 			}
 		})
 
-		FIt("should be able to update autoscaling", func() {
+		It("should be able to update autoscaling", func() {
 			testCaseID = 176
 			updateAutoScaling(cluster, ctx.RancherAdminClient)
 		})
-
 	})
 })

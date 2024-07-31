@@ -342,8 +342,17 @@ func ListAKSAvailableVersions(client *rancher.Client, clusterID string) ([]strin
 }
 
 // UpdateAutoScaling updates the management.AKSNodePool Autoscaling for all the node pools of an AKS cluster
-// if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
+// if checkClusterConfig is true, it validates the update
 func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enabled bool, maxCount, minCount int64, checkClusterConfig bool) (*management.Cluster, error) {
+	if enabled {
+		if minCount == 0 && maxCount == 0 {
+			return nil, fmt.Errorf("minCount and maxCount cannot be zero when enabling autoscaling")
+		}
+		if maxCount <= minCount {
+			return nil, fmt.Errorf("maxCount must be greater than minCount")
+		}
+	}
+
 	var npCount int64
 	upgradedCluster := new(management.Cluster)
 	upgradedCluster.Name = cluster.Name
@@ -352,49 +361,37 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 		np := upgradedCluster.AKSConfig.NodePools[i]
 		np.EnableAutoScaling = &enabled
 		if enabled {
-			if maxCount != 0 {
-				np.MaxCount = &maxCount
-			}
-			if minCount != 0 {
-				np.MinCount = &minCount
-			}
-			// If nodepool count is less than minimum count, the value must be changed; here we change it to minCount
+			np.MaxCount = &maxCount
+			np.MinCount = &minCount
+			// if nodepool count is less than minimum count, the value must be changed; here we change it to minCount
 			if *np.Count < minCount {
 				npCount = minCount
 				np.Count = &npCount
 			}
 		} else {
-			// if this is not set, error is raised.
+			// if this is not set, error will be raised by the API
 			np.MaxCount = nil
 			np.MinCount = nil
 		}
 		upgradedCluster.AKSConfig.NodePools[i] = np
 	}
 
-	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
+	var err error
+	cluster, err = client.Management.Cluster.Update(cluster, &upgradedCluster)
 	if err != nil {
 		return nil, err
 	}
-
-	const (
-		defaultMinCount = 1
-		defaultMaxCount = 3
-	)
 
 	if checkClusterConfig {
 		for _, np := range cluster.AKSConfig.NodePools {
 			Expect(*np.EnableAutoScaling).To(BeEquivalentTo(enabled))
 			if enabled {
-				if maxCount != 0 && np.MaxCount != nil {
+				if np.MaxCount != nil {
 					Expect(*np.MaxCount).To(BeEquivalentTo(maxCount))
-				} else {
-					Expect(*np.MaxCount).To(BeEquivalentTo(defaultMaxCount))
 				}
 
-				if minCount != 0 && np.MinCount != nil {
+				if np.MinCount != nil {
 					Expect(*np.MinCount).To(BeEquivalentTo(minCount))
-				} else {
-					Expect(*np.MinCount).To(BeEquivalentTo(defaultMinCount))
 				}
 
 				if npCount != 0 {
@@ -414,38 +411,21 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 			Expect(err).To(BeNil())
 			for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
 				if enabled {
-					if !*np.EnableAutoScaling {
+					if np.EnableAutoScaling != nil && !*np.EnableAutoScaling {
 						return false
 					}
-					if maxCount != 0 && np.MaxCount != nil {
-						if *np.MaxCount != maxCount {
-							return false
-						}
-						//Expect(*np.MaxCount).To(BeEquivalentTo(maxCount))
-					} else {
-						if *np.MaxCount != defaultMaxCount {
-							return false
-						}
-						//Expect(*np.MaxCount).To(BeEquivalentTo(defaultMaxCount))
-					}
+					if np.MaxCount != nil && *np.MaxCount != maxCount {
+						return false
 
-					if minCount != 0 && np.MinCount != nil {
-						if *np.MinCount != minCount {
-							return false
-						}
-						//Expect(*np.MinCount).To(BeEquivalentTo(minCount))
-					} else {
-						if *np.MinCount != defaultMinCount {
-							return false
-						}
-						//Expect(*np.MinCount).To(BeEquivalentTo(defaultMinCount))
 					}
+					if np.MinCount != nil && *np.MinCount != minCount {
+						return false
 
+					}
 					if npCount != 0 {
 						if *np.Count != npCount {
 							return false
 						}
-						//Expect(*np.Count).To(BeEquivalentTo(npCount))
 					}
 				} else {
 					if *np.EnableAutoScaling {
@@ -454,8 +434,6 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 					if np.MaxCount != nil && np.MinCount != nil {
 						return false
 					}
-					//Expect(np.MaxCount).To(BeNil())
-					//Expect(np.MinCount).To(BeNil())
 				}
 			}
 			return true
