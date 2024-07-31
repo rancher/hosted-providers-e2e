@@ -8,7 +8,6 @@ import (
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
@@ -50,26 +49,20 @@ var _ = ReportAfterEach(func(report SpecReport) {
 
 // updateAutoScaling tests updating `autoscaling` for GKE node pools
 func updateAutoScaling(cluster *management.Cluster, client *rancher.Client) {
-	for _, np := range cluster.AKSConfig.NodePools {
-		if np.EnableAutoScaling != nil {
-			Expect(np.EnableAutoScaling).ToNot(BeEquivalentTo(true))
-		}
-	}
-	By("enabling autoscaling with custom minCount and maxCount", func() {
-		var err error
-		cluster, err = helper.UpdateAutoScaling(cluster, client, true, 5, 2, true)
-		Expect(err).To(BeNil())
-	})
-	By("disabling autoscaling", func() {
-		var err error
-		cluster, err = helper.UpdateAutoScaling(cluster, client, false, 0, 0, true)
-		Expect(err).To(BeNil())
-	})
-
 	By("enabling autoscaling with default minCount and maxCount", func() {
 		var err error
 		cluster, err = helper.UpdateAutoScaling(cluster, client, true, 0, 0, true)
 		Expect(err).To(BeNil())
 	})
 
+	By("disabling autoscaling", func() {
+		var err error
+		cluster, err = helper.UpdateAutoScaling(cluster, client, false, 0, 0, true)
+		Expect(err).To(BeNil())
+	})
+	By("enabling autoscaling with custom minCount and maxCount", func() {
+		var err error
+		cluster, err = helper.UpdateAutoScaling(cluster, client, true, 5, 2, true)
+		Expect(err).To(BeNil())
+	})
 }

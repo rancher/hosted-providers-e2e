@@ -22,7 +22,10 @@ var _ = Describe("P1Provisioning", func() {
 			cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, location)
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(HaveOccurred())
+			//var err error
+			//cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID("c-cdzqv")
+			//Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
 			if ctx.ClusterCleanup && cluster != nil {
