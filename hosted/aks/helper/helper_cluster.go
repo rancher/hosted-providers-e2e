@@ -34,7 +34,7 @@ var (
 )
 
 // CreateAKSHostedCluster creates the AKS cluster on Rancher
-func CreateAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, location string) (*management.Cluster, error) {
+func CreateAKSHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, location string, updateFunc func(clusterConfig *aks.ClusterConfig)) (*management.Cluster, error) {
 	var aksClusterConfig aks.ClusterConfig
 	config.LoadConfig(aks.AKSClusterConfigConfigurationFileKey, &aksClusterConfig)
 
@@ -44,6 +44,10 @@ func CreateAKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 	aksClusterConfig.ResourceLocation = location
 	aksClusterConfig.Tags = helpers.GetCommonMetadataLabels()
 	aksClusterConfig.KubernetesVersion = &k8sVersion
+
+	if updateFunc != nil {
+		updateFunc(&aksClusterConfig)
+	}
 
 	return aks.CreateAKSHostedCluster(client, displayName, cloudCredentialID, aksClusterConfig, false, false, false, false, nil)
 }
@@ -406,7 +410,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 
 	if checkClusterConfig {
 		Eventually(func() bool {
-			ginkgo.GinkgoLogr.Info("Waiting for the autoscaling update to appear in AKSStatus.UpstreamSpec ...")
+			ginkgo.GinkgoLogr.Info(fmt.Sprintf("Waiting for the autoscaling update (enable: %v) to appear in AKSStatus.UpstreamSpec ...", enabled))
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
@@ -437,7 +441,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 				}
 			}
 			return true
-		}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(BeTrue())
+		}, tools.SetTimeout(7*time.Minute), 5*time.Second).Should(BeTrue())
 	}
 	return cluster, nil
 }

@@ -26,8 +26,6 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
-			// Workaround to update the cluster; since this value is always nil
-			cluster.AKSConfig = cluster.AKSStatus.UpstreamSpec
 		})
 		AfterEach(func() {
 			if ctx.ClusterCleanup && cluster != nil {
