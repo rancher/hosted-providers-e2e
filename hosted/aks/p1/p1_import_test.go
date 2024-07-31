@@ -39,7 +39,7 @@ var _ = Describe("P1Import", func() {
 		})
 
 		It("should be able to update autoscaling", func() {
-			// TODO: create testCaseID
+			testCaseID = 266
 			updateAutoScaling(cluster, ctx.RancherAdminClient)
 		})
 	})
