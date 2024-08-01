@@ -49,12 +49,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
-				for _, condition := range cluster.Conditions {
-					if strings.Contains(condition.Message, "Cluster must have at least one managed nodegroup or one self-managed node") {
-						return true
-					}
-				}
-				return false
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Cluster must have at least one managed nodegroup or one self-managed node")
 			}, "10m", "30s").Should(BeTrue())
 
 		})
@@ -80,7 +75,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
-				return cluster.State == "provisioning" && strings.Contains(cluster.TransitioningMessage, "node group names must be unique")
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "node group names must be unique")
 			}, "1m", "3s").Should(BeTrue())
 
 		})
