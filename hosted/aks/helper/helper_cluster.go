@@ -477,7 +477,6 @@ func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion str
 func ClusterExistsOnAzure(clusterName, resourceGroup string) (bool, error) {
 	fmt.Println("Showing AKS cluster ...")
 	args := []string{"aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup}
-	//❯ az aks show --subscription 80de5134-ca65-4731-be21-13fb1f0910a2 --output table --name pkumaraks --resource-group pkaks
 	fmt.Printf("Running command: az %v\n", args)
 	out, err := proc.RunW("az", args...)
 	if err != nil {

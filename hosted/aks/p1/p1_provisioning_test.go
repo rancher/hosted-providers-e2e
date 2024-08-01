@@ -81,7 +81,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 
 		It("recreating a cluster while it is being deleted should recreate the cluster", func() {
-			testCaseID = 218
+			testCaseID = 219
 
 			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
