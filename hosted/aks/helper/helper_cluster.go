@@ -482,7 +482,6 @@ func ClusterExistsOnAzure(clusterName, resourceGroup string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to show cluster: "+out)
 	}
-	fmt.Println(out)
 	if !strings.Contains(out, "Deleting") {
 		return true, nil
 	}
