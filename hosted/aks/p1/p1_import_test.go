@@ -23,12 +23,13 @@ var _ = Describe("P1Import", func() {
 
 	AfterEach(func() {
 		if ctx.ClusterCleanup {
-			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
-			Expect(err).To(BeNil())
 			if cluster != nil && cluster.ID != "" {
-				err = helper.DeleteAKSClusteronAzure(clusterName)
+				err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			}
+			err := helper.DeleteAKSClusteronAzure(clusterName)
+			Expect(err).To(BeNil())
+
 		} else {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
@@ -68,10 +69,12 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("should not be able to remove system nodepool", func() {
+		XIt("should not be able to remove system nodepool", func() {
+			// Blocked on https://github.com/rancher/aks-operator/issues/619
 			testCaseID = 267
 			removeSystemNpCheck(cluster, ctx.RancherAdminClient)
 		})
+
 		It("should to able to delete a nodepool and add a new one", func() {
 			testCaseID = 268
 			deleteAndAddNpCheck(cluster, ctx.RancherAdminClient)

@@ -486,7 +486,7 @@ func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion str
 // AddNodePoolOnAzure adds nodepool to an AKS cluster via CLI; helpful when creating a cluster with multiple nodepools
 func AddNodePoolOnAzure(npName, clusterName, resourceGroupName, nodeCount string, extraArgs ...string) error {
 	fmt.Println("Adding node pool ...")
-	args := []string{"aks", "nodepool", "add", "--resource-group", resourceGroupName, "--cluster-name", clusterName, "--name", npName, "--node-count", nodeCount}
+	args := []string{"aks", "nodepool", "add", "--resource-group", resourceGroupName, "--cluster-name", clusterName, "--name", npName, "--node-count", nodeCount, "--subscription", subscriptionID}
 	if len(extraArgs) > 0 {
 		args = append(args, extraArgs...)
 	}
