@@ -255,8 +255,8 @@ var _ = Describe("P1Provisioning", func() {
 			testCaseID = 189
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
-			Expect(len(cluster.AKSConfig.NodePools)).To(Equal(4))
-			Expect(len(cluster.AKSStatus.UpstreamSpec.NodePools)).To(Equal(4))
+			Expect(len(cluster.AKSConfig.NodePools)).To(Equal(2))
+			Expect(len(cluster.AKSStatus.UpstreamSpec.NodePools)).To(Equal(2))
 		})
 
 		It("should to able to delete a nodepool and add a new one", func() {

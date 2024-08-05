@@ -12,7 +12,6 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
-	"k8s.io/utils/pointer"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -68,13 +67,13 @@ func updateAutoScaling(cluster *management.Cluster, client *rancher.Client) {
 
 func removeSystemNpCheck(cluster *management.Cluster, client *rancher.Client) {
 	updateFunc := func(cluster *management.Cluster) {
-		var upgradedNodePools []management.AKSNodePool
+		var updatedNodePools []management.AKSNodePool
 		for _, np := range cluster.AKSConfig.NodePools {
 			if np.Mode == "User" {
-				upgradedNodePools = append(upgradedNodePools, np)
+				updatedNodePools = append(updatedNodePools, np)
 			}
 		}
-		cluster.AKSConfig.NodePools = upgradedNodePools
+		cluster.AKSConfig.NodePools = updatedNodePools
 	}
 	var err error
 	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
@@ -88,29 +87,13 @@ func removeSystemNpCheck(cluster *management.Cluster, client *rancher.Client) {
 
 func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 	npToBeDeleted := cluster.AKSConfig.NodePools[0]
+	newPoolName := fmt.Sprintf("newpool%s", namegen.RandStringLower(3))
 	updateFunc := func(cluster *management.Cluster) {
-		upgradedNodePools := cluster.AKSConfig.NodePools[1:]
-
-		upgradedNodePools = append(upgradedNodePools, management.AKSNodePool{
-			AvailabilityZones:   npToBeDeleted.AvailabilityZones,
-			Count:               npToBeDeleted.Count,
-			EnableAutoScaling:   npToBeDeleted.EnableAutoScaling,
-			MaxCount:            npToBeDeleted.MaxCount,
-			MaxPods:             npToBeDeleted.MaxPods,
-			MaxSurge:            npToBeDeleted.MaxSurge,
-			MinCount:            npToBeDeleted.MinCount,
-			Mode:                "System",
-			Name:                pointer.String(fmt.Sprintf("newpool%s", namegen.RandStringLower(3))),
-			NodeLabels:          npToBeDeleted.NodeLabels,
-			NodeTaints:          npToBeDeleted.NodeTaints,
-			OrchestratorVersion: npToBeDeleted.OrchestratorVersion,
-			OsDiskSizeGB:        npToBeDeleted.OsDiskSizeGB,
-			OsDiskType:          npToBeDeleted.OsDiskType,
-			OsType:              npToBeDeleted.OsType,
-			VMSize:              npToBeDeleted.VMSize,
-			VnetSubnetID:        npToBeDeleted.VnetSubnetID,
-		})
-		cluster.AKSConfig.NodePools = upgradedNodePools
+		updatedNodePools := cluster.AKSConfig.NodePools[1:]
+		newNodePool := npToBeDeleted
+		newNodePool.Name = &newPoolName
+		updatedNodePools = append(updatedNodePools, newNodePool)
+		cluster.AKSConfig.NodePools = updatedNodePools
 	}
 	var err error
 	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
@@ -123,7 +106,7 @@ func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 		if *np.Name == *npToBeDeleted.Name {
 			npDeleted = false
 		}
-		if *np.Name == "newpool" {
+		if *np.Name == newPoolName {
 			npAdded = true
 		}
 	}
@@ -141,7 +124,7 @@ func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 			npAddedToUpstream     = false
 		)
 		for _, np := range cluster.AKSConfig.NodePools {
-			if *np.Name == "newpool" {
+			if *np.Name == newPoolName {
 				npAddedToUpstream = true
 			}
 			if *np.Name == *npToBeDeleted.Name {
@@ -153,9 +136,9 @@ func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 
 }
 
-// npUpgradeToVersionGTCPCheck runs checks when nodepool is upgraded to a version greater than control plane version
+// npUpgradeToVersionGTCPCheck runs checks when node pool is upgraded to a version greater than control plane version
 func npUpgradeToVersionGTCPCheck(cluster *management.Cluster, client *rancher.Client) {
-	k8sVersion := cluster.AKSConfig.KubernetesVersion
+	k8sVersion := *cluster.AKSConfig.KubernetesVersion
 	availableVersions, err := helper.ListAKSAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	upgradeK8sVersion := availableVersions[0]
