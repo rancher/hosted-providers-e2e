@@ -86,10 +86,19 @@ func removeSystemNpCheck(cluster *management.Cluster, client *rancher.Client) {
 }
 
 func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
-	npToBeDeleted := cluster.AKSConfig.NodePools[0]
+	originalLen := len(cluster.AKSConfig.NodePools)
+	var npToBeDeleted management.AKSNodePool
 	newPoolName := fmt.Sprintf("newpool%s", namegen.RandStringLower(3))
 	updateFunc := func(cluster *management.Cluster) {
-		updatedNodePools := cluster.AKSConfig.NodePools[1:]
+		var updatedNodePools []management.AKSNodePool
+		for _, np := range cluster.AKSConfig.NodePools {
+			if np.Mode == "User" {
+				// We do not want to delete one of the 'System' mode nodepool; since at least one is required
+				npToBeDeleted = np
+			} else {
+				updatedNodePools = append(updatedNodePools, np)
+			}
+		}
 		newNodePool := npToBeDeleted
 		newNodePool.Name = &newPoolName
 		updatedNodePools = append(updatedNodePools, newNodePool)
@@ -112,13 +121,16 @@ func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 	}
 	Expect(npAdded).To(BeTrue())
 	Expect(npDeleted).To(BeTrue())
-
+	Expect(len(cluster.AKSConfig.NodePools)).To(BeEquivalentTo(originalLen))
 	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 	Expect(err).To(BeNil())
 
 	Eventually(func() bool {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
+		if len(cluster.AKSStatus.UpstreamSpec.NodePools) != originalLen {
+			return false
+		}
 		var (
 			npDeletedFromUpstream = true
 			npAddedToUpstream     = false

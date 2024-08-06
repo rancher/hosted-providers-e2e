@@ -448,9 +448,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 
 // UpdateCluster is a generic function to update a cluster
 func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFunc func(*management.Cluster)) (*management.Cluster, error) {
-	upgradedCluster := new(management.Cluster)
-	upgradedCluster.Name = cluster.Name
-	upgradedCluster.AKSConfig = cluster.AKSConfig
+	upgradedCluster := cluster
 
 	updateFunc(upgradedCluster)
 
