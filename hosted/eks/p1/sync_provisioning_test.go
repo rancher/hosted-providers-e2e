@@ -11,10 +11,10 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("P1Import", func() {
+var _ = Describe("SyncProvisioning", func() {
 	var cluster *management.Cluster
 
-	When("a cluster is imported for upgrade", func() {
+	When("a cluster is created for sync", func() {
 
 		BeforeEach(func() {
 			var err error
@@ -22,21 +22,17 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 			upgradeToVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 			Expect(err).To(BeNil())
-			GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
-			err = helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
-			Expect(err).To(BeNil())
+			GinkgoLogr.Info(fmt.Sprintf("While provisioning, using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 
-			cluster, err = helper.ImportEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, region)
+			cluster, err = helper.CreateEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, region, nil)
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		})
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup {
+			if ctx.ClusterCleanup && cluster != nil {
 				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteEKSClusterOnAWS(region, clusterName)
 				Expect(err).To(BeNil())
 			} else {
 				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
@@ -44,37 +40,38 @@ var _ = Describe("P1Import", func() {
 		})
 
 		It("Upgrade k8s version of cluster from EKS and verify it is synced back to Rancher", func() {
-			testCaseID = 114
+			testCaseID = 159
 
 			By("upgrading the ControlPlane & NodeGroup", func() {
 				syncK8sVersionUpgradeCheck(cluster, ctx.RancherAdminClient, true)
-
 			})
 		})
 
 		It("Sync from Rancher to AWS console after a sync from AWS console to Rancher", func() {
-			testCaseID = 112
+			testCaseID = 157
 
 			var err error
-			initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
-			By("upgrading the ControlPlane", func() {
+			loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
+			currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
+
+			By("upgrading control plane", func() {
 				syncK8sVersionUpgradeCheck(cluster, ctx.RancherAdminClient, false)
 			})
 
-			By("scaling up the NodeGroup", func() {
-				cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherAdminClient, initialNodeCount+1, true, true)
+			By("adding a NodeGroup", func() {
+				cluster, err = helper.AddNodeGroup(cluster, 1, ctx.RancherAdminClient, true, true)
 				Expect(err).To(BeNil())
 			})
 
-			loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
 			By("Adding the LoggingTypes", func() {
 				cluster, err = helper.UpdateLogging(cluster, ctx.RancherAdminClient, loggingTypes, true)
 				Expect(err).To(BeNil())
 			})
 
 			// Check if the desired config is set correctly
-			Expect(*cluster.EKSConfig.NodeGroups[0].DesiredSize).To(BeNumerically("==", initialNodeCount+1))
+			Expect(len(cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber+1))
 			Expect(*cluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
 		})
 	})
+
 })
