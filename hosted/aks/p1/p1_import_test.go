@@ -53,7 +53,7 @@ var _ = Describe("P1Import", func() {
 		})
 	})
 
-	FWhen("a cluster is created with multiple nodepools", func() {
+	When("a cluster is created with multiple nodepools", func() {
 		BeforeEach(func() {
 			var err error
 			err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
@@ -82,7 +82,7 @@ var _ = Describe("P1Import", func() {
 
 	})
 
-	FWhen("a cluster is created and imported for upgrade", func() {
+	When("a cluster is created and imported for upgrade", func() {
 		BeforeEach(func() {
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, true)

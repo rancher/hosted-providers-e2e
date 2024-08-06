@@ -109,7 +109,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	})
 
-	FWhen("a cluster is created for upgrade", func() {
+	When("a cluster is created for upgrade", func() {
 		BeforeEach(func() {
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, true)
@@ -217,7 +217,7 @@ var _ = Describe("P1Provisioning", func() {
 		}, "5m", "5s").Should(BeTrue(), "Failed while waiting for k8s upgrade.")
 	})
 
-	FWhen("a cluster is created for with user and system mode nodepool", func() {
+	When("a cluster is created for with user and system mode nodepool", func() {
 		BeforeEach(func() {
 			updateFunc := func(clusterConfig *aks.ClusterConfig) {
 				nodePools := *clusterConfig.NodePools
