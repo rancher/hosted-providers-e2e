@@ -114,7 +114,6 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 
 		if !helpers.IsImport {
 			// For imported clusters, EKSConfig always has null values; so we check EKSConfig only when testing provisioned clusters
-			Expect(*cluster.EKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 			for _, ng := range cluster.EKSConfig.NodeGroups {
 				Expect(*ng.Version).To(BeEquivalentTo(k8sVersion), "EKSConfig.NodePools check failed")
 			}

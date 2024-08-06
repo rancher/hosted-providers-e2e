@@ -33,7 +33,7 @@ var _ = Describe("P1Import", func() {
 		})
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
+			if ctx.ClusterCleanup {
 				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 				err = helper.DeleteEKSClusterOnAWS(region, clusterName)
