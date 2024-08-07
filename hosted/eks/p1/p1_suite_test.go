@@ -15,9 +15,13 @@ limitations under the License.
 package p1_test
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
@@ -149,4 +153,92 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 			}
 		})
 	}
+}
+
+func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client) {
+	var err error
+	loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
+	currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
+	initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
+
+	By("upgrading control plane", func() {
+		syncK8sVersionUpgradeCheck(cluster, client, false)
+	})
+
+	By("scaling up the NodeGroup", func() {
+		cluster, err = helper.ScaleNodeGroup(cluster, client, initialNodeCount+1, true, true)
+		Expect(err).To(BeNil())
+
+		// Verify the existing details do NOT change in Rancher
+		for _, ng := range cluster.EKSConfig.NodeGroups {
+			Expect(*ng.Version).To(BeEquivalentTo(k8sVersion))
+			Expect(len(cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber))
+		}
+
+		// Verify the new edits reflect in AWS and existing details do NOT change
+		out, err := getFromEKS("cluster", "'.[]|.Version'")
+		Expect(err).To(BeNil())
+		Expect(out).To(Equal(upgradeToVersion))
+
+		out, err = getFromEKS("nodegroup", "'.|length'")
+		Expect(err).To(BeNil())
+		Expect(strconv.Atoi(out)).To(Equal(currentNodeGroupNumber))
+
+		out, err = getFromEKS("nodegroup", "'.[]|.DesiredCapacity'")
+		Expect(err).To(BeNil())
+		Expect(strconv.ParseInt(out, 10, 64)).To(Equal(initialNodeCount + 1))
+	})
+
+	By("adding a NodeGroup", func() {
+		cluster, err = helper.AddNodeGroup(cluster, 1, client, true, true)
+		Expect(err).To(BeNil())
+
+		// Verify the existing details do NOT change in Rancher
+		Expect(*cluster.EKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+		Expect(*cluster.EKSConfig.LoggingTypes).ShouldNot(HaveExactElements(loggingTypes))
+
+		// Verify the new edits reflect in AWS console and existing details do NOT change
+		out, err := getFromEKS("cluster", "'.[]|.Version'")
+		Expect(err).To(BeNil())
+		Expect(out).To(Equal(upgradeToVersion))
+
+		out, err = getFromEKS("nodegroup", "'.|length'")
+		Expect(err).To(BeNil())
+		Expect(strconv.Atoi(out)).To(Equal(currentNodeGroupNumber + 1))
+	})
+
+	By("Adding the LoggingTypes", func() {
+		cluster, err = helper.UpdateLogging(cluster, client, loggingTypes, true)
+		Expect(err).To(BeNil())
+
+		// Verify the existing details do NOT change in Rancher
+		Expect(*cluster.EKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+		Expect(len(cluster.EKSConfig.NodeGroups)).To(Equal(currentNodeGroupNumber + 1))
+
+		// Verify the new edits reflect in AWS console and existing details do NOT change
+		out, err := getFromEKS("nodegroup", "'.|length'")
+		Expect(err).To(BeNil())
+		Expect(strconv.Atoi(out)).To(Equal(currentNodeGroupNumber + 1))
+
+		out, err = getFromEKS("cluster", "'.[]|.Logging|.[]|.[]|.Types'")
+		Expect(err).To(BeNil())
+		Expect(out).ShouldNot(HaveExactElements(loggingTypes))
+	})
+
+}
+
+func getFromEKS(cmd string, query string) (out string, err error) {
+	clusterArgs := []string{"eksctl", "get", "cluster", "--region=" + region, "--name=" + clusterName, "-ojson", "|", "jq", "-r"}
+	ngArgs := []string{"eksctl", "get", "nodegroup", "--region=" + region, "--cluster=" + clusterName, "-ojson", "|", "jq", "-r"}
+
+	if cmd == "cluster" {
+		clusterArgs = append(clusterArgs, query)
+		cmd = strings.Join(clusterArgs, " ")
+	} else {
+		ngArgs = append(ngArgs, query)
+		cmd = strings.Join(ngArgs, " ")
+	}
+	fmt.Printf("Running command: %s\n", cmd)
+	out, err = proc.RunW("bash", "-c", cmd)
+	return strings.TrimSpace(out), err
 }

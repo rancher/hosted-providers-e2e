@@ -220,7 +220,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
+			if ctx.ClusterCleanup && cluster.ID != "" {
 				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			} else {

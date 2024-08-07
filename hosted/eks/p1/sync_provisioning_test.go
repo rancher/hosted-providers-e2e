@@ -49,28 +49,7 @@ var _ = Describe("SyncProvisioning", func() {
 
 		It("Sync from Rancher to AWS console after a sync from AWS console to Rancher", func() {
 			testCaseID = 157
-
-			var err error
-			loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
-			currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
-
-			By("upgrading control plane", func() {
-				syncK8sVersionUpgradeCheck(cluster, ctx.RancherAdminClient, false)
-			})
-
-			By("adding a NodeGroup", func() {
-				cluster, err = helper.AddNodeGroup(cluster, 1, ctx.RancherAdminClient, true, true)
-				Expect(err).To(BeNil())
-			})
-
-			By("Adding the LoggingTypes", func() {
-				cluster, err = helper.UpdateLogging(cluster, ctx.RancherAdminClient, loggingTypes, true)
-				Expect(err).To(BeNil())
-			})
-
-			// Check if the desired config is set correctly
-			Expect(len(cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber+1))
-			Expect(*cluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
+			syncRancherToAWSCheck(cluster, ctx.RancherAdminClient)
 		})
 	})
 
