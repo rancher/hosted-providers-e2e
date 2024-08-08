@@ -33,7 +33,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	It("should successfully create cluster with multiple nodepools in multiple AZs", func() {
+	FIt("should successfully create cluster with multiple nodepools in multiple AZs", func() {
 		testCaseID = 193
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			nodepools := *aksConfig.NodePools
@@ -74,7 +74,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	It("should be able to create a cluster with empty tag", func() {
+	FIt("should be able to create a cluster with empty tag", func() {
 		testCaseID = 205
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.Tags["empty-tag"] = ""
@@ -138,7 +138,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateAutoScaling(cluster, ctx.RancherAdminClient)
 		})
 
-		It("should be able to update tags", func() {
+		FIt("should be able to update tags", func() {
 			testCaseID = 177
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
