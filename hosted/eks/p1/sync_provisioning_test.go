@@ -31,7 +31,7 @@ var _ = Describe("SyncProvisioning", func() {
 		})
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
+			if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
 				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			} else {

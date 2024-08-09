@@ -33,7 +33,7 @@ var _ = Describe("SyncImport", func() {
 		})
 
 		AfterEach(func() {
-			if ctx.ClusterCleanup && cluster != nil {
+			if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
 				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 				err = helper.DeleteEKSClusterOnAWS(region, clusterName)

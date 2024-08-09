@@ -493,6 +493,22 @@ func UpgradeEKSNodegroupOnAWS(eks_region string, clusterName string, ngName stri
 	return nil
 }
 
+func GetFromEKS(region string, clusterName string, cmd string, query string) (out string, err error) {
+	clusterArgs := []string{"eksctl", "get", "cluster", "--region=" + region, "--name=" + clusterName, "-ojson", "|", "jq", "-r"}
+	ngArgs := []string{"eksctl", "get", "nodegroup", "--region=" + region, "--cluster=" + clusterName, "-ojson", "|", "jq", "-r"}
+
+	if cmd == "cluster" {
+		clusterArgs = append(clusterArgs, query)
+		cmd = strings.Join(clusterArgs, " ")
+	} else {
+		ngArgs = append(ngArgs, query)
+		cmd = strings.Join(ngArgs, " ")
+	}
+	fmt.Printf("Running command: %s\n", cmd)
+	out, err = proc.RunW("bash", "-c", cmd)
+	return strings.TrimSpace(out), err
+}
+
 // Complete cleanup steps for Amazon EKS
 func DeleteEKSClusterOnAWS(eks_region string, clusterName string) error {
 	currentKubeconfig := os.Getenv("KUBECONFIG")
