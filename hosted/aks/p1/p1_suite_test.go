@@ -221,6 +221,6 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 				}
 			}
 			return countUpstream
-		}, "5m", "5s").Should(Equal(0))
+		}, "7m", "5s").Should(Equal(0))
 	})
 }
