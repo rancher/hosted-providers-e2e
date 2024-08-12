@@ -85,6 +85,8 @@ var _ = Describe("P1Provisioning", func() {
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("empty-tag", ""))
+		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
 	When("a cluster with invalid config is created", func() {

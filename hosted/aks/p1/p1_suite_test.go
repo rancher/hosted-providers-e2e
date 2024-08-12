@@ -174,24 +174,21 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 		var err error
 		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 		Expect(err).To(BeNil())
-		var count int
-		for key, value := range cluster.AKSConfig.Tags {
-			if (key == "empty-tag" && value == "") || (key == "new" && value == "tag") {
-				count++
-			}
-		}
-		Expect(count).To(Equal(2))
+		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("empty-tag", "tag"))
+		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("new", "tag"))
+
 		Eventually(func() int {
 			GinkgoLogr.Info("Waiting for the tags to be added ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			var countUpstream int
+
+			var count int
 			for key, value := range cluster.AKSStatus.UpstreamSpec.Tags {
 				if (key == "empty-tag" && value == "") || (key == "new" && value == "tag") {
-					countUpstream++
+					count++
 				}
 			}
-			return countUpstream
+			return count
 		}, "5m", "5s").Should(Equal(2))
 	})
 
@@ -203,24 +200,21 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 		var err error
 		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 		Expect(err).To(BeNil())
-		var count int
-		for key, value := range cluster.AKSConfig.Tags {
-			if (key == "empty-tag" && value == "") || (key == "new" && value == "tag") {
-				count++
-			}
-		}
-		Expect(count).To(Equal(0))
+
+		Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue("empty-tag", "tag"))
+		Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue("new", "tag"))
+
 		Eventually(func() int {
 			GinkgoLogr.Info("Waiting for the tags to be removed ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			var countUpstream int
+			var count int
 			for key, value := range cluster.AKSStatus.UpstreamSpec.Tags {
 				if (key == "empty-tag" && value == "") || (key == "new" && value == "tag") {
-					countUpstream++
+					count++
 				}
 			}
-			return countUpstream
+			return count
 		}, "7m", "5s").Should(Equal(0))
 	})
 }
