@@ -26,9 +26,9 @@ install-cert-manager: ## Install cert-manager via Helm on the k8s cluster
 	kubectl rollout status deployment cert-manager -n cert-manager --timeout=120s
 
 install-rancher: ## Install Rancher via Helm on the k8s cluster
-	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
+	helm repo add rancher-prime-devel https://charts.optimus.rancher.io/server-charts/latest
 	helm repo update
-	helm install rancher --devel rancher-latest/rancher \
+	helm install rancher --devel rancher-prime-devel/rancher \
 		--namespace cattle-system \
 		--create-namespace \
 		--version ${RANCHER_VERSION} \
@@ -37,13 +37,16 @@ install-rancher: ## Install Rancher via Helm on the k8s cluster
 		--set bootstrapPassword=${RANCHER_PASSWORD} \
 		--set replicas=1 \
 		--set rancherImageTag=v${RANCHER_VERSION} \
+		--set rancherImage=stgregistry.suse.com/rancher/rancher \
+		--set 'extraEnv[0].name=CATTLE_AGENT_IMAGE' \
+		--set 'extraEnv[0].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}' \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
 
 install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted providers nightly chart
-	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
+	helm repo add rancher-prime-devel https://charts.optimus.rancher.io/server-charts/latest
 	helm repo update
-	helm install rancher --devel rancher-latest/rancher \
+	helm install rancher --devel rancher-prime-devel/rancher \
 		--namespace cattle-system \
 		--version ${RANCHER_VERSION} \
 		--create-namespace \
@@ -54,6 +57,9 @@ install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted pr
 		--set rancherImageTag=v${RANCHER_VERSION} \
 		--set 'extraEnv[0].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION' \
 		--set-string 'extraEnv[0].value=true' \
+		--set rancherImage=stgregistry.suse.com/rancher/rancher \
+		--set 'extraEnv[0].name=CATTLE_AGENT_IMAGE' \
+		--set 'extraEnv[0].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}' \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
