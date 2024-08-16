@@ -174,7 +174,7 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 		var err error
 		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("empty-tag", "tag"))
+		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("empty-tag", ""))
 		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("new", "tag"))
 
 		Eventually(func() int {
@@ -201,7 +201,7 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 		Expect(err).To(BeNil())
 
-		Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue("empty-tag", "tag"))
+		Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue("empty-tag", ""))
 		Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue("new", "tag"))
 
 		Eventually(func() int {
