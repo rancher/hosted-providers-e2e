@@ -28,13 +28,13 @@ install-cert-manager: ## Install cert-manager via Helm on the k8s cluster
 install-rancher: ## Install Rancher via Helm on the k8s cluster
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 	helm repo update
-	if [[ "${RANCHER_VERSION}" == "2.8-head" || "${RANCHER_VERSION}" == "2.7-head" ]]; then \
-		EXTRA_OPTIONS="--set rancherImage=stgregistry.suse.com/rancher/rancher \
-		--set 'extraEnv[0].name=CATTLE_AGENT_IMAGE' \
-		--set 'extraEnv[0].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}'"; \
-	else \
-		EXTRA_OPTIONS=""; \
-	fi
+ifeq (${RANCHER_VERSION}, $(filter ${RANCHER_VERSION}, 2.7-head 2.8-head)
+	EXTRA_OPTIONS="--set rancherImage=stgregistry.suse.com/rancher/rancher \
+		--set 'extraEnv[1].name=CATTLE_AGENT_IMAGE' \
+		--set 'extraEnv[1].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}'"
+else
+	EXTRA_OPTIONS=""
+endif
 	helm install rancher --devel rancher-latest/rancher \
 		--namespace cattle-system \
 		--create-namespace \
@@ -51,13 +51,13 @@ install-rancher: ## Install Rancher via Helm on the k8s cluster
 install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted providers nightly chart
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 	helm repo update
-	if [[ "${RANCHER_VERSION}" == "2.8-head" || "${RANCHER_VERSION}" == "2.7-head" ]]; then \
-		EXTRA_OPTIONS="--set rancherImage=stgregistry.suse.com/rancher/rancher \
+ifeq (${RANCHER_VERSION}, $(filter ${RANCHER_VERSION}, 2.7-head 2.8-head)
+	EXTRA_OPTIONS="--set rancherImage=stgregistry.suse.com/rancher/rancher \
 		--set 'extraEnv[1].name=CATTLE_AGENT_IMAGE' \
-		--set 'extraEnv[1].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}'"; \
-	else \
-		EXTRA_OPTIONS=""; \
-	fi
+		--set 'extraEnv[1].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}'"
+else
+	EXTRA_OPTIONS=""
+endif
 	helm install rancher --devel rancher-latest/rancher \
 		--namespace cattle-system \
 		--version ${RANCHER_VERSION} \
