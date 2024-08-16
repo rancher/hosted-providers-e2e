@@ -11,11 +11,8 @@ install-k3s: ## Install K3s with default options; installed on the local machine
 	timeout 2m bash -c "until ! kubectl get pod -A 2>/dev/null | grep -Eq 'ContainerCreating|CrashLoopBackOff'; do sleep 1; done"
 
 install-k3s-behind-proxy:
-	cat <<'EOF' | sudo tee /etc/default/k3s > /dev/null
-	HTTP_PROXY=http://${PROXY_HOST}
-	HTTPS_PROXY=https://${PROXY_HOST}
-	NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local
-	EOF
+	echo -e 'HTTP_PROXY=http://${PROXY_HOST}\nHTTPS_PROXY=https://${PROXY_HOST}\nNO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local' > k3s
+	sudo mv k3s /etc/default/k3s
 	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 644
 	## Wait for K3s to start
 	timeout 2m bash -c "until ! kubectl get pod -A 2>/dev/null | grep -Eq 'ContainerCreating|CrashLoopBackOff'; do sleep 1; done"
