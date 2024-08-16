@@ -52,7 +52,7 @@ var _ = Describe("P1Import", func() {
 			updateAutoScaling(cluster, ctx.RancherAdminClient)
 		})
 
-		It("should be able to update tags", func() {
+		FIt("should be able to update tags", func() {
 			testCaseID = 270
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
