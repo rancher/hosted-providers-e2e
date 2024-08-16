@@ -144,10 +144,17 @@ jobs:
             echo RANCHER_HOSTNAME=${{ steps.runner-ip.outputs.PUBLIC_IP }}.sslip.io >> $GITHUB_ENV
             echo RANCHER_PASSWORD=${{ secrets.RANCHER_PASSWORD }} >> $GITHUB_ENV
           fi
+
       - name: Install Proxy
         if: ${{ inputs.rancher_installed == 'hostname/password' && inputs.proxy == true }}
         run: |
           docker run -d --name squid_proxy -v $(pwd)/.github/scripts/squid.conf:/etc/squid/squid.conf -p 3128:3128 wernight/squid
+          echo "PROXY_HOST=$(gcloud compute instances describe ${{ needs.create-runner.outputs.runner }} \
+            --format='get(networkInterfaces[0].networkIP)' --zone ${{ env.GCP_RUNNER_ZONE }}):3128" >> ${GITHUB_ENV}
+          echo "HTTP_PROXY=http://${PROXY_HOST}" >> ${GITHUB_ENV}
+          echo "HTTPS_PROXY=http://${PROXY_HOST}" >> ${GITHUB_ENV}
+          echo "NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local" >> ${GITHUB_ENV}
+
 
       - name: Install K3s / Helm / Rancher
         if: ${{ inputs.rancher_installed == 'hostname/password' }}
@@ -158,6 +165,10 @@ jobs:
           RANCHER_VERSION: ${{ inputs.rancher_version }}
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
+          PROXY_HOST: ${{ env.PROXY_HOST }}
+          HTTP_PROXY: ${{ env.HTTP_PROXY }}
+          HTTPS_PROXY: ${{ env.HTTPS_PROXY }}
+          NO_PROXY: ${{ env.NO_PROXY }}
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
             make prepare-e2e-ci-rancher-hosted-nightly-chart
