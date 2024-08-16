@@ -21,13 +21,20 @@ install-cert-manager: ## Install cert-manager via Helm on the k8s cluster
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo update
 	helm install cert-manager --namespace cert-manager jetstack/cert-manager \
-		--set installCRDs=true \
+		--set crds.enabled=true \
 		--set extraArgs[0]=--enable-certificate-owner-ref=true
 	kubectl rollout status deployment cert-manager -n cert-manager --timeout=120s
 
 install-rancher: ## Install Rancher via Helm on the k8s cluster
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 	helm repo update
+	if [[ "${RANCHER_VERSION}" == "2.8-head" || "${RANCHER_VERSION}" == "2.7-head" ]]; then \
+		EXTRA_OPTIONS="--set rancherImage=stgregistry.suse.com/rancher/rancher \
+		--set 'extraEnv[0].name=CATTLE_AGENT_IMAGE' \
+		--set 'extraEnv[0].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}'"; \
+	else \
+		EXTRA_OPTIONS=""; \
+	fi
 	helm install rancher --devel rancher-latest/rancher \
 		--namespace cattle-system \
 		--create-namespace \
@@ -37,12 +44,20 @@ install-rancher: ## Install Rancher via Helm on the k8s cluster
 		--set bootstrapPassword=${RANCHER_PASSWORD} \
 		--set replicas=1 \
 		--set rancherImageTag=v${RANCHER_VERSION} \
+		${EXTRA_OPTIONS} \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
 
 install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted providers nightly chart
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 	helm repo update
+	if [[ "${RANCHER_VERSION}" == "2.8-head" || "${RANCHER_VERSION}" == "2.7-head" ]]; then \
+		EXTRA_OPTIONS="--set rancherImage=stgregistry.suse.com/rancher/rancher \
+		--set 'extraEnv[1].name=CATTLE_AGENT_IMAGE' \
+		--set 'extraEnv[1].value=stgregistry.suse.com/rancher/rancher-agent:v${RANCHER_VERSION}'"; \
+	else \
+		EXTRA_OPTIONS=""; \
+	fi
 	helm install rancher --devel rancher-latest/rancher \
 		--namespace cattle-system \
 		--version ${RANCHER_VERSION} \
@@ -54,6 +69,7 @@ install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted pr
 		--set rancherImageTag=v${RANCHER_VERSION} \
 		--set 'extraEnv[0].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION' \
 		--set-string 'extraEnv[0].value=true' \
+		${EXTRA_OPTIONS} \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
