@@ -33,12 +33,15 @@ crust-gather collect
 
 cat > USAGE.md <<EOF
 To use crust-gather; do the following:
-1. Run the command 'crust-gather-installer.sh -y' or download it from $CRUST_GATHER_INSTALLER
-2. 'touch kubeconfig'
-3. 'export KUBECONFIG=kubeconfig'
-4. Start the server in backgroud on a port: 'crust-gather serve --socket 127.0.0.1:8089 &'
-5. Check the content of kubeconfig file: 'cat kubeconfig'
-6. Run any kubectl command to check if it works: 'kubectl get pods -A'.
+1. Make the 'crust-gather-installer.sh' script executable with: 'chmod +x crust-gather-installer.sh'.
+2. Run the command 'sudo crust-gather-installer.sh -y' to install 'crust-gather' binary.
+3. 'touch kubeconfig'
+4. 'export KUBECONFIG=kubeconfig'
+5. Start the server in backgroud on a port: 'crust-gather serve --socket 127.0.0.1:8089 &'
+6. Check the content of kubeconfig file: 'cat kubeconfig'
+7. Run any kubectl command to check if it works: 'kubectl get pods -A'.
+
+Ref: https://github.com/crust-gather/crust-gather
 EOF
 
 
