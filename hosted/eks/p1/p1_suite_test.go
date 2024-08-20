@@ -231,9 +231,9 @@ func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client) 
 // upgradeNodeKubernetesVersionGTCP upgrades Nodegroup version greater than Controlplane's
 func upgradeNodeKubernetesVersionGTCPCheck(cluster *management.Cluster, client *rancher.Client) {
 	var err error
-	upgradeToVersion, err := helper.GetK8sVersion(client, false)
+	upgradeToVersion, err = helper.GetK8sVersion(client, false)
 	Expect(err).To(BeNil())
-	GinkgoLogr.Info("Upgrading only Nodegroup's EKS version")
+	GinkgoLogr.Info("Upgrading only Nodegroup's EKS version to: " + upgradeToVersion)
 	cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, client, false, false)
 	Expect(err).To(BeNil())
 
@@ -245,7 +245,7 @@ func upgradeNodeKubernetesVersionGTCPCheck(cluster *management.Cluster, client *
 	}, "1m", "3s").Should(BeTrue())
 }
 
-// deleteAllEKSNodegroupOnAWS removes clusters nodegroups on EKS
+// deleteAllEKSNodegroupOnAWS removes cluster's nodegroups on EKS
 func deleteAllEKSNodegroupOnAWS(cluster *management.Cluster) {
 	for _, ng := range cluster.EKSConfig.NodeGroups {
 		err := helper.ModifyEKSNodegroupOnAWS(cluster.EKSConfig.Region, cluster.EKSConfig.DisplayName, *ng.NodegroupName, "delete")
@@ -278,7 +278,7 @@ func upgradeCPAndAddNgCheck(cluster *management.Cluster, client *rancher.Client)
 	var err error
 	originalLen := len(cluster.EKSConfig.NodeGroups)
 	newNodeGroupName := pointer.String(namegen.AppendRandomString("ng"))
-	upgradeToVersion, err := helper.GetK8sVersion(client, false)
+	upgradeToVersion, err = helper.GetK8sVersion(client, false)
 	Expect(err).To(BeNil())
 	GinkgoLogr.Info("Upgrading control plane to version:" + upgradeToVersion)
 

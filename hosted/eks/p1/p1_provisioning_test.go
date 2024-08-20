@@ -93,7 +93,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(MatchError(ContainSubstring("subnets must be provided if security groups are provided")))
 		})
 
-		It("Fail to update both Public/Private access as false", func() {
+		It("Fail to update both Public/Private access as false and invalid values of the access", func() {
 			testCaseID = 147 // also covers 146
 
 			var err error
