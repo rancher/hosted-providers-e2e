@@ -11,11 +11,11 @@ install-k3s: ## Install K3s with default options; installed on the local machine
 	timeout 2m bash -c "until ! kubectl get pod -A 2>/dev/null | grep -Eq 'ContainerCreating|CrashLoopBackOff'; do sleep 1; done"
 
 install-k3s-behind-proxy:
-	echo -e 'HTTP_PROXY=http://${PROXY_HOST}\nHTTPS_PROXY=https://${PROXY_HOST}\nNO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local' > k3s
-	sudo mv k3s /etc/default/k3s
 	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 644
 	## Wait for K3s to start
 	timeout 2m bash -c "until ! kubectl get pod -A 2>/dev/null | grep -Eq 'ContainerCreating|CrashLoopBackOff'; do sleep 1; done"
+	echo -e 'HTTP_PROXY=http://${PROXY_HOST}\nHTTPS_PROXY=https://${PROXY_HOST}\nNO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local' > k3s
+	sudo mv k3s /etc/default/k3s
 
 install-helm: ## Install Helm on the local machine
 	curl --silent --location https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar xz -C .
@@ -92,7 +92,6 @@ install-rancher-behind-proxy:
 		--set replicas=1 \
 		--set rancherImageTag=v${RANCHER_VERSION} \
 		--set proxy=http://${PROXY_HOST} \
-        --set noProxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
 
@@ -103,7 +102,7 @@ deps: ## Install the Go dependencies
 
 prepare-e2e-ci-rancher-hosted-nightly-chart: install-k3s install-helm install-cert-manager install-rancher-hosted-nightly-chart ## Setup Rancher with nightly hosted provider charts on the local machine
 prepare-e2e-ci-rancher: install-k3s install-helm install-cert-manager install-rancher ## Setup Rancher on the local machine
-prepare-e2e-ci-rancher-behind-proxy: install-k3s-behind-proxy install-helm installl-cert-manager-behind-proxy install-rancher-behind-proxy ## Setup Rancher behind proxy on the local machine
+prepare-e2e-ci-rancher-behind-proxy: install-k3s-behind-proxy install-helm install-cert-manager install-rancher-behind-proxy ## Setup Rancher behind proxy on the local machine
 
 e2e-import-tests: deps	## Run the 'P0Import' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Import" ./hosted/${PROVIDER}/p0/
