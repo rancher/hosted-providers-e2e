@@ -33,7 +33,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	FIt("should successfully create cluster with multiple nodepools in multiple AZs", func() {
+	It("should successfully create cluster with multiple nodepools in multiple AZs", func() {
 		testCaseID = 193
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			nodepools := *aksConfig.NodePools
@@ -74,7 +74,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	FIt("should be able to create a cluster with empty tag", func() {
+	It("should be able to create a cluster with empty tag", func() {
 		testCaseID = 205
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.Tags["empty-tag"] = ""
@@ -82,10 +82,17 @@ var _ = Describe("P1Provisioning", func() {
 		var err error
 		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, location, updateFunc)
 		Expect(err).To(BeNil())
+		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("empty-tag", ""))
+
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
-		Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue("empty-tag", ""))
+		Eventually(func() bool {
+			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			// We wait until sync is complete Ref: https://github.com/rancher/aks-operator/issues/640
+			return len(cluster.AKSConfig.Tags) == len(cluster.AKSStatus.UpstreamSpec.Tags)
+		}, "2m", "5s").Should(BeTrue())
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
@@ -140,7 +147,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateAutoScaling(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should be able to update tags", func() {
+		It("should be able to update tags", func() {
 			testCaseID = 177
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
