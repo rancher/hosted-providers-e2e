@@ -143,7 +143,7 @@ var _ = Describe("P1Import", func() {
 			})
 		})
 
-		Context("Importing/Editing a cluster with invalid config", func() {
+		Context("Reimporting/Editing a cluster with invalid config", func() {
 			It("Reimport a cluster to Rancher should fail", func() {
 				testCaseID = 101
 
