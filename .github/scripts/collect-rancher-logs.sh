@@ -50,7 +50,8 @@ cd ..
 # Check if proxy has been implemented then fetch proxy logs
 if [[ $RANCHER_BEHIND_PROXY = true ]]; then
   mkdir -p -m 755 proxy-logs
-  docker cp squid_proxy:/var/log/squid/access.log ../proxy-logs/squid.log
+  cd proxy-logs
+  docker cp squid_proxy:/var/log/squid/access.log ./squid-access.log
 fi
 # Done!
 exit 0

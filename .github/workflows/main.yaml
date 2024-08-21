@@ -151,10 +151,6 @@ jobs:
           docker run -d --name squid_proxy -v $(pwd)/.github/scripts/squid.conf:/etc/squid/squid.conf -p 3128:3128 wernight/squid
           echo "PROXY_HOST=$(gcloud compute instances describe ${{ needs.create-runner.outputs.runner }} \
             --format='get(networkInterfaces[0].networkIP)' --zone ${{ env.GCP_RUNNER_ZONE }}):3128" >> ${GITHUB_ENV}
-          echo "HTTP_PROXY=http://${PROXY_HOST}" >> ${GITHUB_ENV}
-          echo "HTTPS_PROXY=http://${PROXY_HOST}" >> ${GITHUB_ENV}
-          echo "NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local" >> ${GITHUB_ENV}
-
 
       - name: Install K3s / Helm / Rancher
         if: ${{ inputs.rancher_installed == 'hostname/password' }}
@@ -166,12 +162,13 @@ jobs:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
           PROXY_HOST: ${{ env.PROXY_HOST }}
-          HTTP_PROXY: ${{ env.HTTP_PROXY }}
-          HTTPS_PROXY: ${{ env.HTTPS_PROXY }}
-          NO_PROXY: ${{ env.NO_PROXY }}
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
-            make prepare-e2e-ci-rancher-hosted-nightly-chart
+            if [ ${{ inputs.proxy }} == true ]; then
+              make prepare-e2e-ci-rancher-hosted-nightly-chart-behind-proxy
+            else
+              make prepare-e2e-ci-rancher-hosted-nightly-chart
+            fi
           elif [ ${{ inputs.proxy }} == true ]; then
             make prepare-e2e-ci-rancher-behind-proxy
           else
@@ -342,6 +339,7 @@ jobs:
       - name: Collect logs
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+          RANCHER_BEHIND_PROXY: ${{ inputs.proxy == true }}
         if: ${{ !cancelled() }}
         run: |
           chmod +x ${{ env.RANCHER_LOG_COLLECTOR }}
