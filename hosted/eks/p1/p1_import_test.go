@@ -55,7 +55,6 @@ var _ = Describe("P1Import", func() {
 		It("Update k8s version of cluster and add node groups", func() {
 			testCaseID = 90
 			upgradeCPAndAddNgCheck(cluster, ctx.RancherAdminClient)
-			deleteAllEKSNodegroupOnAWS(cluster) // Clean-up for eksctl
 		})
 	})
 
@@ -159,7 +158,7 @@ var _ = Describe("P1Import", func() {
 				var err error
 				err = helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
-				err = helper.ModifyEKSNodegroupOnAWS(region, clusterName, "ranchernodes", "delete")
+				err = helper.ModifyEKSNodegroupOnAWS(region, clusterName, "ranchernodes", "delete", "--wait")
 				Expect(err).To(BeNil())
 
 				cluster, err = helper.ImportEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, region)
@@ -173,7 +172,6 @@ var _ = Describe("P1Import", func() {
 				By("adding a NodeGroup", func() {
 					cluster, err = helper.AddNodeGroup(cluster, 1, ctx.RancherAdminClient, false, true)
 					Expect(err).To(BeNil())
-					deleteAllEKSNodegroupOnAWS(cluster) // Clean-up for eksctl
 				})
 			})
 
