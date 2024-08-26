@@ -540,9 +540,26 @@ func DeleteEKSClusterOnAWS(eks_region string, clusterName string) error {
 	}()
 	_ = os.Setenv("KUBECONFIG", downstreamKubeconfig)
 
+	fmt.Println("Deleting all the nodegroups ...")
+	ngNames, err := GetFromEKS(eks_region, clusterName, "nodegroup", ".[].Name")
+	if err != nil {
+		return errors.Wrap(err, "Failed to list nodegroup for deletion")
+	}
+	if ngNames != "" {
+		for _, ngName := range strings.Split(ngNames, "\n") {
+			args := []string{"delete", "nodegroup", "--region", region, "--name", ngName, "--cluster", clusterName, "--disable-eviction", "--wait"}
+			fmt.Printf("Running command: eksctl %v\n", args)
+			var out string
+			out, err = proc.RunW("eksctl", args...)
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete nodegroup: "+out)
+			}
+		}
+	}
+
 	fmt.Println("Deleting EKS cluster ...")
 	// TODO: Fix and wait for cluster deletion
-	args := []string{"delete", "cluster", "--region=" + eks_region, "--name=" + clusterName, "--disable-nodegroup-eviction"}
+	args := []string{"delete", "cluster", "--region=" + eks_region, "--name=" + clusterName}
 	fmt.Printf("Running command: eksctl %v\n", args)
 	out, err := proc.RunW("eksctl", args...)
 	if err != nil {
