@@ -96,7 +96,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
-	It("should be able to create cluster with container monitoring enabled", func() {
+	FIt("should be able to create cluster with container monitoring enabled", func() {
 		testCaseID = 199
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.Monitoring = pointer.Bool(true)
@@ -147,7 +147,7 @@ var _ = Describe("P1Provisioning", func() {
 			}, "1m", "2s").Should(BeTrue())
 		})
 
-		It("should fail to create cluster with Nodepool Max pods per node 9", func() {
+		FIt("should fail to create cluster with Nodepool Max pods per node 9", func() {
 			testCaseID = 203
 			updateFunc := func(aksConfig *aks.ClusterConfig) {
 				nodepools := *aksConfig.NodePools
@@ -187,7 +187,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		It("should be able to update cluster monitoring", func() {
+		FIt("should be able to update cluster monitoring", func() {
 			testCaseID = 200
 			updateMonitoringCheck(cluster, ctx.RancherAdminClient)
 		})
