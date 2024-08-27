@@ -1,10 +1,7 @@
 package helper
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -569,46 +566,6 @@ func DeleteGKEClusterOnGCloud(zone, project, clusterName string) error {
 
 // <==============================================================================GCLOUD CLI (end)==============================>
 
-// defaultGKE returns the default GKE version used by Rancher
-func defaultGKE(client *rancher.Client, projectID, cloudCredentialID, zone, region string) (defaultGKE string, err error) {
-	url := fmt.Sprintf("%s://%s/meta/gkeVersions", "https", client.RancherConfig.Host)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Add("Authorization", "Bearer "+client.RancherConfig.AdminToken)
-
-	q := req.URL.Query()
-	q.Add("cloudCredentialId", cloudCredentialID)
-
-	if zone != "" {
-		q.Add("zone", zone)
-	} else if region != "" {
-		q.Add("region", region)
-	}
-
-	q.Add("projectId", projectID)
-	req.URL.RawQuery = q.Encode()
-
-	resp, err := client.Management.APIBaseClient.Ops.Client.Do(req)
-	if err != nil {
-		return
-	}
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	var mapResponse map[string]interface{}
-	if err = json.Unmarshal(bodyBytes, &mapResponse); err != nil {
-		return
-	}
-
-	defaultGKE = mapResponse["defaultClusterVersion"].(string)
-
-	return
-}
-
 // GetK8sVersion returns the k8s version to be used by the test;
 // this value can either be a variant of envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by DefaultGKE
 // or the second-highest minor k8s version if forUpgrade is true; which it is in case of k8s upgrade tests.
@@ -617,22 +574,16 @@ func GetK8sVersion(client *rancher.Client, projectID, cloudCredentialID, zone, r
 		return GetK8sVersionVariantGKE(k8sMinorVersion, client, projectID, cloudCredentialID, zone, region)
 	}
 
-	if !forUpgrade {
-		return defaultGKE(client, projectID, cloudCredentialID, zone, region)
-	}
-
 	allVariants, err := ListSingleVariantGKEAvailableVersions(client, projectID, cloudCredentialID, zone, region)
 	if err != nil {
 		return "", err
 	}
 
-	// defaultValue has highest supported minorVersion
-	defaultValue, _ := defaultGKE(client, projectID, cloudCredentialID, zone, region)
-	for _, v := range allVariants {
-		if comparator := helpers.VersionCompare(v, defaultValue); comparator == -1 {
-			return v, nil
+	if forUpgrade {
+		if len(allVariants) < 2 {
+			return "", errors.New(fmt.Sprintf("no versions available for upgrade; available versions: %s", strings.Join(allVariants, ", ")))
 		}
+		return allVariants[1], nil
 	}
-
-	return "", nil
+	return allVariants[0], nil
 }
