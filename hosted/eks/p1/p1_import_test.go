@@ -146,8 +146,8 @@ var _ = Describe("P1Import", func() {
 			It("Reimport a cluster to Rancher should fail", func() {
 				testCaseID = 101
 
-				var err error
-				cluster, err = helper.ImportEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, region)
+				// We do not assign the cluster returned by import function to `cluster` since it will be nil and the cluster won't be deleted in AfterEach
+				_, err := helper.ImportEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, region)
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(MatchError(ContainSubstring("cluster already exists for EKS cluster")))
 			})
