@@ -12,6 +12,7 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
+	"k8s.io/utils/pointer"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -216,5 +217,38 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 			}
 			return count
 		}, "7m", "5s").Should(Equal(0))
+	})
+}
+
+func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) {
+	By("enabling the monitoring", func() {
+		updateFunc := func(cluster *management.Cluster) {
+			cluster.AKSConfig.Monitoring = pointer.Bool(true)
+		}
+		var err error
+		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+		Expect(err).To(BeNil())
+		Expect(*cluster.AKSConfig.Monitoring).To(BeTrue())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return cluster.AKSStatus.UpstreamSpec.Monitoring != nil && *cluster.AKSStatus.UpstreamSpec.Monitoring
+		}, "5m", "5s").Should(BeTrue())
+	})
+
+	By("disabling the monitoring", func() {
+		updateFunc := func(cluster *management.Cluster) {
+			cluster.AKSConfig.Monitoring = pointer.Bool(false)
+		}
+		var err error
+		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+		Expect(err).To(BeNil())
+
+		Expect(*cluster.AKSConfig.Monitoring).To(BeFalse())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return cluster.AKSStatus.UpstreamSpec.Monitoring != nil && *cluster.AKSStatus.UpstreamSpec.Monitoring
+		}, "5m", "5s").Should(BeFalse())
 	})
 }
