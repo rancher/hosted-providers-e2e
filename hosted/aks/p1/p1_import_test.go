@@ -66,7 +66,7 @@ var _ = Describe("P1Import", func() {
 
 	FIt("should be able to register a cluster with no rbac", func() {
 		testCaseID = 237
-		err := helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--no-rbac")
+		err := helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--disable-rbac")
 		Expect(err).To(BeNil())
 
 		cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, location, helpers.GetCommonMetadataLabels())

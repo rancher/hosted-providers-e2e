@@ -96,7 +96,8 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
-	FIt("should be able to create cluster with container monitoring enabled", func() {
+	XIt("should be able to create cluster with container monitoring enabled", func() {
+		// blocked by https://github.com/rancher/shepherd/issues/274
 		testCaseID = 199
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.Monitoring = pointer.Bool(true)
@@ -104,10 +105,12 @@ var _ = Describe("P1Provisioning", func() {
 		var err error
 		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, location, updateFunc)
 		Expect(err).To(BeNil())
-		Expect(*cluster.AKSConfig.Monitoring).To(Equal(true))
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
+
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+
+		Expect(*cluster.AKSConfig.Monitoring).To(Equal(true))
 		Expect(*cluster.AKSStatus.UpstreamSpec.Monitoring).To(Equal(true))
 	})
 
@@ -162,7 +165,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).NotTo(HaveOccurred())
-				return cluster.Transitioning == "error" && cluster.TransitioningMessage == "The value must be between 10 and 250"
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "InsufficientMaxPods")
 			}, "1m", "2s").Should(BeTrue())
 
 		})
