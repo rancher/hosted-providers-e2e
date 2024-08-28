@@ -567,8 +567,8 @@ func DeleteGKEClusterOnGCloud(zone, project, clusterName string) error {
 // <==============================================================================GCLOUD CLI (end)==============================>
 
 // GetK8sVersion returns the k8s version to be used by the test;
-// this value can either be a variant of envvar DOWNSTREAM_K8S_MINOR_VERSION or the default UI value returned by DefaultGKE
-// or the second-highest minor k8s version if forUpgrade is true; which it is in case of k8s upgrade tests.
+// this value can either be a variant of envvar DOWNSTREAM_K8S_MINOR_VERSION or the highest available version
+// or second-highest minor version in case of upgrade scenarios
 func GetK8sVersion(client *rancher.Client, projectID, cloudCredentialID, zone, region string, forUpgrade bool) (string, error) {
 	if k8sMinorVersion := helpers.DownstreamK8sMinorVersion; k8sMinorVersion != "" {
 		return GetK8sVersionVariantGKE(k8sMinorVersion, client, projectID, cloudCredentialID, zone, region)
@@ -579,11 +579,5 @@ func GetK8sVersion(client *rancher.Client, projectID, cloudCredentialID, zone, r
 		return "", err
 	}
 
-	if forUpgrade {
-		if len(allVariants) < 2 {
-			return "", errors.New(fmt.Sprintf("no versions available for upgrade; available versions: %s", strings.Join(allVariants, ", ")))
-		}
-		return allVariants[1], nil
-	}
-	return allVariants[0], nil
+	return helpers.DefaultK8sVersion(allVariants, forUpgrade)
 }
