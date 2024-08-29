@@ -150,7 +150,7 @@ var _ = Describe("P1Provisioning", func() {
 			}, "1m", "2s").Should(BeTrue())
 		})
 
-		FIt("should fail to create cluster with Nodepool Max pods per node 9", func() {
+		It("should fail to create cluster with Nodepool Max pods per node 9", func() {
 			testCaseID = 203
 			updateFunc := func(aksConfig *aks.ClusterConfig) {
 				nodepools := *aksConfig.NodePools
@@ -190,7 +190,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should be able to update cluster monitoring", func() {
+		It("should be able to update cluster monitoring", func() {
 			testCaseID = 200
 			updateMonitoringCheck(cluster, ctx.RancherAdminClient)
 		})

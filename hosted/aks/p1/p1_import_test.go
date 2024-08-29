@@ -57,14 +57,14 @@ var _ = Describe("P1Import", func() {
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should be able to update cluster monitoring", func() {
+		It("should be able to update cluster monitoring", func() {
 			testCaseID = 271
 			updateMonitoringCheck(cluster, ctx.RancherAdminClient)
 		})
 
 	})
 
-	FIt("should be able to register a cluster with no rbac", func() {
+	It("should be able to register a cluster with no rbac", func() {
 		testCaseID = 237
 		err := helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--disable-rbac")
 		Expect(err).To(BeNil())
