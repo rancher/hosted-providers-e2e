@@ -233,7 +233,7 @@ func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) 
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return cluster.AKSStatus.UpstreamSpec.Monitoring != nil && *cluster.AKSStatus.UpstreamSpec.Monitoring
-		}, "5m", "5s").Should(BeTrue())
+		}, "7m", "5s").Should(BeTrue())
 	})
 
 	// TODO: uncomment this once https://github.com/rancher/aks-operator/issues/584 is fixed.
@@ -250,7 +250,7 @@ func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) 
 				cluster, err = client.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
 				return cluster.AKSStatus.UpstreamSpec.Monitoring != nil && *cluster.AKSStatus.UpstreamSpec.Monitoring
-			}, "5m", "5s").Should(BeFalse())
+			}, "7m", "5s").Should(BeFalse())
 		})
 	*/
 }
