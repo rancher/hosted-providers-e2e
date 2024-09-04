@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/rancher/shepherd/clients/rancher"
-	"github.com/rancher/shepherd/extensions/cloudcredentials"
+	v1 "github.com/rancher/shepherd/clients/rancher/v1"
 	"github.com/rancher/shepherd/pkg/session"
 )
 
@@ -62,11 +62,12 @@ type HelmChart struct {
 }
 
 type Context struct {
-	CloudCred          *cloudcredentials.CloudCredential
+	CloudCred          *v1.SteveAPIObject
 	RancherAdminClient *rancher.Client
 	StdUserClient      *rancher.Client
 	Session            *session.Session
 	ClusterCleanup     bool
+	CloudCredID        string
 }
 
 type RancherVersionInfo struct {
