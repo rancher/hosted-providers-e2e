@@ -92,15 +92,14 @@ func CommonBeforeSuite() Context {
 	_, err = rancherAdminClient.Management.Setting.Update(resp, setting)
 	Expect(err).To(BeNil())
 
-	cloudCredential, err := CreateCloudCredentials(rancherAdminClient)
+	cloudCredID, err := CreateCloudCredentials(rancherAdminClient)
 	Expect(err).To(BeNil())
 
 	return Context{
-		CloudCred:          cloudCredential,
 		RancherAdminClient: rancherAdminClient,
 		Session:            testSession,
 		ClusterCleanup:     clusterCleanup,
-		CloudCredID:        cloudCredential.Namespace + ":" + cloudCredential.Name,
+		CloudCredID:        cloudCredID,
 	}
 }
 
@@ -123,12 +122,11 @@ func CreateStdUserClient(ctx *Context) {
 	stdUserClient, err := ctx.RancherAdminClient.AsUser(stdUser)
 	Expect(err).To(BeNil())
 
-	cloudCredential, err := CreateCloudCredentials(stdUserClient)
+	cloudCredID, err := CreateCloudCredentials(stdUserClient)
 	Expect(err).To(BeNil())
 
-	ctx.CloudCred = cloudCredential
 	ctx.StdUserClient = stdUserClient
-	ctx.CloudCredID = cloudCredential.Namespace + ":" + cloudCredential.Name
+	ctx.CloudCredID = cloudCredID
 }
 
 // WaitUntilClusterIsReady waits until the cluster is in a Ready state,
@@ -338,7 +336,7 @@ func DefaultK8sVersion(descVersions []string, forUpgrade bool) (string, error) {
 	return descVersions[1], nil
 }
 
-func CreateCloudCredentials(client *rancher.Client) (*v1.SteveAPIObject, error) {
+func CreateCloudCredentials(client *rancher.Client) (string, error) {
 	var (
 		err                   error
 		cloudCredential       *v1.SteveAPIObject
@@ -359,5 +357,5 @@ func CreateCloudCredentials(client *rancher.Client) (*v1.SteveAPIObject, error) 
 		cloudCredential, err = google.CreateGoogleCloudCredentials(client, cloudCredentialConfig)
 		Expect(err).To(BeNil())
 	}
-	return cloudCredential, nil
+	return fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name), nil
 }

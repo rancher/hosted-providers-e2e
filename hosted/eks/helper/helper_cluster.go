@@ -299,21 +299,20 @@ func ScaleNodeGroup(cluster *management.Cluster, client *rancher.Client, nodeCou
 // if checkClusterConfig is true, it validates the update
 func UpdateLogging(cluster *management.Cluster, client *rancher.Client, loggingTypes []string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	upgradedCluster.EKSConfig.LoggingTypes = loggingTypes
+	*upgradedCluster.EKSConfig.LoggingTypes = loggingTypes
 
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
 	Expect(err).To(BeNil())
 
 	if checkClusterConfig {
 		// Check if the desired config is set correctly
-		Expect(upgradedCluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
+		Expect(*upgradedCluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
 
 		Eventually(func() []string {
 			ginkgo.GinkgoLogr.Info("Waiting for the logging changes to appear in EKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			fmt.Println(cluster.EKSStatus.UpstreamSpec.LoggingTypes)
-			return cluster.EKSStatus.UpstreamSpec.LoggingTypes
+			return *cluster.EKSStatus.UpstreamSpec.LoggingTypes
 		}, tools.SetTimeout(10*time.Minute), 15*time.Second).Should(HaveExactElements(loggingTypes))
 	}
 	return cluster, nil
@@ -347,18 +346,18 @@ func UpdateAccess(cluster *management.Cluster, client *rancher.Client, publicAcc
 // if checkClusterConfig is true, it validates the update
 func UpdatePublicAccessSources(cluster *management.Cluster, client *rancher.Client, publicAccessSources []string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	upgradedCluster.EKSConfig.PublicAccessSources = append(upgradedCluster.EKSConfig.PublicAccessSources, publicAccessSources...)
+	*upgradedCluster.EKSConfig.PublicAccessSources = append(*upgradedCluster.EKSConfig.PublicAccessSources, publicAccessSources...)
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
 
 	if checkClusterConfig {
 		// Check if the desired config is set correctly
-		Expect(upgradedCluster.EKSConfig.PublicAccessSources).Should(ContainElements(publicAccessSources))
+		Expect(*upgradedCluster.EKSConfig.PublicAccessSources).Should(ContainElements(publicAccessSources))
 
 		Eventually(func() []string {
 			ginkgo.GinkgoLogr.Info("Waiting for the publicaccess sources changes to appear in EKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return cluster.EKSStatus.UpstreamSpec.PublicAccessSources
+			return *cluster.EKSStatus.UpstreamSpec.PublicAccessSources
 		}, tools.SetTimeout(10*time.Minute), 15*time.Second).Should(ContainElements(publicAccessSources))
 	}
 	return cluster, nil
@@ -368,7 +367,7 @@ func UpdatePublicAccessSources(cluster *management.Cluster, client *rancher.Clie
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 func UpdateClusterTags(cluster *management.Cluster, client *rancher.Client, tags map[string]string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	maps.Copy(upgradedCluster.EKSConfig.Tags, tags)
+	maps.Copy(*upgradedCluster.EKSConfig.Tags, tags)
 
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
 	Expect(err).To(BeNil())
@@ -377,13 +376,13 @@ func UpdateClusterTags(cluster *management.Cluster, client *rancher.Client, tags
 		Eventually(func() bool {
 			// Check if the desired config is set correctly
 			for key, value := range tags {
-				Expect(cluster.EKSConfig.Tags).Should(HaveKeyWithValue(key, value))
+				Expect(*cluster.EKSConfig.Tags).Should(HaveKeyWithValue(key, value))
 			}
 
 			ginkgo.GinkgoLogr.Info("Waiting for the cluster tag changes to appear in EKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return helpers.CheckMapKeys(tags, cluster.EKSStatus.UpstreamSpec.Tags)
+			return helpers.CheckMapKeys(tags, *cluster.EKSStatus.UpstreamSpec.Tags)
 		}, tools.SetTimeout(10*time.Minute), 15*time.Second).Should(BeTrue())
 	}
 	return cluster, nil
@@ -394,8 +393,8 @@ func UpdateClusterTags(cluster *management.Cluster, client *rancher.Client, tags
 func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client, tags, labels map[string]string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
 	for i := range upgradedCluster.EKSConfig.NodeGroups {
-		upgradedCluster.EKSConfig.NodeGroups[i].Tags = tags
-		upgradedCluster.EKSConfig.NodeGroups[i].Labels = labels
+		*upgradedCluster.EKSConfig.NodeGroups[i].Tags = tags
+		*upgradedCluster.EKSConfig.NodeGroups[i].Labels = labels
 	}
 
 	var err error
@@ -406,10 +405,10 @@ func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client
 		// Check if the desired config is set correctly
 		for _, ng := range cluster.EKSConfig.NodeGroups {
 			for key, value := range tags {
-				Expect(ng.Tags).Should(HaveKeyWithValue(key, value))
+				Expect(*ng.Tags).Should(HaveKeyWithValue(key, value))
 			}
 			for key, value := range labels {
-				Expect(ng.Labels).Should(HaveKeyWithValue(key, value))
+				Expect(*ng.Labels).Should(HaveKeyWithValue(key, value))
 			}
 		}
 
@@ -419,7 +418,7 @@ func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client
 			Expect(err).To(BeNil())
 
 			for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
-				if helpers.CheckMapKeys(tags, ng.Tags) && helpers.CheckMapKeys(labels, ng.Labels) {
+				if helpers.CheckMapKeys(tags, *ng.Tags) && helpers.CheckMapKeys(labels, *ng.Labels) {
 					return true
 				}
 			}

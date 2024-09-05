@@ -2,7 +2,7 @@ module github.com/rancher/hosted-providers-e2e
 
 go 1.22.0
 
-toolchain go1.22.6
+toolchain go1.22.7
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
@@ -11,11 +11,11 @@ require (
 	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
 	github.com/pkg/errors v0.9.1
-	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20240531071842-35c37fffa28c
+	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20240911133917-d4312809d5eb
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
 	github.com/rancher/norman v0.0.0-20240708202514-a0127673d1b9
 	github.com/rancher/rancher v0.0.0-00010101000000-000000000000
-	github.com/rancher/shepherd v0.0.0-20240829194632-40f661e08bd6 // rancher/shepherd release/v2.9-HEAD commit
+	github.com/rancher/shepherd v0.0.0-20240913161053-43e119d13724 // rancher/shepherd release/v2.9-HEAD commit
 	github.com/sirupsen/logrus v1.9.3
 	k8s.io/apimachinery v0.30.2
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
@@ -70,15 +70,15 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/rancher/aks-operator v1.9.2-rc.1 // indirect
+	github.com/rancher/aks-operator v1.9.2-rc.2 // indirect
 	github.com/rancher/apiserver v0.0.0-20240708202538-39a6f2535146 // indirect
-	github.com/rancher/eks-operator v1.9.2-rc.1 // indirect
+	github.com/rancher/eks-operator v1.9.2-rc.2 // indirect
 	github.com/rancher/fleet/pkg/apis v0.10.0 // indirect
-	github.com/rancher/gke-operator v1.9.2-rc.1 // indirect
+	github.com/rancher/gke-operator v1.9.2-rc.2 // indirect
 	github.com/rancher/lasso v0.0.0-20240705194423-b2a060d103c1 // indirect
 	github.com/rancher/rancher/pkg/apis v0.0.0-20240719121207-baeda6b89fe3 // indirect
-	github.com/rancher/rke v1.6.1 // indirect
-	github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20210727200656-10b094e30007 // indirect
+	github.com/rancher/rke v1.6.2-rc.2 // indirect
+	github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20240301001845-4eacc2dabbde // indirect
 	github.com/rancher/wrangler v1.1.2 // indirect
 	github.com/rancher/wrangler/v3 v3.0.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
@@ -88,13 +88,13 @@ require (
 	go.starlark.net v0.0.0-20231101134539-556fd59b42f6 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/oauth2 v0.22.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
+	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/oauth2 v0.23.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
-	golang.org/x/term v0.23.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/term v0.24.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
@@ -124,7 +124,7 @@ require (
 )
 
 replace (
-	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20240830153224-93a68b99cae6 // rancher/rancher release/v2.9-HEAD commit
+	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20240913180455-eddb8ca2c368 // rancher/rancher release/v2.9-HEAD commit
 	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
 	k8s.io/client-go => k8s.io/client-go v0.30.1
 )

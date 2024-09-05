@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/rancher/shepherd/clients/rancher"
-	v1 "github.com/rancher/shepherd/clients/rancher/v1"
 	"github.com/rancher/shepherd/pkg/session"
 )
 
@@ -62,7 +61,6 @@ type HelmChart struct {
 }
 
 type Context struct {
-	CloudCred          *v1.SteveAPIObject
 	RancherAdminClient *rancher.Client
 	StdUserClient      *rancher.Client
 	Session            *session.Session

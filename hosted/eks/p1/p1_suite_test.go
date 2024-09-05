@@ -85,7 +85,7 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 
 	loggingTypes := []string{"api"}
 	helper.UpdateLogging(cluster, client, loggingTypes, false)
-	Expect(cluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
+	Expect(*cluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
 
 	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 	Expect(err).To(BeNil())
@@ -96,7 +96,7 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 		Expect(err).To(BeNil())
 
 		for _, loggingType := range loggingTypes {
-			exists = slice.ContainsString(cluster.EKSStatus.UpstreamSpec.LoggingTypes, loggingType)
+			exists = slice.ContainsString(*cluster.EKSStatus.UpstreamSpec.LoggingTypes, loggingType)
 		}
 		return exists && *cluster.EKSStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
 	}, "15m", "30s").Should(BeTrue())
@@ -196,7 +196,7 @@ func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client) 
 
 		// Verify the existing details do NOT change in Rancher
 		Expect(*cluster.EKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
-		Expect(cluster.EKSConfig.LoggingTypes).ShouldNot(HaveExactElements(loggingTypes))
+		Expect(*cluster.EKSConfig.LoggingTypes).ShouldNot(HaveExactElements(loggingTypes))
 
 		// Verify the new edits reflect in AWS console and existing details do NOT change
 		out, err := helper.GetFromEKS(region, clusterName, "cluster", "'.[]|.Version'")
