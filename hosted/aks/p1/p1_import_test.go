@@ -58,7 +58,7 @@ var _ = Describe("P1Import", func() {
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should fail to change system nodepool count to 0", func() {
+		It("should fail to change system nodepool count to 0", func() {
 			testCaseID = 290
 			updateSystemNodePoolCountToZeroCheck(cluster, ctx.RancherAdminClient)
 		})
@@ -68,7 +68,7 @@ var _ = Describe("P1Import", func() {
 			updateMonitoringCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should fail to reimport an imported cluster", func() {
+		It("should fail to reimport an imported cluster", func() {
 			testCaseID = 235
 			_, err := helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
 			Expect(err).To(HaveOccurred())
@@ -76,7 +76,7 @@ var _ = Describe("P1Import", func() {
 			Expect(err.Error()).To(ContainSubstring("cluster already exists for AKS cluster"))
 		})
 
-		FIt("should be possible to re-import a deleted cluster", func() {
+		It("should be possible to re-import a deleted cluster", func() {
 			testCaseID = 239
 			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
@@ -105,7 +105,7 @@ var _ = Describe("P1Import", func() {
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 	})
 
-	FWhen("a cluster with custom kubelet and os config is created and imported for upgrade", func() {
+	When("a cluster with custom kubelet and os config is created and imported for upgrade", func() {
 		var upgradeToVersion string
 		BeforeEach(func() {
 			kubeletConfigJsonData := `{"cpuManagerPolicy": "static", "cpuCfsQuota": true, "cpuCfsQuotaPeriod": "200ms", "imageGcHighThreshold": 90, "imageGcLowThreshold": 70, "topologyManagerPolicy": "best-effort", "allowedUnsafeSysctls": ["kernel.msg*","net.*"], "failSwapOn": false}`
@@ -177,7 +177,7 @@ var _ = Describe("P1Import", func() {
 			deleteAndAddNpCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should successfully edit System NodePool", func() {
+		It("should successfully edit System NodePool", func() {
 			testCaseID = 289
 			updateSystemNodePoolCheck(cluster, ctx.RancherAdminClient)
 		})

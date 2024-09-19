@@ -100,7 +100,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
-	FIt("should be able to create cluster with container monitoring enabled", func() {
+	It("should be able to create cluster with container monitoring enabled", func() {
 		// Refer: https://github.com/rancher/shepherd/issues/274
 		testCaseID = 199
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
@@ -184,7 +184,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		FIt("should not delete the resource group when cluster is deleted", func() {
+		It("should not delete the resource group when cluster is deleted", func() {
 			testCaseID = 207
 			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
@@ -215,13 +215,13 @@ var _ = Describe("P1Provisioning", func() {
 			updateTagsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should have cluster monitoring disabled by default", func() {
+		It("should have cluster monitoring disabled by default", func() {
 			testCaseID = 198
 			Expect(cluster.AKSConfig.Monitoring).To(BeNil())
 			Expect(cluster.AKSStatus.UpstreamSpec.Monitoring).To(BeNil())
 		})
 
-		FIt("should fail to change system nodepool count to 0", func() {
+		It("should fail to change system nodepool count to 0", func() {
 			testCaseID = 202
 			updateSystemNodePoolCountToZeroCheck(cluster, ctx.RancherAdminClient)
 		})
@@ -260,7 +260,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	})
 
-	FIt("should successfully create 2 clusters in  the same RG", func() {
+	It("should successfully create 2 clusters in  the same RG", func() {
 		testCaseID = 217
 		rgName := namegen.AppendRandomString("custom-aks-rg")
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
@@ -444,7 +444,7 @@ var _ = Describe("P1Provisioning", func() {
 			removeSystemNpCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should successfully edit System NodePool", func() {
+		It("should successfully edit System NodePool", func() {
 			testCaseID = 204
 			updateSystemNodePoolCheck(cluster, ctx.RancherAdminClient)
 		})
