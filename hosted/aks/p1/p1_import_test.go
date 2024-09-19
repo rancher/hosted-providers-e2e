@@ -70,7 +70,7 @@ var _ = Describe("P1Import", func() {
 
 		FIt("should fail to reimport an imported cluster", func() {
 			testCaseID = 235
-			_, err := helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, location, helpers.GetCommonMetadataLabels())
+			_, err := helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
 			Expect(err).To(HaveOccurred())
 
 			Expect(err.Error()).To(ContainSubstring("cluster already exists for AKS cluster"))
@@ -86,7 +86,7 @@ var _ = Describe("P1Import", func() {
 				_, err := ctx.RancherAdminClient.Management.Cluster.ByID(clusterID)
 				return err
 			}, "10s", "1s").ShouldNot(BeNil())
-			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, location, helpers.GetCommonMetadataLabels())
+			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
@@ -120,13 +120,13 @@ var _ = Describe("P1Import", func() {
 			err = os.WriteFile(osConfigDotJson.Name(), []byte(osConfigJsonData), 0644)
 			Expect(err).ToNot(HaveOccurred())
 
-			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCred.ID, location, true)
+			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
 
 			err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--kubelet-config", kubeletConfigDotJson.Name(), "--linux-os-config", osConfigDotJson.Name())
 			Expect(err).To(BeNil())
-			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, location, helpers.GetCommonMetadataLabels())
+			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())

@@ -100,8 +100,8 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
-	XIt("should be able to create cluster with container monitoring enabled", func() {
-		// blocked by https://github.com/rancher/shepherd/issues/274
+	FIt("should be able to create cluster with container monitoring enabled", func() {
+		// Refer: https://github.com/rancher/shepherd/issues/274
 		testCaseID = 199
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.Monitoring = pointer.Bool(true)
@@ -109,19 +109,13 @@ var _ = Describe("P1Provisioning", func() {
 		var err error
 		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
 		Expect(err).To(BeNil())
-		Expect(*cluster.AKSConfig.Monitoring).To(Equal(true))
+		Expect(*cluster.AKSConfig.Monitoring).To(BeTrue())
 
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
-
-		Eventually(func() bool {
-			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
-			return *cluster.AKSStatus.UpstreamSpec.Monitoring
-		}, "5m", "5s").Should(BeTrue())
-
+		Expect(*cluster.AKSStatus.UpstreamSpec.Monitoring).To(BeTrue())
 	})
 
 	When("a cluster with invalid config is created", func() {
@@ -278,7 +272,7 @@ var _ = Describe("P1Provisioning", func() {
 			go func() {
 				defer wg.Done()
 				clusterName := namegen.AppendRandomString(helpers.ClusterNamePrefix)
-				cluster1, err := helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, k8sVersion, location, updateFunc)
+				cluster1, err := helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster1, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
