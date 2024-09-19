@@ -71,9 +71,9 @@ var _ = Describe("P1Import", func() {
 		FIt("should fail to reimport an imported cluster", func() {
 			testCaseID = 235
 			_, err := helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCred.ID, location, helpers.GetCommonMetadataLabels())
-			Expect(err).ToNot(BeNil())
-			GinkgoLogr.Info("Error: ", err.Error())
-			Expect(err.Error()).To(ContainSubstring("cluster already exists"))
+			Expect(err).To(HaveOccurred())
+
+			Expect(err.Error()).To(ContainSubstring("cluster already exists for AKS cluster"))
 		})
 
 		FIt("should be possible to re-import a deleted cluster", func() {
@@ -144,7 +144,7 @@ var _ = Describe("P1Import", func() {
 				Expect(err).To(BeNil())
 			})
 			By("upgrading nodepool version", func() {
-				cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, true)
+				cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, true, true)
 				Expect(err).To(BeNil())
 			})
 		})

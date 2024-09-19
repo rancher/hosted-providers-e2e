@@ -100,7 +100,8 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
-	FIt("should be able to create cluster with container monitoring enabled", func() {
+	XIt("should be able to create cluster with container monitoring enabled", func() {
+		// blocked by https://github.com/rancher/shepherd/issues/274
 		testCaseID = 199
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.Monitoring = pointer.Bool(true)
@@ -108,13 +109,19 @@ var _ = Describe("P1Provisioning", func() {
 		var err error
 		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
 		Expect(err).To(BeNil())
+		Expect(*cluster.AKSConfig.Monitoring).To(Equal(true))
+
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
-		Expect(*cluster.AKSConfig.Monitoring).To(Equal(true))
-		Expect(*cluster.AKSStatus.UpstreamSpec.Monitoring).To(Equal(true))
+		Eventually(func() bool {
+			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			return *cluster.AKSStatus.UpstreamSpec.Monitoring
+		}, "5m", "5s").Should(BeTrue())
+
 	})
 
 	When("a cluster with invalid config is created", func() {
@@ -200,9 +207,8 @@ var _ = Describe("P1Provisioning", func() {
 			// check that the resource group still exists
 			var out string
 			out, err = proc.RunW("az", "group", "show", "--subscription", os.Getenv("AKS_SUBSCRIPTION_ID"), "--name", clusterName)
-			Expect(err).ToNot(BeNil())
-			Expect(out).To(ContainSubstring("ResourceGroupNotFound"))
-
+			Expect(err).To(BeNil())
+			Expect(out).To(ContainSubstring(fmt.Sprintf("\"name\": \"%s\"", clusterName)))
 		})
 
 		It("should be able to update autoscaling", func() {
