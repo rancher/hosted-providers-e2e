@@ -274,7 +274,7 @@ var _ = Describe("P1Provisioning", func() {
 				clusterName := namegen.AppendRandomString(helpers.ClusterNamePrefix)
 				cluster1, err := helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
 				Expect(err).To(BeNil())
-				cluster, err = helpers.WaitUntilClusterIsReady(cluster1, ctx.RancherAdminClient)
+				cluster1, err = helpers.WaitUntilClusterIsReady(cluster1, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 				err = helper.DeleteAKSHostCluster(cluster1, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
