@@ -28,4 +28,3 @@ updates:
     - dependency-name: "github.com/rancher/client-go"
     - dependency-name: "github.com/rancher/shepherd"
     - dependency-name: "github.com/rancher/rancher"
-    
