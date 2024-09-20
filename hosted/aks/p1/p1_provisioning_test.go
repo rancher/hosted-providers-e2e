@@ -260,7 +260,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	})
 
-	It("should successfully create 2 clusters in  the same RG", func() {
+	It("should successfully create 2 clusters in the same RG", func() {
 		testCaseID = 217
 		rgName := namegen.AppendRandomString("custom-aks-rg")
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
