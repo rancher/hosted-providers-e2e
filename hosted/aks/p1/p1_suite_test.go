@@ -418,7 +418,7 @@ func syncAddNodePoolFromAzureAndRancher(cluster *management.Cluster, client *ran
 
 	By("adding nodepool from Rancher", func() {
 		if helpers.IsImport {
-			// if the cluster is imported, update the AKSConfig value to match UpstreamSpec so that it can perform upcoming checks correctly
+			// if the cluster is imported, update the AKSConfig value to match UpstreamSpec so that it can do upcoming checks well
 			cluster.AKSConfig = cluster.AKSStatus.UpstreamSpec
 		}
 		var err error
