@@ -38,14 +38,18 @@ var _ = Describe("P1Import", func() {
 
 	When("a cluster is created and imported", func() {
 		BeforeEach(func() {
-			var err error
-			err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
+			err := helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
 
 			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
+		})
+
+		FIt("should successfully update with new cloud credentials", func() {
+			testCaseID = 292
+			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})
 
 		It("should be able to update autoscaling", func() {

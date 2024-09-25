@@ -323,6 +323,11 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
+		FIt("should successfully update with new cloud credentials", func() {
+			testCaseID = 221
+			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
+		})
+
 		It("should not be able to edit availability zone of a nodepool", func() {
 			// Refer: https://github.com/rancher/aks-operator/issues/669
 			testCaseID = 195

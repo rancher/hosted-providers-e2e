@@ -52,6 +52,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 // updateAutoScaling tests updating `autoscaling` for AKS node pools
+// Qase ID: 176 and 266
 func updateAutoScaling(cluster *management.Cluster, client *rancher.Client) {
 	By("enabling autoscaling with custom minCount and maxCount", func() {
 		var err error
@@ -66,6 +67,7 @@ func updateAutoScaling(cluster *management.Cluster, client *rancher.Client) {
 	})
 }
 
+// Qase ID: 191 and 267
 func removeSystemNpCheck(cluster *management.Cluster, client *rancher.Client) {
 	updateFunc := func(cluster *management.Cluster) {
 		var updatedNodePools []management.AKSNodePool
@@ -86,6 +88,7 @@ func removeSystemNpCheck(cluster *management.Cluster, client *rancher.Client) {
 	}, "5m", "5s").Should(BeTrue())
 }
 
+// Qase ID: 194, 190, and 268
 func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 	originalLen := len(cluster.AKSConfig.NodePools)
 	var npToBeDeleted management.AKSNodePool
@@ -157,6 +160,7 @@ func deleteAndAddNpCheck(cluster *management.Cluster, client *rancher.Client) {
 }
 
 // npUpgradeToVersionGTCPCheck runs checks when node pool is upgraded to a version greater than control plane version
+// Qase ID: 183 and 269
 func npUpgradeToVersionGTCPCheck(cluster *management.Cluster, client *rancher.Client) {
 	k8sVersion := *cluster.AKSConfig.KubernetesVersion
 	availableVersions, err := helper.ListAKSAvailableVersions(client, cluster.ID)
@@ -172,6 +176,7 @@ func npUpgradeToVersionGTCPCheck(cluster *management.Cluster, client *rancher.Cl
 }
 
 // updateTagsCheck runs checks to add and delete the cluster with a new tag and an empty tag
+// Qase ID: 177 and 270
 func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 	By("adding new tags", func() {
@@ -227,6 +232,7 @@ func updateTagsCheck(cluster *management.Cluster, client *rancher.Client) {
 	})
 }
 
+// Qase ID: 200 and 271
 func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) {
 	By("enabling the monitoring", func() {
 		updateFunc := func(cluster *management.Cluster) {
@@ -261,6 +267,7 @@ func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) 
 
 }
 
+// Qase ID: 202 and 290
 func updateSystemNodePoolCountToZeroCheck(cluster *management.Cluster, client *rancher.Client) {
 	updateFunc := func(cluster *management.Cluster) {
 		nodepools := cluster.AKSConfig.NodePools
@@ -281,6 +288,7 @@ func updateSystemNodePoolCountToZeroCheck(cluster *management.Cluster, client *r
 	}, "1m", "2s").Should(BeTrue())
 }
 
+// Qase ID: 204 and 289
 func updateSystemNodePoolCheck(cluster *management.Cluster, client *rancher.Client) {
 	var (
 		count              int64 = 4
@@ -328,6 +336,7 @@ func updateSystemNodePoolCheck(cluster *management.Cluster, client *rancher.Clie
 	}, "5m", "5s").Should(BeTrue(), "Failed while upstream nodepool update")
 }
 
+// Qase ID: 230 and 291
 func updateNodePoolModeCheck(cluster *management.Cluster, client *rancher.Client) {
 	var originalModeMap = make(map[string]string)
 	updateFunc := func(cluster *management.Cluster) {
@@ -360,4 +369,60 @@ func updateNodePoolModeCheck(cluster *management.Cluster, client *rancher.Client
 		}
 		return true
 	}, "5m", "5s").Should(BeTrue(), "Failed while upstream nodepool mode update")
+}
+
+// Qase ID: 221 and 292
+func updateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client) {
+	newCCID, err := helpers.CreateCloudCredentials(ctx.RancherAdminClient)
+	Expect(err).To(BeNil())
+	updateFunc := func(cluster *management.Cluster) {
+		cluster.AKSConfig.AzureCredentialSecret = newCCID
+	}
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+	Expect(cluster.AKSConfig.AzureCredentialSecret).To(Equal(newCCID))
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.AKSStatus.UpstreamSpec.AzureCredentialSecret == newCCID
+	}, "5m", "5s").Should(BeTrue(), "Failed while upstream cloud credentials update")
+
+	cluster, err = helper.AddNodePool(cluster, 1, client, true, true)
+	Expect(err).To(BeNil())
+}
+
+// Qase ID: 224 and 293
+func syncAddNodePoolFromAzureAndRancher(cluster *management.Cluster, client *rancher.Client) {
+	initialNPCount := len(cluster.AKSConfig.NodePools)
+	const npAzure = "npazure"
+	By("adding nodepool from Azure", func() {
+		err := helper.AddNodePoolOnAzure(npAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, "2")
+		Expect(err).To(BeNil())
+
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			for _, nodePool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+				if *nodePool.Name == npAzure {
+					return true
+				}
+			}
+			return false
+		}, "5m", "5s").Should(BeTrue(), "Timed out while waiting for sync from Azure")
+
+		if !helpers.IsImport {
+			// skip this check if the cluster is imported since the AKSConfig value will not be updated
+			Expect(cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + 1))
+		}
+	})
+
+	By("adding nodepool from Rancher", func() {
+		if helpers.IsImport {
+			// if the cluster is imported, update the AKSConfig value to match UpstreamSpec so that it can do upcoming checks well
+			cluster.AKSConfig = cluster.AKSStatus.UpstreamSpec
+		}
+		var err error
+		cluster, err = helper.AddNodePool(cluster, 1, client, true, true)
+		Expect(err).To(BeNil())
+	})
 }
