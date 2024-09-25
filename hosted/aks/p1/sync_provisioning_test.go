@@ -43,4 +43,28 @@ var _ = Describe("SyncProvisioning", func() {
 			syncAddNodePoolFromAzureAndRancher(cluster, ctx.RancherAdminClient)
 		})
 	})
+
+	When("a cluster is created for upgrade", func() {
+		var availableUpgradeVersions []string
+
+		BeforeEach(func() {
+			var err error
+			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
+			Expect(err).NotTo(HaveOccurred())
+			GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
+
+			cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, nil)
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).NotTo(HaveOccurred())
+
+			availableUpgradeVersions, err = helper.ListAKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+		})
+
+		It("should successfully Change k8s version from Azure should change the CP k8s version and list of available version for NPs", func() {
+			testCaseID = 225
+			upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster, ctx.RancherAdminClient, k8sVersion, availableUpgradeVersions[0])
+		})
+	})
 })

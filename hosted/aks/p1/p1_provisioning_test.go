@@ -323,7 +323,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		FIt("should successfully update with new cloud credentials", func() {
+		It("should successfully update with new cloud credentials", func() {
 			testCaseID = 221
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})

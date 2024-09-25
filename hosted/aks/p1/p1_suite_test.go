@@ -373,7 +373,7 @@ func updateNodePoolModeCheck(cluster *management.Cluster, client *rancher.Client
 
 // Qase ID: 221 and 292
 func updateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client) {
-	newCCID, err := helpers.CreateCloudCredentials(ctx.RancherAdminClient)
+	newCCID, err := helpers.CreateCloudCredentials(client)
 	Expect(err).To(BeNil())
 	updateFunc := func(cluster *management.Cluster) {
 		cluster.AKSConfig.AzureCredentialSecret = newCCID
@@ -418,11 +418,48 @@ func syncAddNodePoolFromAzureAndRancher(cluster *management.Cluster, client *ran
 
 	By("adding nodepool from Rancher", func() {
 		if helpers.IsImport {
-			// if the cluster is imported, update the AKSConfig value to match UpstreamSpec so that it can do upcoming checks well
+			// if the cluster is imported, update the AKSConfig value to match UpstreamSpec so that it can perform upcoming checks correctly
 			cluster.AKSConfig = cluster.AKSStatus.UpstreamSpec
 		}
 		var err error
 		cluster, err = helper.AddNodePool(cluster, 1, client, true, true)
+		Expect(err).To(BeNil())
+	})
+}
+
+// Qase ID: 225 and 294
+func upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster *management.Cluster, client *rancher.Client, k8sVersion, upgradeToVersion string) {
+	By("upgrading control plane k8s version from Azure", func() {
+		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersion, "--control-plane-only")
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
+		}, "5m", "5s").Should(BeTrue(), "Timed out while waiting for upgrade to appear in UpstreamSpec")
+
+		for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+			// NodePool version must remain the same
+			Expect(*nodepool.OrchestratorVersion).To(Equal(k8sVersion))
+		}
+
+		if !helpers.IsImport {
+			// skip this check if the cluster is imported since the AKSConfig value will not be updated
+			Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+			for _, nodepool := range cluster.AKSConfig.NodePools {
+				// NodePool version must remain the same
+				Expect(*nodepool.OrchestratorVersion).To(Equal(k8sVersion))
+			}
+		}
+	})
+
+	By("upgrading node pool k8s version from Rancher", func() {
+		if helpers.IsImport {
+			// if the cluster is imported, update the AKSConfig value to match UpstreamSpec so that it can perform upcoming checks correctly
+			cluster.AKSConfig = cluster.AKSStatus.UpstreamSpec
+		}
+		var err error
+		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, client, true, true)
 		Expect(err).To(BeNil())
 	})
 }
