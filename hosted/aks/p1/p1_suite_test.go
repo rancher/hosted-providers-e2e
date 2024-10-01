@@ -391,6 +391,44 @@ func updateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Cl
 	Expect(err).To(BeNil())
 }
 
+// Qase ID: 299, and 238
+func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client, cloudCredID string) {
+	currentCC, err := client.Management.CloudCredential.ByID(cloudCredID)
+	Expect(err).To(BeNil())
+	err = client.Management.CloudCredential.Delete(currentCC)
+	Expect(err).To(BeNil())
+
+	cluster, err = helper.ScaleNodePool(cluster, client, 2, false, false)
+	Expect(err).To(BeNil())
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.Transitioning == "error"
+	}, "1m", "2s").Should(BeTrue())
+
+	// Create new cloud credentials and update the cluster config with it
+	newCCID, err := helpers.CreateCloudCredentials(client)
+	Expect(err).To(BeNil())
+	updateFunc := func(cluster *management.Cluster) {
+		cluster.AKSConfig.AzureCredentialSecret = newCCID
+	}
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+	Expect(cluster.AKSConfig.AzureCredentialSecret).To(Equal(newCCID))
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.AKSStatus.UpstreamSpec.AzureCredentialSecret == newCCID
+	}, "5m", "5s").Should(BeTrue())
+
+	// Update the cluster again to ensure things are working
+	cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
+	Expect(err).To(BeNil())
+
+	// Update the context so that any future tests are not disrupted
+	ctx.CloudCredID = newCCID
+}
+
 // Qase ID: 224 and 293
 func syncAddNodePoolFromAzureAndRancher(cluster *management.Cluster, client *rancher.Client) {
 	initialNPCount := len(cluster.AKSConfig.NodePools)
@@ -540,8 +578,9 @@ func syncEditDifferentFieldsCheck(cluster *management.Cluster, client *rancher.C
 		Expect(err).To(BeNil())
 		return currentKubernetesVersion
 	}, "2m", "3s").Should(Equal(upgradeToVersion))
+
 	var err error
-	cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherAdminClient, true, false)
+	cluster, err = helper.AddNodePool(cluster, increaseBy, client, true, false)
 	Expect(err).To(BeNil())
 
 	select {

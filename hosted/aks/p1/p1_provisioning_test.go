@@ -352,6 +352,11 @@ var _ = Describe("P1Provisioning", func() {
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})
 
+		FIt("should fail to update with invalid cloud credential and update when the cloud credentials becomes valid", func() {
+			testCaseID = 299
+			invalidateCloudCredentialsCheck(cluster, ctx.RancherAdminClient, ctx.CloudCredID)
+		})
+
 		It("should not be able to edit availability zone of a nodepool", func() {
 			// Refer: https://github.com/rancher/aks-operator/issues/669
 			testCaseID = 195

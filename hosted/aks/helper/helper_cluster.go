@@ -570,12 +570,14 @@ func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string,
 	fmt.Println("Showing AKS cluster ...")
 	args := []string{"az", "aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "|", "jq", "-r", query}
 	cmd := strings.Join(args, " ")
-	fmt.Printf("Running command: az %v\n", args)
+	fmt.Printf("Running command: %s\n", args)
 	out, err = proc.RunW("bash", "-c", cmd)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to show cluster status: "+out)
 	}
-	return
+	// TODO: To be removed
+	fmt.Printf("Output: %s\n", out)
+	return strings.TrimSpace(out), nil
 }
 
 //====================================================================Azure CLI (end)=================================
