@@ -80,6 +80,35 @@ var _ = Describe("P1Provisioning", func() {
 			}, "1m", "3s").Should(BeTrue())
 		})
 
+		It("Fail to create cluster with different k8s versions on control plane and on nodegroup", func() {
+			testCaseID = 127
+
+			k8sVersions, err := helper.ListEKSAllVersions(ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+
+			cpK8sVersion := k8sVersions[0]
+			ngK8sVersion := k8sVersions[1]
+
+			updateFunc := func(clusterConfig *eks.ClusterConfig) {
+				var updatedNodeGroupsList []eks.NodeGroupConfig
+				for _, ng := range *clusterConfig.NodeGroupsConfig {
+					ng.Version = pointer.String(ngK8sVersion)
+					updatedNodeGroupsList = append([]eks.NodeGroupConfig{ng}, updatedNodeGroupsList...)
+				}
+				*clusterConfig.NodeGroupsConfig = updatedNodeGroupsList
+			}
+
+			GinkgoLogr.Info(fmt.Sprintf("Kubernetes version %s for control plane and %s for nodegroup on cluster %s", cpK8sVersion, ngK8sVersion, clusterName))
+			cluster, err = helper.CreateEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, cpK8sVersion, region, updateFunc)
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "version must match cluster")
+			}, "1m", "3s").Should(BeTrue())
+		})
+
 		It("Fail to create cluster with only Security groups", func() {
 			testCaseID = 120
 
