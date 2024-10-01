@@ -494,7 +494,7 @@ func noAvailabilityZoneP0Checks(cluster *management.Cluster, client *rancher.Cli
 
 	By("Adding a nodepool", func() {
 		initialNPCount := len(cluster.AKSConfig.NodePools)
-		newNPName := "anothernp"
+		newNPName := fmt.Sprintf("newNPName%s", namegen.RandStringLower(3))
 		updateFunc := func(cluster *management.Cluster) {
 			nodepools := cluster.AKSConfig.NodePools
 			npTemplate := nodepools[0]
