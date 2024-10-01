@@ -564,6 +564,20 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 	return nil
 }
 
+// ShowAKSStatusOnAzure returns the status of AKS based on the passed query
+// For e.g. '.currentKubernetesVersion' will only return the current kubernetes version of the cluster
+func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string, err error) {
+	fmt.Println("Showing AKS cluster ...")
+	args := []string{"az", "aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "|", "jq", "-r", query}
+	cmd := strings.Join(args, " ")
+	fmt.Printf("Running command: az %v\n", args)
+	out, err = proc.RunW("bash", "-c", cmd)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to show cluster status: "+out)
+	}
+	return
+}
+
 //====================================================================Azure CLI (end)=================================
 
 // GetK8sVersion returns the k8s version to be used by the test;

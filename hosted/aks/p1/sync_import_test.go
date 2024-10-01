@@ -76,6 +76,24 @@ var _ = Describe("SyncImport", func() {
 			testCaseID = 294
 			upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster, ctx.RancherAdminClient, k8sVersion, availableUpgradeVersions[0])
 		})
+
+		FIt("Sync from Azure to Rancher - But edit from Rancher before the sync finishes (edit on different fields)", func() {
+			testCaseID = 295
+			syncEditDifferentFieldsCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0])
+		})
+
+		FIt("Upgrade k8s version from Azure and Rancher, at the same time", func() {
+			testCaseID = 297
+			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0], availableUpgradeVersions[0])
+		})
+
+		FIt("Upgrade k8s version from Azure and Upgrade higher k8s version from Rancher at the same time", func() {
+			testCaseID = 298
+			Expect(len(availableUpgradeVersions)).To(BeNumerically(">=", 2))
+			azureUpgradeVersion := availableUpgradeVersions[0]
+			rancherHigherUpgradeVersion := availableUpgradeVersions[1]
+			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, azureUpgradeVersion, rancherHigherUpgradeVersion)
+		})
 	})
 
 })

@@ -524,5 +524,85 @@ func noAvailabilityZoneP0Checks(cluster *management.Cluster, client *rancher.Cli
 		cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
 		Expect(err).To(BeNil())
 	})
+}
+
+func syncEditDifferentFieldsCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string) {
+	initialNPCount := len(cluster.AKSConfig.NodePools)
+	increaseBy := 2
+	var upgradeComplete = make(chan bool)
+	go func() {
+		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersion, "--control-plane-only")
+		Expect(err).To(BeNil())
+		upgradeComplete <- true
+	}()
+	Eventually(func() string {
+		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, ".currentKubernetesVersion")
+		Expect(err).To(BeNil())
+		return currentKubernetesVersion
+	}, "2m", "3s").Should(Equal(upgradeToVersion))
+	var err error
+	cluster, err = helper.AddNodePool(cluster, increaseBy, ctx.RancherAdminClient, true, false)
+	Expect(err).To(BeNil())
+
+	select {
+	case <-upgradeComplete:
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return (len(cluster.AKSStatus.UpstreamSpec.NodePools) == initialNPCount+increaseBy) && *cluster.AKSStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
+		}, "5m", "5s").Should(BeTrue())
+		Expect(cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + increaseBy))
+		Expect(cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+	}
+}
+
+// Qase ID: 228, 297, 229, and 298
+func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersionFromAzure, upgradeToVersionFromRancher string) {
+	originalK8sVersion := *cluster.AKSConfig.KubernetesVersion
+	var upgradeComplete = make(chan bool)
+	go func() {
+		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersionFromAzure, "--control-plane-only")
+		Expect(err).To(BeNil())
+		upgradeComplete <- true
+	}()
+	Eventually(func() string {
+		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, ".currentKubernetesVersion")
+		Expect(err).To(BeNil())
+		return currentKubernetesVersion
+	}, "2m", "3s").Should(Equal(upgradeToVersionFromAzure))
+	var err error
+	cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersionFromRancher, client, false)
+	Expect(err).To(BeNil())
+
+	// Wait until the error message is seen in Rancher to ensure the cluster upgrade is happening.
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Operation is not allowed: Another operation (Upgrading) is in progress, please wait for it to finish before starting a new operation")
+	}, "2m", "2s").Should(BeTrue())
+
+	select {
+	case <-upgradeComplete:
+		Eventually(func() string {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
+		}, "10m", "5s").Should(Equal(upgradeToVersionFromRancher))
+		Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersionFromRancher))
+
+		var currentKubernetesVersionOnAzure string
+		currentKubernetesVersionOnAzure, err = helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, ".currentKubernetesVersion")
+		Expect(err).To(BeNil())
+		Expect(currentKubernetesVersionOnAzure).To(Equal(upgradeToVersionFromRancher))
+	}
+
+	// Ensure the nodepool K8s version are unchanged
+	for _, np := range cluster.AKSConfig.NodePools {
+		Expect(*np.OrchestratorVersion).To(Equal(originalK8sVersion))
+	}
+
+	for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
+		Expect(*np.OrchestratorVersion).To(Equal(originalK8sVersion))
+	}
 
 }
