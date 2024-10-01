@@ -463,3 +463,66 @@ func upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster *management.Cluster, cli
 		Expect(err).To(BeNil())
 	})
 }
+
+// Qase ID: 275 and 276
+func noAvailabilityZoneP0Checks(cluster *management.Cluster, client *rancher.Client) {
+	helpers.ClusterIsReadyChecks(cluster, client, clusterName)
+
+	for _, nodepool := range cluster.AKSConfig.NodePools {
+		Expect(nodepool.AvailabilityZones).To(BeNil())
+	}
+
+	for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+		Expect(nodepool.AvailabilityZones).To(BeNil())
+	}
+
+	var err error
+	var availableVersions []string
+	availableVersions, err = helper.ListAKSAvailableVersions(client, cluster.ID)
+	Expect(err).To(BeNil())
+	upgradeToVersion := availableVersions[0]
+
+	By("upgrading the cluster control plane", func() {
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, client, true)
+		Expect(err).To(BeNil())
+	})
+
+	By("upgrading the cluster nodepools", func() {
+		cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeToVersion, client, true, true)
+		Expect(err).To(BeNil())
+	})
+
+	By("Adding a nodepool", func() {
+		initialNPCount := len(cluster.AKSConfig.NodePools)
+		newNPName := "anothernp"
+		updateFunc := func(cluster *management.Cluster) {
+			nodepools := cluster.AKSConfig.NodePools
+			npTemplate := nodepools[0]
+			newNP := npTemplate
+			newNP.Name = &newNPName
+			nodepools = append(nodepools, newNP)
+			cluster.AKSConfig.NodePools = nodepools
+		}
+		cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+		Expect(err).To(BeNil())
+		Expect(len(cluster.AKSConfig.NodePools)).Should(BeNumerically("==", initialNPCount+1))
+		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		Expect(err).To(BeNil())
+		Eventually(func() int {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return len(cluster.AKSStatus.UpstreamSpec.NodePools)
+		}, "5m", "5s").Should(BeNumerically("==", initialNPCount+1))
+	})
+
+	By("Deleting the nodepool", func() {
+		cluster, err = helper.DeleteNodePool(cluster, client, true, true)
+		Expect(err).To(BeNil())
+	})
+
+	By("Scaling the nodepool", func() {
+		cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
+		Expect(err).To(BeNil())
+	})
+
+}

@@ -97,6 +97,26 @@ var _ = Describe("P1Import", func() {
 		})
 	})
 
+	It("should successfully Import a cluster in Region without AZ", func() {
+		location = "ukwest"
+		testCaseID = 276
+
+		var err error
+		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
+		Expect(err).NotTo(HaveOccurred())
+		GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
+
+		err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
+		Expect(err).To(BeNil())
+
+		cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
+		Expect(err).To(BeNil())
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+		Expect(err).To(BeNil())
+
+		noAvailabilityZoneP0Checks(cluster, ctx.RancherAdminClient)
+	})
+
 	It("should be able to register a cluster with no rbac", func() {
 		testCaseID = 237
 		err := helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--disable-rbac")
