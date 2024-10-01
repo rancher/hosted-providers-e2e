@@ -76,7 +76,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "node group names must be unique")
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "is not unique within the cluster")
 			}, "1m", "3s").Should(BeTrue())
 		})
 
