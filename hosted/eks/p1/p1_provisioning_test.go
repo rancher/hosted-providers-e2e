@@ -86,8 +86,8 @@ var _ = Describe("P1Provisioning", func() {
 			k8sVersions, err := helper.ListEKSAllVersions(ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 
-			cpK8sVersion := k8sVersions[0]
-			ngK8sVersion := k8sVersions[1]
+			cpK8sVersion := k8sVersions[1]
+			ngK8sVersion := k8sVersions[0]
 
 			updateFunc := func(clusterConfig *eks.ClusterConfig) {
 				var updatedNodeGroupsList []eks.NodeGroupConfig
