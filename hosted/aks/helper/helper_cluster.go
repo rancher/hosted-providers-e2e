@@ -503,6 +503,22 @@ func AddNodePoolOnAzure(npName, clusterName, resourceGroupName, nodeCount string
 	return nil
 }
 
+// DeleteNodePoolOnAzure deletes nodepool to an AKS cluster via CLI
+func DeleteNodePoolOnAzure(npName, clusterName, resourceGroupName string, extraArgs ...string) error {
+	fmt.Println("Adding node pool ...")
+	args := []string{"aks", "nodepool", "delete", "--resource-group", resourceGroupName, "--cluster-name", clusterName, "--name", npName, "--node-count", "--subscription", subscriptionID}
+	if len(extraArgs) > 0 {
+		args = append(args, extraArgs...)
+	}
+	fmt.Printf("Running command: az %v\n", args)
+	out, err := proc.RunW("az", args...)
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete node pool: "+out)
+	}
+	fmt.Println("Deleted node pool: ", npName)
+	return nil
+}
+
 // ClusterExistsOnAzure gets a list of cluster based on the name filter and returns true if the cluster is not in Deleting state;
 // it returns false if the cluster does not exist or is in Deleting state.
 func ClusterExistsOnAzure(clusterName, resourceGroup string) (bool, error) {
@@ -572,12 +588,9 @@ func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string,
 	cmd := strings.Join(args, " ")
 	fmt.Printf("Running command: %s\n", args)
 	out, err = proc.RunW("bash", "-c", cmd)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to show cluster status: "+out)
-	}
 	// TODO: To be removed
 	fmt.Printf("Output: %s\n", out)
-	return strings.TrimSpace(out), nil
+	return strings.TrimSpace(out), err
 }
 
 //====================================================================Azure CLI (end)=================================

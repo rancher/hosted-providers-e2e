@@ -2,10 +2,13 @@ package p1_test
 
 import (
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/clusters/aks"
+	"k8s.io/utils/pointer"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -83,6 +86,47 @@ var _ = Describe("SyncProvisioning", func() {
 			azureUpgradeVersion := availableUpgradeVersions[0]
 			rancherHigherUpgradeVersion := availableUpgradeVersions[1]
 			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, azureUpgradeVersion, rancherHigherUpgradeVersion)
+		})
+	})
+
+	When("a cluster is created with multiple nodepools", func() {
+		BeforeEach(func() {
+			updateFunc := func(aksConfig *aks.ClusterConfig) {
+				nodepools := *aksConfig.NodePools
+				npTemplate := nodepools[0]
+				var updatedNodePools []aks.NodePool
+				for i := 1; i <= 2; i++ {
+					for _, mode := range []string{"User", "System"} {
+						updatedNodePools = append(updatedNodePools, aks.NodePool{
+							AvailabilityZones:   npTemplate.AvailabilityZones,
+							EnableAutoScaling:   npTemplate.EnableAutoScaling,
+							MaxPods:             npTemplate.MaxPods,
+							MaxCount:            npTemplate.MaxCount,
+							MinCount:            npTemplate.MinCount,
+							Mode:                mode,
+							Name:                pointer.String(fmt.Sprintf("%spool%d", strings.ToLower(mode), i)),
+							NodeCount:           npTemplate.NodeCount,
+							OrchestratorVersion: pointer.String(k8sVersion),
+							OsDiskSizeGB:        npTemplate.OsDiskSizeGB,
+							OsDiskType:          npTemplate.OsDiskType,
+							OsType:              npTemplate.OsType,
+							VMSize:              npTemplate.VMSize,
+						})
+					}
+				}
+				aksConfig.NodePools = &updatedNodePools
+			}
+			var err error
+			cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+		})
+
+		FIt("Delete nodepool in Azure and edit the cluster in Rancher when delete in Azure is in progress", func() {
+			testCaseID = 227
+			syncDeleteNPFromAzureEditFromRancher(cluster, ctx.RancherAdminClient)
 		})
 	})
 })

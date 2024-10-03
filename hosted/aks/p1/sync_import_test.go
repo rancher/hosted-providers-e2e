@@ -96,4 +96,29 @@ var _ = Describe("SyncImport", func() {
 		})
 	})
 
+	When("a cluster is created and imported with multiple nodepools", func() {
+		BeforeEach(func() {
+			var err error
+			err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--nodepool-name", "systempool0")
+			Expect(err).To(BeNil())
+
+			err = helper.AddNodePoolOnAzure("systempool1", clusterName, clusterName, "2", "--mode", "System")
+			Expect(err).To(BeNil())
+			err = helper.AddNodePoolOnAzure("userpool0", clusterName, clusterName, "2", "--mode", "User")
+			Expect(err).To(BeNil())
+			err = helper.AddNodePoolOnAzure("userpool1", clusterName, clusterName, "2", "--mode", "User")
+			Expect(err).To(BeNil())
+
+			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+		})
+
+		FIt("Delete nodepool in Azure and edit the cluster in Rancher when delete in Azure is in progress", func() {
+			testCaseID = 296
+			syncDeleteNPFromAzureEditFromRancher(cluster, ctx.RancherAdminClient)
+		})
+	})
+
 })

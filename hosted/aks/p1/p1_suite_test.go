@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -644,4 +645,69 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 		Expect(*np.OrchestratorVersion).To(Equal(originalK8sVersion))
 	}
 
+}
+
+// Qase ID: 227, and 296
+func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *rancher.Client) {
+	var deleteComplete = make(chan bool)
+	npToBeDeletedFromAzure := "userpool0"
+	npToBeDeletedFromRancher := "userpool1"
+
+	go func() {
+		err := helper.DeleteNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup)
+		Expect(err).To(BeNil())
+		deleteComplete <- true
+	}()
+
+	// TODO: Figure out a way to find out if the upgrade has started
+	time.Sleep(1 * time.Minute)
+	updateFunc := func(cluster *management.Cluster) {
+		nodepools := cluster.AKSConfig.NodePools
+		var npIndexToBeDelete int
+		for i, np := range nodepools {
+			if *np.Name == npToBeDeletedFromRancher {
+				npIndexToBeDelete = i
+			}
+		}
+		cluster.AKSConfig.NodePools = append(cluster.AKSConfig.NodePools[:npIndexToBeDelete], cluster.AKSConfig.NodePools[npIndexToBeDelete+1:]...)
+	}
+
+	var err error
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
+
+	select {
+	case <-deleteComplete:
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			var npDeletedFromAzureExists, npDeletedFromRancherExists bool
+			for _, np := range cluster.AKSConfig.NodePools {
+				if *np.Name == npToBeDeletedFromRancher {
+					npDeletedFromRancherExists = true
+				}
+				if *np.Name == npToBeDeletedFromAzure {
+					npDeletedFromAzureExists = true
+				}
+			}
+			return !npDeletedFromRancherExists && npDeletedFromAzureExists
+		}, "5m", "5s").Should(BeTrue())
+
+		var npDeletedFromAzureExists, npDeletedFromRancherExists bool
+		for _, np := range cluster.AKSConfig.NodePools {
+			if *np.Name == npToBeDeletedFromRancher {
+				npDeletedFromRancherExists = true
+			}
+			if *np.Name == npToBeDeletedFromAzure {
+				npDeletedFromAzureExists = true
+			}
+		}
+		Expect(npDeletedFromRancherExists).To(Equal(false))
+		Expect(npDeletedFromAzureExists).To(Equal(true))
+
+		Expect(cluster.AKSConfig.NodePools).To(HaveLen(3))
+		Expect(cluster.AKSStatus.UpstreamSpec.NodePools).To(HaveLen(3))
+	}
 }
