@@ -315,13 +315,11 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	When("a private cluster is created", func() {
-
 		var err error
-		var updateFunc func(clusterConfig *gke.ClusterConfig)
-		network := pointer.String("hosted-providers-ci-private")
 
 		BeforeEach(func() {
-			updateFunc = func(clusterConfig *gke.ClusterConfig) {
+			updateFunc := func(clusterConfig *gke.ClusterConfig) {
+				network := pointer.String("hosted-providers-ci-private")
 				clusterConfig.Network = network
 				clusterConfig.Subnetwork = network
 				clusterConfig.PrivateClusterConfig.EnablePrivateNodes = true
@@ -329,7 +327,7 @@ var _ = Describe("P1Provisioning", func() {
 
 				currentSpec := CurrentSpecReport().FullText()
 				if strings.Contains(currentSpec, "MasterAuthorizedNetworks") {
-					_, authorizedIP, err := net.ParseCIDR(strings.TrimSuffix(helpers.RancherHostname, ".sslip.io") + "/32")
+					_, authorizedIP, err := net.ParseCIDR(helpers.GetRancherIP() + "/32")
 					Expect(err).To(BeNil())
 
 					newCidrBlock := gke.CidrBlock{
@@ -348,17 +346,11 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 
 			Expect(cluster.GKEConfig.PrivateClusterConfig.EnablePrivateNodes).To(BeTrue())
+			Expect(cluster.GKEStatus.UpstreamSpec.PrivateClusterConfig.EnablePrivateNodes).To(BeTrue())
 		})
 
 		It("should successfully create with public endpoint", func() {
 			testCaseID = 22
-
-			Eventually(func() bool {
-				GinkgoLogr.Info("Waiting for the private config to appear in GKEStatus.UpstreamSpec...")
-				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
-				Expect(err).To(BeNil())
-				return cluster.GKEStatus.UpstreamSpec.PrivateClusterConfig.EnablePrivateNodes
-			}, "2m", "15s").Should(BeTrue(), "Failed while waiting for private config to appear")
 
 			cluster, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "", true, true)
 			Expect(err).To(BeNil())
@@ -368,12 +360,7 @@ var _ = Describe("P1Provisioning", func() {
 			testCaseID = 24
 
 			Expect(cluster.GKEConfig.MasterAuthorizedNetworksConfig.Enabled).To(BeTrue())
-			Eventually(func() bool {
-				GinkgoLogr.Info("Waiting for the private config to appear in GKEStatus.UpstreamSpec...")
-				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
-				Expect(err).To(BeNil())
-				return cluster.GKEStatus.UpstreamSpec.PrivateClusterConfig.EnablePrivateNodes && cluster.GKEStatus.UpstreamSpec.MasterAuthorizedNetworksConfig.Enabled
-			}, "2m", "15s").Should(BeTrue(), "Failed while waiting for private config to appear")
+			Expect(cluster.GKEStatus.UpstreamSpec.MasterAuthorizedNetworksConfig.Enabled).To(BeTrue())
 
 			cluster, err = helper.ScaleNodePool(cluster, ctx.RancherAdminClient, 1, false, true)
 			Expect(err).To(BeNil())
