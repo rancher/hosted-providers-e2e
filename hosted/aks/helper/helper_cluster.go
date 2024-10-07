@@ -588,8 +588,6 @@ func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string,
 	cmd := strings.Join(args, " ")
 	fmt.Printf("Running command: %s\n", args)
 	out, err = proc.RunW("bash", "-c", cmd)
-	// TODO: To be removed
-	fmt.Printf("Output: %s\n", out)
 	return strings.TrimSpace(out), err
 }
 

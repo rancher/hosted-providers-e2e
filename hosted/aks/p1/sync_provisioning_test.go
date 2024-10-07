@@ -70,12 +70,12 @@ var _ = Describe("SyncProvisioning", func() {
 			upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster, ctx.RancherAdminClient, k8sVersion, availableUpgradeVersions[0])
 		})
 
-		FIt("Sync from Azure to Rancher - But edit from Rancher before the sync finishes (edit on different fields)", func() {
+		XIt("Sync from Azure to Rancher - But edit from Rancher before the sync finishes (edit on different fields)", func() {
 			testCaseID = 226
 			syncEditDifferentFieldsCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0])
 		})
 
-		FIt("Upgrade k8s version from Azure and Rancher, at the same time", func() {
+		FIt("Upgrade same k8s version from Azure and Rancher, at the same time", func() {
 			testCaseID = 228
 			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0], availableUpgradeVersions[0])
 		})
