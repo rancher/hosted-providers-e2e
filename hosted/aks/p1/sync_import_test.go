@@ -78,6 +78,7 @@ var _ = Describe("SyncImport", func() {
 		})
 
 		XIt("Sync from Azure to Rancher - But edit from Rancher before the sync finishes (edit on different fields)", func() {
+			// TODO: Blocked due to: https://github.com/rancher/aks-operator/issues/676
 			testCaseID = 295
 			syncEditDifferentFieldsCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0])
 		})
