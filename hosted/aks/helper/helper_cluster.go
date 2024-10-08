@@ -505,8 +505,8 @@ func AddNodePoolOnAzure(npName, clusterName, resourceGroupName, nodeCount string
 
 // DeleteNodePoolOnAzure deletes nodepool to an AKS cluster via CLI
 func DeleteNodePoolOnAzure(npName, clusterName, resourceGroupName string, extraArgs ...string) error {
-	fmt.Println("Adding node pool ...")
-	args := []string{"aks", "nodepool", "delete", "--resource-group", resourceGroupName, "--cluster-name", clusterName, "--name", npName, "--node-count", "--subscription", subscriptionID}
+	fmt.Println("Deleting node pool ...")
+	args := []string{"aks", "nodepool", "delete", "--resource-group", resourceGroupName, "--cluster-name", clusterName, "--name", npName, "--subscription", subscriptionID}
 	if len(extraArgs) > 0 {
 		args = append(args, extraArgs...)
 	}
@@ -585,6 +585,15 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string, err error) {
 	fmt.Println("Showing AKS cluster ...")
 	args := []string{"az", "aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "|", "jq", "-r", query}
+	cmd := strings.Join(args, " ")
+	fmt.Printf("Running command: %s\n", args)
+	out, err = proc.RunW("bash", "-c", cmd)
+	return strings.TrimSpace(out), err
+}
+
+func ShowAKSNodePoolOnAzure(nodepoolName, clusterName, resourceGroup, query string) (out string, err error) {
+	fmt.Println("Showing AKS node pool ...")
+	args := []string{"az", "aks", "nodepool", "show", "--subscription", subscriptionID, "--name", nodepoolName, "--cluster-name", clusterName, "--resource-group", resourceGroup, "|", "jq", "-r", query}
 	cmd := strings.Join(args, " ")
 	fmt.Printf("Running command: %s\n", args)
 	out, err = proc.RunW("bash", "-c", cmd)

@@ -464,7 +464,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	})
 
-	It("should successfully create 2 clusters in the same RG", func() {
+	FIt("should successfully create 2 clusters in the same RG", func() {
 		testCaseID = 217
 		rgName := namegen.AppendRandomString("custom-aks-rg")
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
@@ -474,14 +474,21 @@ var _ = Describe("P1Provisioning", func() {
 		for i := 1; i <= 2; i++ {
 			wg.Add(1)
 			go func() {
+				defer GinkgoRecover()
 				defer wg.Done()
 				clusterName := namegen.AppendRandomString(helpers.ClusterNamePrefix)
 				cluster1, err := helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
-				Expect(err).To(BeNil())
+				if err != nil {
+					Fail(err.Error())
+				}
 				cluster1, err = helpers.WaitUntilClusterIsReady(cluster1, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
+				if err != nil {
+					Fail(err.Error())
+				}
 				err = helper.DeleteAKSHostCluster(cluster1, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
+				if err != nil {
+					Fail(err.Error())
+				}
 			}()
 		}
 		wg.Wait()

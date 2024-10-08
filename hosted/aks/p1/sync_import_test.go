@@ -95,9 +95,6 @@ var _ = Describe("SyncImport", func() {
 			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, azureUpgradeVersion, rancherHigherUpgradeVersion)
 		})
 
-		//It("Upgrade k8s version from Azure and upgrade a lower k8s version from Rancher at the same time", func() {
-		//	// See what happens
-		//})
 	})
 
 	When("a cluster is created and imported with multiple nodepools", func() {
