@@ -568,7 +568,7 @@ func noAvailabilityZoneP0Checks(cluster *management.Cluster, client *rancher.Cli
 func syncEditDifferentFieldsCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string) {
 	initialNPCount := len(cluster.AKSConfig.NodePools)
 	increaseBy := 2
-	var upgradeComplete chan interface{}
+	var upgradeComplete = make(chan interface{})
 	go func() {
 		defer GinkgoRecover()
 		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersion, "--control-plane-only")
@@ -604,7 +604,7 @@ func syncEditDifferentFieldsCheck(cluster *management.Cluster, client *rancher.C
 func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersionFromAzure, upgradeToVersionFromRancher string) {
 	originalK8sVersion := *cluster.AKSConfig.KubernetesVersion
 
-	var upgradeComplete chan interface{}
+	var upgradeComplete = make(chan interface{})
 	go func() {
 		defer GinkgoRecover()
 		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersionFromAzure, "--control-plane-only")
@@ -663,7 +663,7 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 	npToBeDeletedFromAzure := "userpool0"
 	npToBeDeletedFromRancher := "userpool1"
 
-	var deleteComplete chan interface{}
+	var deleteComplete = make(chan interface{})
 	go func() {
 		defer GinkgoRecover()
 		err := helper.DeleteNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup)

@@ -95,7 +95,7 @@ var _ = Describe("SyncProvisioning", func() {
 				nodepools := *aksConfig.NodePools
 				npTemplate := nodepools[0]
 				var updatedNodePools []aks.NodePool
-				for i := 1; i <= 2; i++ {
+				for i := 0; i < 2; i++ {
 					for _, mode := range []string{"User", "System"} {
 						updatedNodePools = append(updatedNodePools, aks.NodePool{
 							AvailabilityZones:   npTemplate.AvailabilityZones,
