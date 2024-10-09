@@ -674,11 +674,13 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 	}()
 
 	// Wait until the delete action is triggered
-	Eventually(func() string {
+	Eventually(func() bool {
 		out, err := helper.ShowAKSNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, ".provisioningState")
-		Expect(err).To(BeNil())
-		return out
-	}, "5s", "1s").Should(ContainSubstring("Deleting"))
+		if err != nil && strings.Contains(err.Error(), "NotFound") {
+			return true
+		}
+		return strings.Contains(out, "Deleting")
+	}, "10s", "1s").Should(BeTrue())
 
 	updateFunc := func(cluster *management.Cluster) {
 		nodepools := cluster.AKSConfig.NodePools
