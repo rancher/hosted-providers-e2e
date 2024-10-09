@@ -625,17 +625,18 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 	Expect(err).To(BeNil())
 
 	// Wait until the error message is seen in Rancher to ensure the cluster upgrade is happening.
-	// TODO: Uncomment after https://github.com/rancher/aks-operator/issues/678 is fixed.
-	//Eventually(func() bool {
-	//	cluster, err = client.Management.Cluster.ByID(cluster.ID)
-	//	Expect(err).To(BeNil())
-	//	return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Operation is not allowed: Another operation (Upgrading) is in progress, please wait for it to finish before starting a new operation")
-	//}, "5m", "5s").Should(BeTrue(), "Timed out waiting for Transitioning to error out")
+	// Ref: https://github.com/rancher/aks-operator/issues/678 is fixed.
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Operation is not allowed: Another operation (Upgrading) is in progress, please wait for it to finish before starting a new operation")
+	}, "5m", "5s").Should(BeTrue(), "Timed out waiting for Transitioning to error out")
 
 	// ensuring go routine running AKS upgrade does not go forever in case of any error
-	Eventually(upgradeComplete, "10m", "5s").Should(BeClosed())
+	Eventually(upgradeComplete, "10m", "5s").Should(BeClosed(), "Timed out waiting for the upgradeComplete channel to close")
 
 	Eventually(func() string {
+		GinkgoLogr.Info(fmt.Sprintf("Waiting for k8s upgrade to %s to appear in UpstreamSpec", upgradeToVersionFromRancher))
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
@@ -676,7 +677,7 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 	// Wait until the delete action is triggered
 	Eventually(func() bool {
 		out, err := helper.ShowAKSNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, ".provisioningState")
-		if err != nil && strings.Contains(err.Error(), "NotFound") {
+		if err != nil && strings.Contains(err.Error(), "doesnt exist") {
 			return true
 		}
 		return strings.Contains(out, "Deleting")
@@ -690,14 +691,23 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 				npIndexToBeDelete = i
 			}
 		}
-		cluster.AKSConfig.NodePools = append(cluster.AKSConfig.NodePools[:npIndexToBeDelete], cluster.AKSConfig.NodePools[npIndexToBeDelete+1:]...)
+		cluster.AKSConfig.NodePools = append(nodepools[:npIndexToBeDelete], nodepools[npIndexToBeDelete+1:]...)
+
+		// Double check that nodepool is removed from the updated list
+		var npIsNotRemoved bool
+		for _, np := range cluster.AKSConfig.NodePools {
+			if *np.Name == npToBeDeletedFromRancher {
+				npIsNotRemoved = true
+			}
+			Expect(npIsNotRemoved).To(BeFalse())
+		}
 	}
 
 	var err error
 	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 	Expect(err).To(BeNil())
-	//err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
-	//Expect(err).To(BeNil())
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
 
 	// ensuring go routine running AKS nodepool deletion does not go forever in case of any error
 	Eventually(deleteComplete, "5m", "5s").Should(BeClosed())
