@@ -86,6 +86,7 @@ var _ = Describe("SyncProvisioning", func() {
 			Expect(len(availableUpgradeVersions)).To(BeNumerically(">=", 2))
 			azureUpgradeVersion := availableUpgradeVersions[0]
 			rancherHigherUpgradeVersion := availableUpgradeVersions[1]
+			Expect(helpers.VersionCompare(rancherHigherUpgradeVersion, azureUpgradeVersion)).To(Equal(1))
 			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, azureUpgradeVersion, rancherHigherUpgradeVersion)
 		})
 	})
@@ -125,7 +126,8 @@ var _ = Describe("SyncProvisioning", func() {
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 		})
 
-		FIt("Delete nodepool in Azure and edit the cluster in Rancher when delete in Azure is in progress", func() {
+		XIt("Delete nodepool in Azure and edit the cluster in Rancher when delete in Azure is in progress", func() {
+			// Blocked by: https://github.com/rancher/aks-operator/issues/676#issuecomment-2404279109
 			testCaseID = 227
 			syncDeleteNPFromAzureEditFromRancher(cluster, ctx.RancherAdminClient)
 		})

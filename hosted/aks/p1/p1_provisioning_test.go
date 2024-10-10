@@ -352,7 +352,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		It("should fail to update with invalid cloud credential and update when the cloud credentials becomes valid", func() {
+		FIt("should fail to update with invalid cloud credential and update when the cloud credentials becomes valid", func() {
 			testCaseID = 299
 			invalidateCloudCredentialsCheck(cluster, ctx.RancherAdminClient, ctx.CloudCredID)
 		})
@@ -466,7 +466,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	FIt("should successfully create 2 clusters in the same RG", func() {
 		testCaseID = 217
-		rgName := namegen.AppendRandomString("custom-aks-rg")
+		rgName := namegen.AppendRandomString(helpers.ClusterNamePrefix + "-custom-rg")
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
 			aksConfig.ResourceGroup = rgName
 		}
@@ -492,6 +492,9 @@ var _ = Describe("P1Provisioning", func() {
 			}()
 		}
 		wg.Wait()
+
+		err := helper.DeleteAKSClusteronAzure(rgName)
+		Expect(err).To(BeNil())
 	})
 
 	When("a cluster is created for upgrade", func() {

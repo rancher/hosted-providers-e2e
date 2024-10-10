@@ -615,6 +615,7 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 	}()
 
 	Eventually(func() string {
+		GinkgoLogr.Info("[2m] Waiting for azure triggered K8s upgrade to show up on the cluster...")
 		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
 		Expect(err).To(BeNil())
 		return currentKubernetesVersion
@@ -625,8 +626,9 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 	Expect(err).To(BeNil())
 
 	// Wait until the error message is seen in Rancher to ensure the cluster upgrade is happening.
-	// Ref: https://github.com/rancher/aks-operator/issues/678 is fixed.
+	// Ref: https://github.com/rancher/aks-operator/issues/678
 	Eventually(func() bool {
+		GinkgoLogr.Info("[5m] Waiting for the Transitioning to error out...")
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Operation is not allowed: Another operation (Upgrading) is in progress, please wait for it to finish before starting a new operation")
@@ -636,7 +638,7 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 	Eventually(upgradeComplete, "10m", "5s").Should(BeClosed(), "Timed out waiting for the upgradeComplete channel to close")
 
 	Eventually(func() string {
-		GinkgoLogr.Info(fmt.Sprintf("Waiting for k8s upgrade to %s to appear in UpstreamSpec", upgradeToVersionFromRancher))
+		GinkgoLogr.Info(fmt.Sprintf("[10m] Waiting for k8s upgrade to %s to appear in UpstreamSpec", upgradeToVersionFromRancher))
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
@@ -676,6 +678,7 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 
 	// Wait until the delete action is triggered
 	Eventually(func() bool {
+		GinkgoLogr.Info("[10s] Waiting for nodepool to start deleting or not exist...")
 		out, err := helper.ShowAKSNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, "provisioningState")
 		if err != nil && strings.Contains(err.Error(), "doesnt exist") {
 			return true
@@ -706,13 +709,16 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 	var err error
 	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 	Expect(err).To(BeNil())
+
+	// Ref: https://github.com/rancher/aks-operator/issues/676
 	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 	Expect(err).To(BeNil())
 
 	// ensuring go routine running AKS nodepool deletion does not go forever in case of any error
-	Eventually(deleteComplete, "5m", "5s").Should(BeClosed())
+	Eventually(deleteComplete, "5m", "5s").Should(BeClosed(), "Timed out waiting for delete nodepool go routine to close the channel")
 
 	Eventually(func() bool {
+		GinkgoLogr.Info(fmt.Sprintf("[10m] Waiting for nodepool %s deleted by rancher to disappear and nodepool %s deleted by azure to appear in UpstreamSpec...", npToBeDeletedFromRancher, npToBeDeletedFromAzure))
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		var npDeletedFromAzureExists, npDeletedFromRancherExists bool

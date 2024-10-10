@@ -453,6 +453,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 
 // UpdateCluster is a generic function to update a cluster
 func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFunc func(*management.Cluster)) (*management.Cluster, error) {
+	fmt.Println("Updating the cluster ...")
 	upgradedCluster := cluster
 
 	updateFunc(upgradedCluster)
@@ -581,7 +582,7 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 }
 
 // ShowAKSStatusOnAzure returns the status of AKS based on the passed query
-// For e.g. '.currentKubernetesVersion' will only return the current kubernetes version of the cluster
+// For e.g. 'currentKubernetesVersion' will only return the current kubernetes version of the cluster
 func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string, err error) {
 	fmt.Println("Showing AKS cluster ...")
 	args := []string{"aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "--query", query}
@@ -591,6 +592,8 @@ func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string,
 	return strings.TrimSpace(out), err
 }
 
+// ShowAKSNodePoolOnAzure returns the status of AKS nodepool based on the passed query
+// For e.g. 'provisioningState' will only return the provisioning state of a nodepool
 func ShowAKSNodePoolOnAzure(nodepoolName, clusterName, resourceGroup, query string) (out string, err error) {
 	fmt.Println("Showing AKS node pool ...")
 	args := []string{"aks", "nodepool", "show", "--subscription", subscriptionID, "--name", nodepoolName, "--cluster-name", clusterName, "--resource-group", resourceGroup, "--query", query}
