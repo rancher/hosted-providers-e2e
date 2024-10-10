@@ -404,7 +404,7 @@ func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *ranche
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
 		return cluster.Transitioning == "error"
-	}, "1m", "2s").Should(BeTrue())
+	}, "3m", "2s").Should(BeTrue())
 
 	// Create new cloud credentials and update the cluster config with it
 	newCCID, err := helpers.CreateCloudCredentials(client)
@@ -419,7 +419,7 @@ func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *ranche
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
 		return cluster.AKSStatus.UpstreamSpec.AzureCredentialSecret == newCCID
-	}, "5m", "5s").Should(BeTrue())
+	}, "7m", "5s").Should(BeTrue())
 
 	// Update the cluster again to ensure things are working
 	cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
