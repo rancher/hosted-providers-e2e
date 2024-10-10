@@ -584,19 +584,18 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 // For e.g. '.currentKubernetesVersion' will only return the current kubernetes version of the cluster
 func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string, err error) {
 	fmt.Println("Showing AKS cluster ...")
-	args := []string{"az", "aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "|", "jq", "-r", query}
-	cmd := strings.Join(args, " ")
+	args := []string{"aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "--query", query}
+
 	fmt.Printf("Running command: %s\n", args)
-	out, err = proc.RunW("bash", "-c", cmd)
+	out, err = proc.RunW("az", args...)
 	return strings.TrimSpace(out), err
 }
 
 func ShowAKSNodePoolOnAzure(nodepoolName, clusterName, resourceGroup, query string) (out string, err error) {
 	fmt.Println("Showing AKS node pool ...")
-	args := []string{"az", "aks", "nodepool", "show", "--subscription", subscriptionID, "--name", nodepoolName, "--cluster-name", clusterName, "--resource-group", resourceGroup, "|", "jq", "-r", query}
-	cmd := strings.Join(args, " ")
+	args := []string{"aks", "nodepool", "show", "--subscription", subscriptionID, "--name", nodepoolName, "--cluster-name", clusterName, "--resource-group", resourceGroup, "--query", query}
 	fmt.Printf("Running command: %s\n", args)
-	out, err = proc.RunW("bash", "-c", cmd)
+	out, err = proc.RunW("az", args...)
 	return strings.TrimSpace(out), err
 }
 

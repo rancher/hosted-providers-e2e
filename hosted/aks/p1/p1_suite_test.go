@@ -578,7 +578,7 @@ func syncEditDifferentFieldsCheck(cluster *management.Cluster, client *rancher.C
 		close(upgradeComplete)
 	}()
 	Eventually(func() string {
-		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, ".currentKubernetesVersion")
+		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
 		Expect(err).To(BeNil())
 		return currentKubernetesVersion
 	}, "2m", "3s").Should(ContainSubstring(upgradeToVersion), "Timed out waiting for azure k8s upgrade to start")
@@ -615,7 +615,7 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 	}()
 
 	Eventually(func() string {
-		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, ".currentKubernetesVersion")
+		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
 		Expect(err).To(BeNil())
 		return currentKubernetesVersion
 	}, "2m", "3s").Should(ContainSubstring(upgradeToVersionFromAzure), "Timed out waiting for azure k8s upgrade to start")
@@ -644,7 +644,7 @@ func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, up
 	Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersionFromRancher))
 
 	var currentKubernetesVersionOnAzure string
-	currentKubernetesVersionOnAzure, err = helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, ".currentKubernetesVersion")
+	currentKubernetesVersionOnAzure, err = helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
 	Expect(err).To(BeNil())
 	Expect(currentKubernetesVersionOnAzure).To(ContainSubstring(upgradeToVersionFromRancher))
 
@@ -676,7 +676,7 @@ func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *r
 
 	// Wait until the delete action is triggered
 	Eventually(func() bool {
-		out, err := helper.ShowAKSNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, ".provisioningState")
+		out, err := helper.ShowAKSNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, "provisioningState")
 		if err != nil && strings.Contains(err.Error(), "doesnt exist") {
 			return true
 		}
