@@ -391,6 +391,44 @@ func updateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Cl
 	Expect(err).To(BeNil())
 }
 
+// Qase ID: 299, and 238
+func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client, cloudCredID string) {
+	currentCC, err := client.Management.CloudCredential.ByID(cloudCredID)
+	Expect(err).To(BeNil())
+	err = client.Management.CloudCredential.Delete(currentCC)
+	Expect(err).To(BeNil())
+
+	cluster, err = helper.ScaleNodePool(cluster, client, 2, false, false)
+	Expect(err).To(BeNil())
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.Transitioning == "error"
+	}, "3m", "2s").Should(BeTrue())
+
+	// Create new cloud credentials and update the cluster config with it
+	newCCID, err := helpers.CreateCloudCredentials(client)
+	Expect(err).To(BeNil())
+	updateFunc := func(cluster *management.Cluster) {
+		cluster.AKSConfig.AzureCredentialSecret = newCCID
+	}
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+	Expect(cluster.AKSConfig.AzureCredentialSecret).To(Equal(newCCID))
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.AKSStatus.UpstreamSpec.AzureCredentialSecret == newCCID
+	}, "7m", "5s").Should(BeTrue())
+
+	// Update the cluster again to ensure things are working
+	cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
+	Expect(err).To(BeNil())
+
+	// Update the context so that any future tests are not disrupted
+	ctx.CloudCredID = newCCID
+}
+
 // Qase ID: 224 and 293
 func syncAddNodePoolFromAzureAndRancher(cluster *management.Cluster, client *rancher.Client) {
 	initialNPCount := len(cluster.AKSConfig.NodePools)
@@ -524,5 +562,189 @@ func noAvailabilityZoneP0Checks(cluster *management.Cluster, client *rancher.Cli
 		cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
 		Expect(err).To(BeNil())
 	})
+}
 
+// Qase ID: 226, and 295
+func syncEditDifferentFieldsCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string) {
+	initialNPCount := len(cluster.AKSConfig.NodePools)
+	increaseBy := 2
+	var upgradeComplete = make(chan interface{})
+	go func() {
+		defer GinkgoRecover()
+		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersion, "--control-plane-only")
+		if err != nil {
+			Fail(err.Error())
+		}
+		close(upgradeComplete)
+	}()
+	Eventually(func() string {
+		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
+		Expect(err).To(BeNil())
+		return currentKubernetesVersion
+	}, "2m", "3s").Should(ContainSubstring(upgradeToVersion), "Timed out waiting for azure k8s upgrade to start")
+
+	var err error
+	cluster, err = helper.AddNodePool(cluster, increaseBy, client, true, false)
+	Expect(err).To(BeNil())
+
+	// ensuring go routine running AKS upgrade does not go forever in case of any error
+	Eventually(upgradeComplete, "10m", "5s").Should(BeClosed())
+
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return (len(cluster.AKSStatus.UpstreamSpec.NodePools) == initialNPCount+increaseBy) && *cluster.AKSStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
+	}, "5m", "5s").Should(BeTrue())
+	Expect(cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + increaseBy))
+	Expect(cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+
+}
+
+// Qase ID: 228, 297, 229, and 298
+func syncK8sUpgradeCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersionFromAzure, upgradeToVersionFromRancher string) {
+	originalK8sVersion := *cluster.AKSConfig.KubernetesVersion
+
+	var upgradeComplete = make(chan interface{})
+	go func() {
+		defer GinkgoRecover()
+		err := helper.UpgradeAKSOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersionFromAzure, "--control-plane-only")
+		if err != nil {
+			Fail(err.Error())
+		}
+		close(upgradeComplete)
+	}()
+
+	Eventually(func() string {
+		GinkgoLogr.Info("[2m] Waiting for azure triggered K8s upgrade to show up on the cluster...")
+		currentKubernetesVersion, err := helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
+		Expect(err).To(BeNil())
+		return currentKubernetesVersion
+	}, "2m", "3s").Should(ContainSubstring(upgradeToVersionFromAzure), "Timed out waiting for azure k8s upgrade to start")
+	var err error
+
+	cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersionFromRancher, client, false)
+	Expect(err).To(BeNil())
+
+	// Wait until the error message is seen in Rancher to ensure the cluster upgrade is happening.
+	// Ref: https://github.com/rancher/aks-operator/issues/678
+	Eventually(func() bool {
+		GinkgoLogr.Info("[5m] Waiting for the Transitioning to error out...")
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Operation is not allowed: Another operation (Upgrading) is in progress, please wait for it to finish before starting a new operation")
+	}, "5m", "5s").Should(BeTrue(), "Timed out waiting for Transitioning to error out")
+
+	// ensuring go routine running AKS upgrade does not go forever in case of any error
+	Eventually(upgradeComplete, "10m", "5s").Should(BeClosed(), "Timed out waiting for the upgradeComplete channel to close")
+
+	Eventually(func() string {
+		GinkgoLogr.Info(fmt.Sprintf("[10m] Waiting for k8s upgrade to %s to appear in UpstreamSpec", upgradeToVersionFromRancher))
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		return *cluster.AKSStatus.UpstreamSpec.KubernetesVersion
+	}, "10m", "5s").Should(Equal(upgradeToVersionFromRancher), "Timed out waiting for k8s upgrade to appear in UpstreamSpec")
+	Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersionFromRancher))
+
+	var currentKubernetesVersionOnAzure string
+	currentKubernetesVersionOnAzure, err = helper.ShowAKSStatusOnAzure(clusterName, cluster.AKSConfig.ResourceGroup, "currentKubernetesVersion")
+	Expect(err).To(BeNil())
+	Expect(currentKubernetesVersionOnAzure).To(ContainSubstring(upgradeToVersionFromRancher))
+
+	// Ensure the nodepool K8s version are unchanged
+	for _, np := range cluster.AKSConfig.NodePools {
+		Expect(*np.OrchestratorVersion).To(Equal(originalK8sVersion))
+	}
+
+	for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
+		Expect(*np.OrchestratorVersion).To(Equal(originalK8sVersion))
+	}
+
+}
+
+// Qase ID: 227, and 296
+func syncDeleteNPFromAzureEditFromRancher(cluster *management.Cluster, client *rancher.Client) {
+	npToBeDeletedFromAzure := "userpool0"
+	npToBeDeletedFromRancher := "userpool1"
+
+	var deleteComplete = make(chan interface{})
+	go func() {
+		defer GinkgoRecover()
+		err := helper.DeleteNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup)
+		if err != nil {
+			Fail(err.Error())
+		}
+		close(deleteComplete)
+	}()
+
+	// Wait until the delete action is triggered
+	Eventually(func() bool {
+		GinkgoLogr.Info("[10s] Waiting for nodepool to start deleting or not exist...")
+		out, err := helper.ShowAKSNodePoolOnAzure(npToBeDeletedFromAzure, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, "provisioningState")
+		if err != nil && strings.Contains(err.Error(), "doesnt exist") {
+			return true
+		}
+		return strings.Contains(out, "Deleting")
+	}, "10s", "1s").Should(BeTrue())
+
+	updateFunc := func(cluster *management.Cluster) {
+		nodepools := cluster.AKSConfig.NodePools
+		var npIndexToBeDelete int
+		for i, np := range nodepools {
+			if *np.Name == npToBeDeletedFromRancher {
+				npIndexToBeDelete = i
+			}
+		}
+		cluster.AKSConfig.NodePools = append(nodepools[:npIndexToBeDelete], nodepools[npIndexToBeDelete+1:]...)
+
+		// Double check that nodepool is removed from the updated list
+		var npIsNotRemoved bool
+		for _, np := range cluster.AKSConfig.NodePools {
+			if *np.Name == npToBeDeletedFromRancher {
+				npIsNotRemoved = true
+			}
+			Expect(npIsNotRemoved).To(BeFalse())
+		}
+	}
+
+	var err error
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+
+	// Ref: https://github.com/rancher/aks-operator/issues/676
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
+
+	// ensuring go routine running AKS nodepool deletion does not go forever in case of any error
+	Eventually(deleteComplete, "5m", "5s").Should(BeClosed(), "Timed out waiting for delete nodepool go routine to close the channel")
+
+	Eventually(func() bool {
+		GinkgoLogr.Info(fmt.Sprintf("[10m] Waiting for nodepool %s deleted by rancher to disappear and nodepool %s deleted by azure to appear in UpstreamSpec...", npToBeDeletedFromRancher, npToBeDeletedFromAzure))
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		var npDeletedFromAzureExists, npDeletedFromRancherExists bool
+		for _, np := range cluster.AKSStatus.UpstreamSpec.NodePools {
+			if *np.Name == npToBeDeletedFromRancher {
+				npDeletedFromRancherExists = true
+			}
+			if *np.Name == npToBeDeletedFromAzure {
+				npDeletedFromAzureExists = true
+			}
+		}
+		return !npDeletedFromRancherExists && npDeletedFromAzureExists
+	}, "10m", "7s").Should(BeTrue())
+
+	var npDeletedFromAzureExists, npDeletedFromRancherExists bool
+	for _, np := range cluster.AKSConfig.NodePools {
+		if *np.Name == npToBeDeletedFromRancher {
+			npDeletedFromRancherExists = true
+		}
+		if *np.Name == npToBeDeletedFromAzure {
+			npDeletedFromAzureExists = true
+		}
+	}
+	Expect(npDeletedFromRancherExists).To(Equal(false))
+	Expect(npDeletedFromAzureExists).To(Equal(true))
+
+	Expect(cluster.AKSConfig.NodePools).To(HaveLen(3))
+	Expect(cluster.AKSStatus.UpstreamSpec.NodePools).To(HaveLen(3))
 }

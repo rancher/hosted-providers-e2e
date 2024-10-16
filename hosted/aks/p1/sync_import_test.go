@@ -76,6 +76,53 @@ var _ = Describe("SyncImport", func() {
 			testCaseID = 294
 			upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster, ctx.RancherAdminClient, k8sVersion, availableUpgradeVersions[0])
 		})
+
+		XIt("Sync from Azure to Rancher - But edit from Rancher before the sync finishes (edit on different fields)", func() {
+			// TODO: Blocked due to: https://github.com/rancher/aks-operator/issues/676
+			testCaseID = 295
+			syncEditDifferentFieldsCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0])
+		})
+
+		FIt("Upgrade same k8s version from Azure and Rancher, at the same time", func() {
+			testCaseID = 297
+			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0], availableUpgradeVersions[0])
+		})
+
+		FIt("Upgrade k8s version from Azure and Upgrade higher k8s version from Rancher at the same time", func() {
+			testCaseID = 298
+			Expect(len(availableUpgradeVersions)).To(BeNumerically(">=", 2))
+			azureUpgradeVersion := availableUpgradeVersions[0]
+			rancherHigherUpgradeVersion := availableUpgradeVersions[1]
+			Expect(helpers.VersionCompare(rancherHigherUpgradeVersion, azureUpgradeVersion)).To(Equal(1))
+			syncK8sUpgradeCheck(cluster, ctx.RancherAdminClient, azureUpgradeVersion, rancherHigherUpgradeVersion)
+		})
+
+	})
+
+	When("a cluster is created and imported with multiple nodepools", func() {
+		BeforeEach(func() {
+			var err error
+			err = helper.CreateAKSClusterOnAzure(location, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--nodepool-name", "systempool0")
+			Expect(err).To(BeNil())
+
+			err = helper.AddNodePoolOnAzure("systempool1", clusterName, clusterName, "2", "--mode", "System")
+			Expect(err).To(BeNil())
+			err = helper.AddNodePoolOnAzure("userpool0", clusterName, clusterName, "2", "--mode", "User")
+			Expect(err).To(BeNil())
+			err = helper.AddNodePoolOnAzure("userpool1", clusterName, clusterName, "2", "--mode", "User")
+			Expect(err).To(BeNil())
+
+			cluster, err = helper.ImportAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, location, helpers.GetCommonMetadataLabels())
+			Expect(err).To(BeNil())
+			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+		})
+
+		XIt("Delete nodepool in Azure and edit the cluster in Rancher when delete in Azure is in progress", func() {
+			// Blocked by: https://github.com/rancher/aks-operator/issues/676#issuecomment-2404279109
+			testCaseID = 296
+			syncDeleteNPFromAzureEditFromRancher(cluster, ctx.RancherAdminClient)
+		})
 	})
 
 })

@@ -453,6 +453,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 
 // UpdateCluster is a generic function to update a cluster
 func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFunc func(*management.Cluster)) (*management.Cluster, error) {
+	fmt.Println("Updating the cluster ...")
 	upgradedCluster := cluster
 
 	updateFunc(upgradedCluster)
@@ -500,6 +501,22 @@ func AddNodePoolOnAzure(npName, clusterName, resourceGroupName, nodeCount string
 		return errors.Wrap(err, "Failed to add node pool: "+out)
 	}
 	fmt.Println("Added node pool: ", npName)
+	return nil
+}
+
+// DeleteNodePoolOnAzure deletes nodepool to an AKS cluster via CLI
+func DeleteNodePoolOnAzure(npName, clusterName, resourceGroupName string, extraArgs ...string) error {
+	fmt.Println("Deleting node pool ...")
+	args := []string{"aks", "nodepool", "delete", "--resource-group", resourceGroupName, "--cluster-name", clusterName, "--name", npName, "--subscription", subscriptionID}
+	if len(extraArgs) > 0 {
+		args = append(args, extraArgs...)
+	}
+	fmt.Printf("Running command: az %v\n", args)
+	out, err := proc.RunW("az", args...)
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete node pool: "+out)
+	}
+	fmt.Println("Deleted node pool: ", npName)
 	return nil
 }
 
@@ -562,6 +579,27 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 	fmt.Println("Deleted AKS resource group: ", clusterName)
 
 	return nil
+}
+
+// ShowAKSStatusOnAzure returns the status of AKS based on the passed query
+// For e.g. 'currentKubernetesVersion' will only return the current kubernetes version of the cluster
+func ShowAKSStatusOnAzure(clusterName, resourceGroup, query string) (out string, err error) {
+	fmt.Println("Showing AKS cluster ...")
+	args := []string{"aks", "show", "--subscription", subscriptionID, "--name", clusterName, "--resource-group", resourceGroup, "--query", query}
+
+	fmt.Printf("Running command: %s\n", args)
+	out, err = proc.RunW("az", args...)
+	return strings.TrimSpace(out), err
+}
+
+// ShowAKSNodePoolOnAzure returns the status of AKS nodepool based on the passed query
+// For e.g. 'provisioningState' will only return the provisioning state of a nodepool
+func ShowAKSNodePoolOnAzure(nodepoolName, clusterName, resourceGroup, query string) (out string, err error) {
+	fmt.Println("Showing AKS node pool ...")
+	args := []string{"aks", "nodepool", "show", "--subscription", subscriptionID, "--name", nodepoolName, "--cluster-name", clusterName, "--resource-group", resourceGroup, "--query", query}
+	fmt.Printf("Running command: %s\n", args)
+	out, err = proc.RunW("az", args...)
+	return strings.TrimSpace(out), err
 }
 
 //====================================================================Azure CLI (end)=================================
