@@ -16,6 +16,7 @@ package p0_test
 
 import (
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,16 +36,28 @@ var _ = Describe("P0Provisioning", func() {
 		testTitle string
 	}{
 		{
-			qaseID:    7,
+			qaseID:    8,
 			isUpgrade: false,
 			testBody:  p0NodesChecks,
-			testTitle: "should successfully provision the cluster & add, delete, scale nodepool",
+			testTitle: "should successfully provision the zonal cluster & add, delete, scale nodepool",
 		},
 		{
-			qaseID:    10,
+			qaseID:    11,
 			isUpgrade: true,
 			testBody:  p0upgradeK8sVersionChecks,
-			testTitle: "should be able to upgrade k8s version of the provisioned cluster",
+			testTitle: "should be able to upgrade k8s version of the zonal provisioned cluster",
+		},
+		{
+			qaseID:    300,
+			isUpgrade: false,
+			testBody:  p0NodesChecks,
+			testTitle: "should successfully provision the regional cluster & add, delete, scale nodepool",
+		},
+		{
+			qaseID:    301,
+			isUpgrade: true,
+			testBody:  p0upgradeK8sVersionChecks,
+			testTitle: "should be able to upgrade k8s version of the regional provisioned cluster",
 		},
 	} {
 		testData := testData
@@ -52,11 +65,17 @@ var _ = Describe("P0Provisioning", func() {
 			var cluster *management.Cluster
 
 			BeforeEach(func() {
-				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", testData.isUpgrade)
+				if strings.Contains(testData.testTitle, "zonal") {
+					region = ""
+				} else {
+					zone = ""
+				}
+
+				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, region, testData.isUpgrade)
 				Expect(err).NotTo(HaveOccurred())
 				GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
 
-				cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, zone, project, nil)
+				cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, zone, region, project, nil)
 				Expect(err).To(BeNil())
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())

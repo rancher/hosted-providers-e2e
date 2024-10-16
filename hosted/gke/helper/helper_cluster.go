@@ -28,14 +28,20 @@ import (
 )
 
 // CreateGKEHostedCluster creates the GKE cluster
-func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, project string, updateFunc func(clusterConfig *gke.ClusterConfig)) (*management.Cluster, error) {
+func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, region, project string, updateFunc func(clusterConfig *gke.ClusterConfig)) (*management.Cluster, error) {
 	var gkeClusterConfig gke.ClusterConfig
 	config.LoadConfig(gke.GKEClusterConfigConfigurationFileKey, &gkeClusterConfig)
 
 	gkeClusterConfig.ProjectID = project
-	gkeClusterConfig.Zone = zone
 	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
 	gkeClusterConfig.KubernetesVersion = &k8sVersion
+	if zone != "" {
+		gkeClusterConfig.Zone = zone
+		gkeClusterConfig.Region = ""
+	} else if region != "" {
+		gkeClusterConfig.Zone = ""
+		gkeClusterConfig.Region = region
+	}
 
 	if updateFunc != nil {
 		updateFunc(&gkeClusterConfig)

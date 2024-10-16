@@ -38,6 +38,7 @@ var (
 	clusterName string
 	testCaseID  int64
 	zone        = helpers.GetGKEZone()
+	region      = helpers.GetGKERegion()
 	project     = helpers.GetGKEProjectID()
 )
 
@@ -76,8 +77,7 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Clie
 	upgradeToVersion := versions[0]
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", upgradeToVersion))
 
-	// TODO: v2.9 Check - NodePool getting upgraded by default
-	By("upgrading the ControlPlane", func() {
+	By("upgrading the ControlPlane & Nodepools", func() {
 		cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeToVersion, client, true, true, true)
 		Expect(err).To(BeNil())
 	})
