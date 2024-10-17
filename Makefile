@@ -59,6 +59,8 @@ install-rancher: ## Install Rancher via Helm on the k8s cluster
 		--set rancherImageTag=v${RANCHER_VERSION} \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
+	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
+	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
 
 install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted providers nightly chart
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
@@ -76,6 +78,8 @@ install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted pr
 		--set-string 'extraEnv[0].value=true' \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
+	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
+	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
 	helm install ${PROVIDER}-operator oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator --version ${BUILD_DATE} --namespace cattle-system
 
@@ -95,6 +99,8 @@ install-rancher-behind-proxy:  ## Setup Rancher behind proxy on the local machin
 		--set noProxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
+	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
+	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
 
 install-rancher-hosted-nightly-chart-behind-proxy:  ## Setup Rancher with nightly hosted provider charts behind proxy on the local machine
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
@@ -114,6 +120,8 @@ install-rancher-hosted-nightly-chart-behind-proxy:  ## Setup Rancher with nightl
 		--set-string 'extraEnv[0].value=true' \
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
+	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
+	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE} \
 		--set proxy=http://${PROXY_HOST} \
 		--set noProxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local
