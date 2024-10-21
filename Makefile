@@ -4,6 +4,18 @@
 
 STANDARD_TEST_OPTIONS= -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
 BUILD_DATE= $(shell date +'%Y%m%d')
+KUBECTL_ROLLOUT_DEPLOYMENT= \
+	kubectl_rollout_deployment_with_timeout() { \
+	    local timeout=$$1; \
+	    local deployment=$$2; \
+	    local namespace=$$3; \
+	    if timeout "$$timeout" bash -c "while ! kubectl rollout status deployment $$deployment -n $$namespace --timeout=120s; do sleep 5; done"; then \
+	        echo 'Deployment rollout completed successfully.'; \
+	    else \
+	        echo 'Error: Timeout reached or rollout failed.'; \
+	        exit 1; \
+	    fi; \
+	}
 
 install-k3s: ## Install K3s with default options; installed on the local machine
 	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 644
@@ -58,9 +70,10 @@ install-rancher: ## Install Rancher via Helm on the k8s cluster
 		--set replicas=1 \
 		--set rancherImageTag=v${RANCHER_VERSION} \
 		--wait
-	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
-	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
-	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
+	@$(KUBECTL_ROLLOUT_DEPLOYMENT) && \
+	kubectl_rollout_deployment_with_timeout 300s rancher cattle-system && \
+	kubectl_rollout_deployment_with_timeout 300s fleet-controller cattle-fleet-system && \
+	kubectl_rollout_deployment_with_timeout 300s rancher-webhook cattle-system
 
 install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted providers nightly chart
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
@@ -77,9 +90,10 @@ install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted pr
 		--set 'extraEnv[0].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION' \
 		--set-string 'extraEnv[0].value=true' \
 		--wait
-	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
-	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
-	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
+	@$(KUBECTL_ROLLOUT_DEPLOYMENT) && \
+	kubectl_rollout_deployment_with_timeout 300s rancher cattle-system && \
+	kubectl_rollout_deployment_with_timeout 300s fleet-controller cattle-fleet-system && \
+	kubectl_rollout_deployment_with_timeout 300s rancher-webhook cattle-system
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
 	helm install ${PROVIDER}-operator oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator --version ${BUILD_DATE} --namespace cattle-system
 
@@ -98,9 +112,10 @@ install-rancher-behind-proxy:  ## Setup Rancher behind proxy on the local machin
 		--set proxy=http://${PROXY_HOST} \
 		--set noProxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local \
 		--wait
-	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
-	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
-	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
+	@$(KUBECTL_ROLLOUT_DEPLOYMENT) && \
+	kubectl_rollout_deployment_with_timeout 300s rancher cattle-system && \
+	kubectl_rollout_deployment_with_timeout 300s fleet-controller cattle-fleet-system && \
+	kubectl_rollout_deployment_with_timeout 300s rancher-webhook cattle-system
 
 install-rancher-hosted-nightly-chart-behind-proxy:  ## Setup Rancher with nightly hosted provider charts behind proxy on the local machine
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
@@ -119,9 +134,10 @@ install-rancher-hosted-nightly-chart-behind-proxy:  ## Setup Rancher with nightl
 		--set 'extraEnv[0].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION' \
 		--set-string 'extraEnv[0].value=true' \
 		--wait
-	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
-	kubectl rollout status deployment fleet-controller -n cattle-fleet-system --timeout=300s
-	kubectl rollout status deployment rancher-webhook -n cattle-system --timeout=300s
+	@$(KUBECTL_ROLLOUT_DEPLOYMENT) && \
+	kubectl_rollout_deployment_with_timeout 300s rancher cattle-system && \
+	kubectl_rollout_deployment_with_timeout 300s fleet-controller cattle-fleet-system && \
+	kubectl_rollout_deployment_with_timeout 300s rancher-webhook cattle-system
 	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE} \
 		--set proxy=http://${PROXY_HOST} \
 		--set noProxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local
