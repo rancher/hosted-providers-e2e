@@ -2,6 +2,7 @@ package p1_test
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -523,6 +524,196 @@ func noAvailabilityZoneP0Checks(cluster *management.Cluster, client *rancher.Cli
 	By("Scaling the nodepool", func() {
 		cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
 		Expect(err).To(BeNil())
+	})
+
+}
+
+// Qase ID: 299, and 238
+func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client, cloudCredID string) {
+	currentCC, err := client.Management.CloudCredential.ByID(cloudCredID)
+	Expect(err).To(BeNil())
+	err = client.Management.CloudCredential.Delete(currentCC)
+	Expect(err).To(BeNil())
+
+	cluster, err = helper.ScaleNodePool(cluster, client, 2, false, false)
+	Expect(err).To(BeNil())
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.Transitioning == "error"
+	}, "3m", "2s").Should(BeTrue())
+
+	// Create new cloud credentials and update the cluster config with it
+	newCCID, err := helpers.CreateCloudCredentials(client)
+	Expect(err).To(BeNil())
+	updateFunc := func(cluster *management.Cluster) {
+		cluster.AKSConfig.AzureCredentialSecret = newCCID
+	}
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+	Expect(cluster.AKSConfig.AzureCredentialSecret).To(Equal(newCCID))
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.AKSStatus.UpstreamSpec.AzureCredentialSecret == newCCID
+	}, "7m", "5s").Should(BeTrue())
+
+	// Update the cluster again to ensure things are working
+	cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
+	Expect(err).To(BeNil())
+
+	// Update the context so that any future tests are not disrupted
+	ctx.CloudCredID = newCCID
+}
+
+// Qase ID: 302, and 233
+func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string) {
+	By("upgrading the control plane and nodepool k8s version", func() {
+		err := helper.UpgradeAKSOnAzure(cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, upgradeToVersion)
+		Expect(err).To(BeNil())
+
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			allUpgraded := *cluster.AKSStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
+			if !allUpgraded {
+				// Return early
+				return false
+			}
+			for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+				if *nodepool.OrchestratorVersion != upgradeToVersion {
+					allUpgraded = false
+				}
+			}
+			return allUpgraded
+		}, "6m", "10s").Should(BeTrue())
+		Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
+		for _, nodepool := range cluster.AKSConfig.NodePools {
+			Expect(*nodepool.OrchestratorVersion).To(Equal(upgradeToVersion))
+		}
+	})
+
+	const (
+		npName    = "syncnodepool"
+		nodeCount = 1
+	)
+	currentNPCount := len(cluster.AKSConfig.NodePools)
+	By("adding a nodepool", func() {
+		err := helper.AddNodePoolOnAzure(npName, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, strconv.Itoa(nodeCount))
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			if len(cluster.AKSStatus.UpstreamSpec.NodePools) != currentNPCount+1 {
+				// Return early
+				return false
+			}
+			for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+				if *nodepool.Name == npName {
+					return true
+				}
+			}
+			return false
+		}, "6m", "10s").Should(BeTrue(), "Timed out while waiting for new nodepool to appear in UpstreamSpec...")
+
+		Expect(cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount + 1))
+	})
+
+	By("Scaling the nodepool", func() {
+		const scaleCount = nodeCount + 2
+		err := helper.ScaleNodePoolOnAzure(npName, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, strconv.Itoa(scaleCount))
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+				if *nodepool.Name == npName {
+					return *nodepool.Count == scaleCount
+				}
+			}
+			return false
+		}, "6m", "10s").Should(BeTrue(), "Timed out while waiting for Scale up to appear in UpstreamSpec...")
+		for _, nodepool := range cluster.AKSConfig.NodePools {
+			if *nodepool.Name == npName {
+				Expect(*nodepool.Count).To(Equal(scaleCount))
+			}
+		}
+	})
+
+	By("deleting nodepool", func() {
+		err := helper.DeleteNodePoolOnAzure(npName, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			if len(cluster.AKSStatus.UpstreamSpec.NodePools) != currentNPCount {
+				// Return early
+				return false
+			}
+			for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+				if *nodepool.Name == npName {
+					return false
+				}
+			}
+			return true
+		}, "6m", "10s").Should(BeTrue(), "Timed out while waiting for nodepool deletion to appear in UpstreamSpec...")
+		Expect(cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount))
+	})
+
+	var originalTags map[string]string
+	for key, value := range cluster.AKSConfig.Tags {
+		originalTags[key] = value
+	}
+	By("Adding tags to cluster", func() {
+		updatedTags := cluster.AKSConfig.Tags
+		updatedTags["foo"] = "bar"
+		updatedTags["empty-tag"] = ""
+		err := helper.UpdateClusterTagOnAzure(updatedTags, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			if len(cluster.AKSStatus.UpstreamSpec.Tags) != len(updatedTags) {
+				// Return early
+				return false
+			}
+			for key, value := range updatedTags {
+				if v1, exists := cluster.AKSStatus.UpstreamSpec.Tags[key]; !(exists && v1 == value) {
+					return false
+				}
+			}
+			return true
+		}, "6m", "10s").Should(BeTrue(), "Timed out while waiting for tags addition to appear in UpstreamSpec...")
+
+		Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(updatedTags)))
+		for key, value := range updatedTags {
+			Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue(key, value))
+		}
+	})
+
+	By("Removing tags from cluster", func() {
+		err := helper.UpdateClusterTagOnAzure(originalTags, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).NotTo(HaveOccurred())
+			if len(cluster.AKSStatus.UpstreamSpec.Tags) != len(originalTags) {
+				// Return early
+				return false
+			}
+			for key := range originalTags {
+				if _, exists := cluster.AKSStatus.UpstreamSpec.Tags[key]; exists {
+					return false
+				}
+			}
+			return true
+		}, "6m", "10s").Should(BeTrue(), "Timed out while waiting for tags deletion to appear in UpstreamSpec...")
+
+		Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(originalTags)))
+		for key, value := range originalTags {
+			Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue(key, value))
+		}
+
 	})
 
 }
