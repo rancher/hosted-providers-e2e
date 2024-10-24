@@ -5,6 +5,9 @@
 STANDARD_TEST_OPTIONS= -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
 BUILD_DATE= $(shell date +'%Y%m%d')
 
+e2e-install-racher: deps
+	ginkgo --label-filter install -r -v ./hosted
+
 install-k3s: ## Install K3s with default options; installed on the local machine
 	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 644
 	## Wait for K3s to start
