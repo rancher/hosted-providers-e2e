@@ -76,9 +76,9 @@ var _ = BeforeSuite(func() {
 	//CertManagerVersion = os.Getenv("CERT_MANAGER_VERSION")
 	//clusterName = os.Getenv("CLUSTER_NAME")
 	//clusterNS = os.Getenv("CLUSTER_NS")
-	rancherHostname = os.Getenv("PUBLIC_DNS")
+	rancherHostname = os.Getenv("RANCHER_HOSTNAME")
 	if rancherHostname == "" {
-		Fail("PUBLIC_DNS environment variable is required")
+		Fail("RANCHER_HOSTNAME environment variable is required")
 	}
 	//k8sUpstreamVersion = os.Getenv("K8S_UPSTREAM_VERSION")
 	//k8sVersion = os.Getenv("K8S_VERSION_TO_PROVISION")

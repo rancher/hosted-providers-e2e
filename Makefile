@@ -5,8 +5,8 @@
 STANDARD_TEST_OPTIONS= -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
 BUILD_DATE= $(shell date +'%Y%m%d')
 
-e2e-install-racher: deps
-	ginkgo --label-filter install -r -v ./hosted
+prepare-rancher: deps
+	ginkgo --label-filter install -r -v ./hosted/preparation
 
 install-k3s: ## Install K3s with default options; installed on the local machine
 	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - --write-kubeconfig-mode 644
@@ -21,10 +21,11 @@ install-k3s-behind-proxy:
 	sudo mv k3s /etc/default/k3s
 
 install-helm: ## Install Helm on the local machine
-	curl --silent --location https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar xz -C .
-	sudo mv linux-amd64/helm /usr/local/bin
-	sudo chown root:root /usr/local/bin/helm
-	sudo rm -rf linux-amd64/ helm-*.tar.gz
+	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+	@# curl --silent --location https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar xz -C .
+	@# sudo mv linux-amd64/helm /usr/local/bin
+	@# sudo chown root:root /usr/local/bin/helm
+	@# sudo rm -rf linux-amd64/ helm-*.tar.gz
 
 install-cert-manager: ## Install cert-manager via Helm on the k8s cluster
 	kubectl create namespace cert-manager
@@ -63,24 +64,9 @@ install-rancher: ## Install Rancher via Helm on the k8s cluster
 		--wait
 	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
 
-install-rancher-hosted-nightly-chart: ## Install Rancher via Helm with hosted providers nightly chart
-	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
-	helm repo update
-	helm install rancher --devel rancher-latest/rancher \
-		--namespace cattle-system \
-		--version ${RANCHER_VERSION} \
-		--create-namespace \
-		--set global.cattle.psp.enabled=false \
-		--set hostname=${RANCHER_HOSTNAME} \
-		--set bootstrapPassword=${RANCHER_PASSWORD} \
-		--set replicas=1 \
-		--set rancherImageTag=v${RANCHER_VERSION} \
-		--set 'extraEnv[0].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION' \
-		--set-string 'extraEnv[0].value=true' \
-		--wait
-	kubectl rollout status deployment rancher -n cattle-system --timeout=300s
-	helm install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
-	helm install ${PROVIDER}-operator oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator --version ${BUILD_DATE} --namespace cattle-system
+install-rancher-hosted-nightly-chart: prepare-rancher ## Install Rancher via Helm with hosted providers nightly chart
+	helm upgrade --install ${PROVIDER}-operator-crds  oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator-crd --version ${BUILD_DATE}
+	helm upgrade --install ${PROVIDER}-operator oci://ttl.sh/${PROVIDER}-operator/rancher-${PROVIDER}-operator --version ${BUILD_DATE} --namespace cattle-system
 
 install-rancher-behind-proxy:  ## Setup Rancher behind proxy on the local machine
 	helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
@@ -131,8 +117,8 @@ deps: ## Install the Go dependencies
 	go install -mod=mod github.com/onsi/gomega
 	go mod tidy
 
-prepare-e2e-ci-rancher-hosted-nightly-chart: install-k3s install-helm install-cert-manager install-rancher-hosted-nightly-chart ## Setup Rancher with nightly hosted provider charts on the local machine
-prepare-e2e-ci-rancher: install-k3s install-helm install-cert-manager install-rancher ## Setup Rancher on the local machine
+prepare-e2e-ci-rancher-hosted-nightly-chart: install-rancher-hosted-nightly-chart ## Setup Rancher with nightly hosted provider charts on the local machine
+prepare-e2e-ci-rancher: prepare-rancher ## Setup Rancher on the local machine
 prepare-e2e-ci-rancher-behind-proxy: install-k3s-behind-proxy install-helm install-cert-manager-behind-proxy install-rancher-behind-proxy ## Setup Rancher behind proxy on the local machine
 prepare-e2e-ci-rancher-hosted-nightly-chart-behind-proxy: install-k3s-behind-proxy install-helm install-cert-manager-behind-proxy install-rancher-hosted-nightly-chart-behind-proxy ## Setup Rancher with nightly hosted provider charts behind proxy on the local machine
 
@@ -173,7 +159,8 @@ e2e-k8s-chart-support-provisioning-tests: deps ## Run the 'K8sChartSupportProvis
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportProvisioning" ./hosted/${PROVIDER}/k8s_chart_support
 
 clean-k3s:	## Uninstall k3s cluster
-	/usr/local/bin/k3s-uninstall.sh
+	/usr/local/bin/k3s-killall.sh && /usr/local/bin/k3s-uninstall.sh
+	sudo rm -r /etc/default/k3s || true
 
 clean-all: clean-k3s	## Cleanup the Helm repo
 	/usr/local/bin/helm repo remove rancher-latest jetstack

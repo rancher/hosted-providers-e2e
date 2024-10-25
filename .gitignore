@@ -2,3 +2,4 @@ vendor
 .idea
 config
 *.test
+hosted/preparation/k3s-install.sh

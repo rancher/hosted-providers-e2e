@@ -156,8 +156,8 @@ jobs:
         if: ${{ inputs.rancher_installed == 'hostname/password' }}
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-          HELM_VERSION: 3.13.1
-          K3S_VERSION: ${{ inputs.k3s_version }}
+          # HELM_VERSION: 3.13.1 # I would stick with the latest version
+          INSTALL_K3S_VERSION: ${{ inputs.k3s_version }}
           RANCHER_VERSION: ${{ inputs.rancher_version }}
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
