@@ -5,7 +5,7 @@
 STANDARD_TEST_OPTIONS= -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
 BUILD_DATE= $(shell date +'%Y%m%d')
 
-prepare-rancher: deps
+prepare-rancher: deps install-helm
 	ginkgo --label-filter install -r -v ./hosted/preparation
 
 install-k3s: ## Install K3s with default options; installed on the local machine
