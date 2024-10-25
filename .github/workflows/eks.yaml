@@ -1,6 +1,6 @@
 # This workflow calls the main workflow with custom variables
 name: EKS-E2E
-run-name: EKS ${{ inputs.downstream_k8s_minor_version }} on Rancher v${{ inputs.rancher_version || 'latest/devel/2.9' }} deployed on ${{ inputs.k3s_version || 'v1.30.5+k3s1' }}
+run-name: EKS ${{ inputs.downstream_k8s_minor_version }} on Rancher ${{ inputs.rancher_version || 'latest/devel/2.9' }} deployed on ${{ inputs.k3s_version || 'v1.30.5+k3s1' }}
 
 on:
   schedule:
