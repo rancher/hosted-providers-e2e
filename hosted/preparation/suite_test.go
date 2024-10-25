@@ -57,7 +57,12 @@ var (
  */
 func RunHelmCmdWithRetry(s ...string) {
 	Eventually(func() error {
-		return kubectl.RunHelmBinaryWithCustomErr(s...)
+		output, err := kubectl.RunHelmBinaryWithOutput(s...)
+		GinkgoWriter.Write([]byte(output))
+		if err != nil {
+			return err
+		}
+		return nil
 	}, tools.SetTimeout(2*time.Minute), 20*time.Second).Should(Not(HaveOccurred()))
 }
 
