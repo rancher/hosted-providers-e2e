@@ -689,18 +689,12 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).NotTo(HaveOccurred())
-			if len(cluster.AKSStatus.UpstreamSpec.Tags) != len(updatedTags) {
-				// Return early if tag length in Rancher hasn't changed; new tags haven't synced back to Rancher
-				return false
-			}
-			for key, value := range updatedTags {
-				if v1, exists := cluster.AKSStatus.UpstreamSpec.Tags[key]; !(exists && v1 == value) {
-					return false
-				}
-			}
-			return true
+			return len(cluster.AKSStatus.UpstreamSpec.Tags) == len(updatedTags)
 		}, "7m", "10s").Should(BeTrue(), "Timed out while waiting for tags addition to appear in UpstreamSpec...")
 
+		for key, value := range updatedTags {
+			Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue(key, value))
+		}
 		// Check AKSConfig is the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(updatedTags)))
@@ -719,14 +713,14 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 			return len(cluster.AKSStatus.UpstreamSpec.Tags) == len(originalTags)
 		}, "7m", "10s").Should(BeTrue(), "Timed out while waiting for tags deletion to appear in UpstreamSpec...")
 
-		for key, value := range cluster.AKSStatus.UpstreamSpec.Tags {
+		for key, value := range originalTags {
 			Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue(key, value))
 		}
 		// Check AKSConfig is the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(originalTags)))
 			for key, value := range originalTags {
-				Expect(cluster.AKSConfig.Tags).ToNot(HaveKeyWithValue(key, value))
+				Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue(key, value))
 			}
 		}
 	})
