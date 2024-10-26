@@ -463,10 +463,6 @@ func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFu
 // ====================================================================Azure CLI (start)=================================
 // Create Azure AKS cluster using AZ CLI
 func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion string, nodes string, tags map[string]string, extraArgs ...string) error {
-	formattedTags := convertMapToAKSString(tags)
-	// append tags
-	tagargs := []string{"--tags"}
-	tagargs = append(tagargs, formattedTags...)
 	fmt.Println("Creating AKS resource group ...")
 	rgargs := []string{"group", "create", "--location", location, "--resource-group", clusterName, "--subscription", subscriptionID}
 	fmt.Printf("Running command: az %v\n", rgargs)
@@ -478,9 +474,13 @@ func CreateAKSClusterOnAzure(location string, clusterName string, k8sVersion str
 
 	fmt.Println("Creating AKS cluster ...")
 	args := []string{"aks", "create", "--resource-group", clusterName, "--no-ssh-key", "--kubernetes-version", k8sVersion, "--enable-managed-identity", "--name", clusterName, "--subscription", subscriptionID, "--node-count", nodes, "--location", location}
-	// add tags
-	args = append(args, formattedTags...)
 
+	// append tags
+	tagargs := []string{"--tags"}
+	tagargs = append(tagargs, convertMapToAKSString(tags)...)
+	args = append(args, tagargs...)
+
+	// append extra arguments
 	if len(extraArgs) > 0 {
 		args = append(args, extraArgs...)
 	}
@@ -546,12 +546,15 @@ func ScaleNodePoolOnAzure(npName, clusterName, resourceGroupName, nodeCount stri
 
 // UpdateClusterTagOnAzure updates the tags of an existing AKS cluster via CLI
 func UpdateClusterTagOnAzure(tags map[string]string, clusterName, resourceGroupName string, extraArgs ...string) error {
-	formattedTags := convertMapToAKSString(tags)
-	tagsarg := []string{"--tags"}
-	tagsarg = append(tagsarg, formattedTags...)
 	fmt.Println("Adding tags on Azure ...")
 	args := []string{"aks", "update", "--resource-group", resourceGroupName, "--name", clusterName, "--subscription", subscriptionID}
+
+	// append tags
+	tagsarg := []string{"--tags"}
+	tagsarg = append(tagsarg, convertMapToAKSString(tags)...)
 	args = append(args, tagsarg...)
+
+	// append extra args
 	if len(extraArgs) > 0 {
 		args = append(args, extraArgs...)
 	}
