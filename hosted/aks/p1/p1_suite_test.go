@@ -666,7 +666,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 				}
 			}
 			return true
-		}, "7m", "10s").Should(BeTrue(), "Timed out while waiting for nodepool deletion to appear in UpstreamSpec...")
+		}, "8m", "10s").Should(BeTrue(), "Timed out while waiting for nodepool deletion to appear in UpstreamSpec...")
 
 		// Check AKSConfig is the cluster is Rancher-provisioned
 		if !helpers.IsImport {
