@@ -492,6 +492,7 @@ var _ = Describe("P1Provisioning", func() {
 			}()
 		}
 		wg.Wait()
+		// This is to delete the resource group
 		err := helper.DeleteAKSClusteronAzure(rgName)
 		Expect(err).To(BeNil())
 	})

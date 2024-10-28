@@ -533,14 +533,14 @@ func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *ranche
 	Expect(err).To(BeNil())
 	err = client.Management.CloudCredential.Delete(currentCC)
 	Expect(err).To(BeNil())
-
-	cluster, err = helper.ScaleNodePool(cluster, client, 2, false, false)
+	const scaleCount int64 = 2
+	cluster, err = helper.ScaleNodePool(cluster, client, scaleCount, false, false)
 	Expect(err).To(BeNil())
-	Eventually(func() bool {
+	Eventually(func() string {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
-		return cluster.Transitioning == "error"
-	}, "3m", "2s").Should(BeTrue())
+		return cluster.Transitioning
+	}, "3m", "2s").Should(Equal("error"), "Timed out waiting for cluster to transition into error")
 
 	// Create new cloud credentials and update the cluster config with it
 	newCCID, err := helpers.CreateCloudCredentials(client)
@@ -551,15 +551,21 @@ func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *ranche
 	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
 	Expect(err).To(BeNil())
 	Expect(cluster.AKSConfig.AzureCredentialSecret).To(Equal(newCCID))
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
 	Eventually(func() bool {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
 		return cluster.AKSStatus.UpstreamSpec.AzureCredentialSecret == newCCID
-	}, "7m", "5s").Should(BeTrue())
+	}, "5m", "5s").Should(BeTrue())
 
-	// Update the cluster again to ensure things are working
-	cluster, err = helper.ScaleNodePool(cluster, client, 2, true, true)
-	Expect(err).To(BeNil())
+	for _, nodepool := range cluster.AKSConfig.NodePools {
+		Expect(*nodepool.Count).To(Equal(scaleCount))
+	}
+
+	for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+		Expect(*nodepool.Count).To(Equal(scaleCount))
+	}
 
 	// Update the context so that any future tests are not disrupted
 	ctx.CloudCredID = newCCID
@@ -600,7 +606,8 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 		npName          = "syncnodepool"
 		nodeCount int64 = 1
 	)
-	currentNPCount := len(cluster.AKSConfig.NodePools)
+	// Using upstreamSpec so that it also works with import tests
+	currentNPCount := len(cluster.AKSStatus.UpstreamSpec.NodePools)
 	By("Adding a nodepool", func() {
 		err := helper.AddNodePoolOnAzure(npName, cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, fmt.Sprint(nodeCount))
 		Expect(err).To(BeNil())
