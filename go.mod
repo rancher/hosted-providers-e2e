@@ -15,7 +15,7 @@ require (
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
 	github.com/rancher/norman v0.0.0-20241001183610-78a520c160ab
 	github.com/rancher/rancher v0.0.0-00010101000000-000000000000
-	github.com/rancher/shepherd v0.0.0-20241025145813-8ea8a1fe9750 // rancher/shepherd HEAD commit
+	github.com/rancher/shepherd v0.0.0-20241025145813-8ea8a1fe9750 // rancher/shepherd - release/v2.10 commit
 	github.com/sirupsen/logrus v1.9.3
 	k8s.io/apimachinery v0.31.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
@@ -125,7 +125,7 @@ require (
 )
 
 replace (
-	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20241025192956-3bdb12bbea67 // rancher/rancher HEAD commit
+	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20241025192956-3bdb12bbea67 // rancher/rancher - release/v2.10 commit
 	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
 	k8s.io/client-go => k8s.io/client-go v0.31.1
 )
