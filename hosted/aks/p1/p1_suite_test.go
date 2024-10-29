@@ -533,6 +533,7 @@ func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *ranche
 	Expect(err).To(BeNil())
 	err = client.Management.CloudCredential.Delete(currentCC)
 	Expect(err).To(BeNil())
+	GinkgoLogr.Info(fmt.Sprintf("Deleting existing Cloud Credentials: %s:%s", currentCC.Name, currentCC.ID))
 	const scaleCount int64 = 2
 	cluster, err = helper.ScaleNodePool(cluster, client, scaleCount, false, false)
 	Expect(err).To(BeNil())
@@ -563,11 +564,20 @@ func invalidateCloudCredentialsCheck(cluster *management.Cluster, client *ranche
 		Expect(*nodepool.Count).To(Equal(scaleCount))
 	}
 
-	for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
-		Expect(*nodepool.Count).To(Equal(scaleCount))
-	}
+	// This is sometimes flaky, so using Eventually
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		for _, nodepool := range cluster.AKSStatus.UpstreamSpec.NodePools {
+			if *nodepool.Count != scaleCount {
+				return false
+			}
+		}
+		return true
+	}, "5m", "5s").Should(BeTrue(), "Timed out waiting for upstream spec to reflect node count")
 
 	// Update the context so that any future tests are not disrupted
+	GinkgoLogr.Info(fmt.Sprintf("Updating the new Cloud Credentials %s to the context", newCCID))
 	ctx.CloudCredID = newCCID
 }
 
