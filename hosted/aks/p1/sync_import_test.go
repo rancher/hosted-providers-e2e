@@ -77,7 +77,7 @@ var _ = Describe("SyncImport", func() {
 			upgradeCPK8sFromAzureAndNPFromRancherCheck(cluster, ctx.RancherAdminClient, k8sVersion, availableUpgradeVersions[0])
 		})
 
-		FIt("should sync changes from Azure console back to Rancher", func() {
+		It("should sync changes from Azure console back to Rancher", func() {
 			testCaseID = 233
 			azureSyncCheck(cluster, ctx.RancherAdminClient, availableUpgradeVersions[0])
 		})

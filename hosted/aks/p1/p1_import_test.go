@@ -52,7 +52,7 @@ var _ = Describe("P1Import", func() {
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should fail to update with invalid (deleted) cloud credential and update when the cloud credentials becomes valid", func() {
+		It("should fail to update with invalid (deleted) cloud credential and update when the cloud credentials becomes valid", func() {
 			testCaseID = 238
 			invalidateCloudCredentialsCheck(cluster, ctx.RancherAdminClient, ctx.CloudCredID)
 		})

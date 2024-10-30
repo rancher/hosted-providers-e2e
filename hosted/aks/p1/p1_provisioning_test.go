@@ -352,7 +352,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("should fail to update with invalid (deleted) cloud credential and update when the cloud credentials becomes valid", func() {
+		It("should fail to update with invalid (deleted) cloud credential and update when the cloud credentials becomes valid", func() {
 			testCaseID = 299
 			invalidateCloudCredentialsCheck(cluster, ctx.RancherAdminClient, ctx.CloudCredID)
 		})
@@ -464,7 +464,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	})
 
-	FIt("should successfully create 2 clusters in the same RG", func() {
+	It("should successfully create 2 clusters in the same RG", func() {
 		testCaseID = 217
 		rgName := namegen.AppendRandomString(helpers.ClusterNamePrefix + "-custom-rg")
 		updateFunc := func(aksConfig *aks.ClusterConfig) {

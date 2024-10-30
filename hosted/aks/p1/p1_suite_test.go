@@ -603,7 +603,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 			return allUpgraded
 		}, "6m", "10s").Should(BeTrue())
 
-		// Check AKSConfig is the cluster is Rancher-provisioned
+		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 			for _, nodepool := range cluster.AKSConfig.NodePools {
@@ -636,7 +636,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 			return false
 		}, "7m", "10s").Should(BeTrue(), "Timed out while waiting for new nodepool to appear in UpstreamSpec...")
 
-		// Check AKSConfig is the cluster is Rancher-provisioned
+		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount + 1))
 		}
@@ -657,7 +657,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 			return false
 		}, "7m", "10s").Should(BeTrue(), "Timed out while waiting for Scale up to appear in UpstreamSpec...")
 
-		// Check AKSConfig is the cluster is Rancher-provisioned
+		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			for _, nodepool := range cluster.AKSConfig.NodePools {
 				if *nodepool.Name == npName {
@@ -685,7 +685,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 			return true
 		}, "8m", "10s").Should(BeTrue(), "Timed out while waiting for nodepool deletion to appear in UpstreamSpec...")
 
-		// Check AKSConfig is the cluster is Rancher-provisioned
+		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount))
 		}
@@ -712,7 +712,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 		for key, value := range updatedTags {
 			Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue(key, value))
 		}
-		// Check AKSConfig is the cluster is Rancher-provisioned
+		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(updatedTags)))
 			for key, value := range updatedTags {
@@ -733,7 +733,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 		for key, value := range originalTags {
 			Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue(key, value))
 		}
-		// Check AKSConfig is the cluster is Rancher-provisioned
+		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
 			Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(originalTags)))
 			for key, value := range originalTags {
