@@ -57,7 +57,7 @@ jobs:
     secrets: inherit
     with:
       hosted_provider: eks
-      rancher_version: ${{ inputs.rancher_version || ''latest/devel/2.9' }}
+      rancher_version: ${{ inputs.rancher_version || 'latest/devel/2.9' }}
       k3s_version: ${{ inputs.k3s_version || 'v1.30.5+k3s1' }}
       operator_nightly_chart: ${{ inputs.operator_nightly_chart == true || (github.event_name == 'schedule' && true) }}
       tests_to_run: ${{ inputs.tests_to_run || (github.event.schedule == '0 4 * * 1-6' && 'p0_provisioning/p0_import') || (github.event.schedule == '0 4 * * 0' && 'p1_provisioning/p1_import/sync_provisioning/sync_import') }}
