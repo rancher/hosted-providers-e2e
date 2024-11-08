@@ -661,6 +661,7 @@ var _ = Describe("P1Provisioning", func() {
 			calicoPolicy  = "calico"
 			kubenetPlugin = "kubenet"
 			azure         = "azure"
+			none          = "null"
 			vnet          = os.Getenv("AKS_VNET")
 			vnetRG        = os.Getenv("AKS_VNET_RG")
 			subnet        = "default"
@@ -683,6 +684,7 @@ var _ = Describe("P1Provisioning", func() {
 			},
 			{
 				networkPlugin: azure,
+				networkPolicy: none,
 				testCaseID:    212,
 				vnet:          vnet,
 			},
@@ -698,7 +700,7 @@ var _ = Describe("P1Provisioning", func() {
 				testCaseID = data.testCaseID
 				createFunc := func(clusterConfig *aks.ClusterConfig) {
 					clusterConfig.NetworkPlugin = &data.networkPlugin
-					if data.networkPolicy != "" {
+					if data.networkPolicy != none {
 						clusterConfig.NetworkPolicy = &data.networkPolicy
 					}
 					if data.vnet != "" {
