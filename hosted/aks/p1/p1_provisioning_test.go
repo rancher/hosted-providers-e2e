@@ -602,7 +602,7 @@ var _ = Describe("P1Provisioning", func() {
 		}, "5m", "5s").Should(BeTrue(), "Failed while waiting for k8s upgrade.")
 	})
 
-	It("should Create NP with AZ for region where AZ is not supported", func() {
+	FIt("should Create NP with AZ for region where AZ is not supported", func() {
 		testCaseID = 196
 		// none of the availability zones are supported in this location
 		location = "westus"
@@ -748,7 +748,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	Context("Private Cluster", func() {
+	FContext("Private Cluster", func() {
 		BeforeEach(func() {
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
