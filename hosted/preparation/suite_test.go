@@ -48,6 +48,8 @@ var (
 	//rancherLogCollector string
 	rancherVersion string
 	//testType            string
+	proxy string
+	//proxyURL string
 )
 
 /**
@@ -90,6 +92,7 @@ var _ = BeforeSuite(func() {
 	//rancherLogCollector = os.Getenv("RANCHER_LOG_COLLECTOR")
 	rancherVersion = os.Getenv("RANCHER_VERSION")
 	//testType = os.Getenv("TEST_TYPE")
+	proxy = os.Getenv("RANCHER_BEHIND_PROXY")
 
 	// Extract Rancher Manager channel/version to install
 	if rancherVersion != "" {

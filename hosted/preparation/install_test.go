@@ -15,6 +15,7 @@ limitations under the License.
 package e2e_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"time"
@@ -26,21 +27,8 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 )
 
-func rolloutDeployment(ns, d string) {
-	// NOTE: 1st or 2nd rollout command can sporadically fail, so better to use Eventually here
-	Eventually(func() string {
-		status, _ := kubectl.Run("rollout", "restart", "deployment/"+d,
-			"--namespace", ns)
-		return status
-	}, tools.SetTimeout(1*time.Minute), 20*time.Second).Should(ContainSubstring("restarted"))
-
-	// Wait for deployment to be restarted
-	Eventually(func() string {
-		status, _ := kubectl.Run("rollout", "status", "deployment/"+d,
-			"--namespace", ns)
-		return status
-	}, tools.SetTimeout(2*time.Minute), 30*time.Second).Should(ContainSubstring("successfully rolled out"))
-}
+// So far using global hradcoded proxyUrl
+var proxyUrl = "http://172.17.0.1:3128"
 
 var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() {
 	// Create kubectl context
@@ -57,6 +45,29 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 	It("Install upstream k3s cluster", func() {
 		By("Installing K3s", func() {
 			// Configure proxy before K3s installation if requested
+			if proxy != "" {
+				GinkgoLogr.Info("Starting squid proxy")
+
+				cwd, _ := os.Getwd()
+				GinkgoLogr.Info("Current working directory: " + cwd)
+
+				out, err := exec.Command("docker", "run", "-d", "--rm", "--name", "squid_proxy",
+					"--volume", cwd+"/squid.conf:/etc/squid/squid.conf",
+					"-p", "3128:3128", "ubuntu/squid").CombinedOutput()
+				GinkgoWriter.Println(string(out))
+				Expect(err).To(Not(HaveOccurred()))
+
+				GinkgoLogr.Info("Setting up proxy for K3s installation")
+
+				k3sConfigPath := "/etc/default/k3s"
+				k3sConfig := fmt.Sprintf(`HTTP_PROXY=%s
+HTTPS_PROXY=%s
+NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local`, proxyUrl, proxyUrl)
+				// Write the proxy configuration to the file as root
+				out, err = exec.Command("sh", "-c", fmt.Sprintf("echo '%s' | sudo tee %s", k3sConfig, k3sConfigPath)).CombinedOutput()
+				GinkgoWriter.Println(string(out))
+				Expect(err).To(Not(HaveOccurred()))
+			}
 
 			// Get K3s installation script
 			fileName := "k3s-install.sh"
@@ -126,6 +137,12 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 				"--wait", "--wait-for-jobs",
 			}
 
+			if proxy != "" {
+				flags = append(flags, "--set", "http_proxy="+proxyUrl,
+					"--set", "https_proxy="+proxyUrl,
+					"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local")
+			}
+			GinkgoWriter.Printf("Helm flags: %v\n", flags)
 			RunHelmCmdWithRetry(flags...)
 
 			checkList := [][]string{
@@ -139,21 +156,65 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 		})
 
 		By("Installing Rancher Manager", func() {
-			err := rancher.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
+			var proxyEnabled string
+			if proxy != "" {
+				proxyEnabled = "rancher"
+			} else {
+				proxyEnabled = "none"
+			}
+
+			err := rancher.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", proxyEnabled)
 			Expect(err).To(Not(HaveOccurred()))
 
 			// Wait for all pods to be started
 			checkList := [][]string{
 				{"cattle-system", "app=rancher"},
-				{"cattle-fleet-local-system", "app=fleet-agent"},
+			}
+			Eventually(func() error {
+				return rancher.CheckPod(k, checkList)
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+		})
+
+		By("Waiting for fleet", func() {
+			// Wait unit the kubectl command returns exit code 0
+			count := 1
+			Eventually(func() error {
+				out, err := kubectl.Run("rollout", "status",
+					"--namespace", "cattle-fleet-system",
+					"deployment", "fleet-controller",
+				)
+				GinkgoWriter.Printf("Waiting for fleet-controller deployment, loop %d:\n%s\n", count, out)
+				count++
+				return err
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()))
+
+			checkList := [][]string{
+				{"cattle-fleet-system", "app=fleet-controller"},
+			}
+			Eventually(func() error {
+				return rancher.CheckPod(k, checkList)
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+		})
+
+		By("Waiting for rancher-webhook", func() {
+			// Wait unit the kubectl command returns exit code 0
+			count := 1
+			Eventually(func() error {
+				out, err := kubectl.Run("rollout", "status",
+					"--namespace", "cattle-system",
+					"deployment", "rancher-webhook",
+				)
+				GinkgoWriter.Printf("Waiting for rancher-webhook deployment, loop %d:\n%s\n", count, out)
+				count++
+				return err
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()))
+
+			checkList := [][]string{
 				{"cattle-system", "app=rancher-webhook"},
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
-
-			// A bit dirty be better to wait a little here for all to be correctly started
-			time.Sleep(2 * time.Minute)
 		})
 
 		//By("Configuring kubectl to use Rancher admin user", func() {

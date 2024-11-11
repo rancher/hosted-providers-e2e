@@ -159,11 +159,13 @@ e2e-k8s-chart-support-provisioning-tests: deps ## Run the 'K8sChartSupportProvis
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportProvisioning" ./hosted/${PROVIDER}/k8s_chart_support
 
 clean-k3s:	## Uninstall k3s cluster
-	/usr/local/bin/k3s-killall.sh && /usr/local/bin/k3s-uninstall.sh
+	/usr/local/bin/k3s-killall.sh && /usr/local/bin/k3s-uninstall.sh || true
 	sudo rm -r /etc/default/k3s || true
 
 clean-all: clean-k3s	## Cleanup the Helm repo
-	/usr/local/bin/helm repo remove rancher-latest jetstack
+	/usr/local/bin/helm repo remove rancher-latest jetstack || true
+	docker stop squid_proxy || true
+	docker rm squid_proxy || true
 
 ########################
 ### LOCAL DEPLOYMENT ###
