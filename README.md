@@ -1,10 +1,10 @@
 # HOSTED PROVIDERS E2E
 
-[![AKS-E2E_head_2.10](https://github.com/rancher/hosted-providers-e2e/actions/workflows/aks.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/aks.yaml)
+[![AKS-E2E_head_2.9](https://github.com/rancher/hosted-providers-e2e/actions/workflows/aks.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/aks.yaml)
 
-[![EKS-E2E_head_2.10](https://github.com/rancher/hosted-providers-e2e/actions/workflows/eks.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/eks.yaml)
+[![EKS-E2E_head_2.9](https://github.com/rancher/hosted-providers-e2e/actions/workflows/eks.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/eks.yaml)
 
-[![GKE-E2E_head_2.10](https://github.com/rancher/hosted-providers-e2e/actions/workflows/gke.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/gke.yaml)
+[![GKE-E2E_head_2.9](https://github.com/rancher/hosted-providers-e2e/actions/workflows/gke.yaml/badge.svg?branch=main)](https://github.com/rancher/hosted-providers-e2e/actions/workflows/gke.yaml)
 
 ## How to run a test locally:
 
