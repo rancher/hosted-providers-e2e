@@ -11,7 +11,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.20.2
 	github.com/onsi/gomega v1.34.2
 	github.com/pkg/errors v0.9.1
-	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20241105101633-1357dc536a2e
+	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20241112093046-812bbbbdb8e3
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
 	github.com/rancher/norman v0.0.0-20240708202514-a0127673d1b9
 	github.com/rancher/rancher v0.0.0-00010101000000-000000000000
