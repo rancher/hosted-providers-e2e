@@ -26,30 +26,13 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 )
 
-const (
-	// TODO this needs to be updated
-	ciTokenYaml         = "../assets/local-kubeconfig-token-skel.yaml"
-	localKubeconfigYaml = "../assets/local-kubeconfig-skel.yaml"
-	userName            = "root"
-	userPassword        = "r0s@pwd1"
-	//vmNameRoot          = "node"
-)
-
 var (
-	//arch                string
-	//CertManagerVersion  string
-	//clusterName         string
-	//clusterNS           string
-	rancherHostname string
-	//k8sUpstreamVersion  string
-	//k8sVersion          string
+	rancherHostname    string
 	rancherChannel     string
 	rancherHeadVersion string
-	//rancherLogCollector string
-	rancherVersion string
-	//testType            string
-	proxy string
-	//proxyURL string
+	rancherVersion     string
+	proxy              string
+	nightly            string
 )
 
 /**
@@ -79,20 +62,13 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	//arch = os.Getenv("ARCH")
-	//CertManagerVersion = os.Getenv("CERT_MANAGER_VERSION")
-	//clusterName = os.Getenv("CLUSTER_NAME")
-	//clusterNS = os.Getenv("CLUSTER_NS")
 	rancherHostname = os.Getenv("RANCHER_HOSTNAME")
 	if rancherHostname == "" {
 		Fail("RANCHER_HOSTNAME environment variable is required")
 	}
-	//k8sUpstreamVersion = os.Getenv("K8S_UPSTREAM_VERSION")
-	//k8sVersion = os.Getenv("K8S_VERSION_TO_PROVISION")
-	//rancherLogCollector = os.Getenv("RANCHER_LOG_COLLECTOR")
 	rancherVersion = os.Getenv("RANCHER_VERSION")
-	//testType = os.Getenv("TEST_TYPE")
 	proxy = os.Getenv("RANCHER_BEHIND_PROXY")
+	nightly = os.Getenv("NIGHTLY")
 
 	// Extract Rancher Manager channel/version to install
 	if rancherVersion != "" {
