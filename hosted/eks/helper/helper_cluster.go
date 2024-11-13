@@ -389,7 +389,7 @@ func UpdateClusterTags(cluster *management.Cluster, client *rancher.Client, tags
 }
 
 // UpdateNodegroupMetadata updates the tags & labels of a EKS Node groups
-// the give tags and labels will replace the existing counterparts
+// the given tags and labels will replace the existing counterparts
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client, tags, labels map[string]string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster

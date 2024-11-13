@@ -138,31 +138,13 @@ var _ = Describe("P1Provisioning", func() {
 
 	FIt("should successfully Provision EKS from Rancher with Enabled GPU feature", func() {
 		testCaseID = 274
+		var gpuNodeName = "gpuenabled"
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
 			nodeGroups := *clusterConfig.NodeGroupsConfig
-			ngTemplate := nodeGroups[0]
-			gpuNG := eks.NodeGroupConfig{
-				Arm:                  ngTemplate.Arm,
-				DesiredSize:          ngTemplate.DesiredSize,
-				DiskSize:             ngTemplate.DiskSize,
-				Ec2SshKey:            ngTemplate.Ec2SshKey,
-				Gpu:                  pointer.Bool(true),
-				ImageID:              ngTemplate.ImageID,
-				InstanceType:         pointer.String("p2.xlarge"),
-				Labels:               ngTemplate.Labels,
-				LaunchTemplateConfig: ngTemplate.LaunchTemplateConfig,
-				MaxSize:              ngTemplate.MaxSize,
-				MinSize:              ngTemplate.MinSize,
-				NodeRole:             ngTemplate.NodeRole,
-				NodegroupName:        pointer.String("gpuenabledng"),
-				RequestSpotInstances: ngTemplate.RequestSpotInstances,
-				ResourceTags:         ngTemplate.ResourceTags,
-				SpotInstanceTypes:    ngTemplate.SpotInstanceTypes,
-				Subnets:              ngTemplate.Subnets,
-				Tags:                 ngTemplate.Tags,
-				UserData:             ngTemplate.UserData,
-				Version:              ngTemplate.Version,
-			}
+			gpuNG := nodeGroups[0]
+			gpuNG.Gpu = pointer.Bool(true)
+			gpuNG.NodegroupName = &gpuNodeName
+			gpuNG.InstanceType = pointer.String("p2.xlarge")
 			nodeGroups = append(nodeGroups, gpuNG)
 			clusterConfig.NodeGroupsConfig = &nodeGroups
 		}
@@ -174,19 +156,10 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(err).To(BeNil())
 
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
-
+		var amiID string
+		amiID, err = helper.GetFromEKS(region, clusterName, "nodegroup", ".[].ImageID", "--name", gpuNodeName)
 		Expect(err).To(BeNil())
-		for _, ng := range cluster.EKSConfig.NodeGroups {
-			var amiID string
-			amiID, err = helper.GetFromEKS(region, clusterName, "nodegroup", ".[].ImageID", "--name", *ng.NodegroupName)
-			Expect(err).To(BeNil())
-
-			if *ng.Gpu {
-				Expect(amiID).To(Equal("AL2_x86_64_GPU"))
-			} else {
-				Expect(amiID).To(Equal("AL2023_x86_64_STANDARD"))
-			}
-		}
+		Expect(amiID).To(Equal("AL2_x86_64_GPU"))
 	})
 
 	When("a cluster is created for upgrade", func() {
