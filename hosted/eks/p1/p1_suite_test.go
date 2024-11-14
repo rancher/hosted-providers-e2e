@@ -85,7 +85,8 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 	Expect(err).To(BeNil())
 
 	loggingTypes := []string{"api"}
-	helper.UpdateLogging(cluster, client, loggingTypes, false)
+	cluster, err = helper.UpdateLogging(cluster, client, loggingTypes, false)
+	Expect(err).To(BeNil())
 	Expect(*cluster.EKSConfig.LoggingTypes).Should(HaveExactElements(loggingTypes))
 
 	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
@@ -178,7 +179,8 @@ func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client, 
 		}
 
 		// Verify the new edits reflect in AWS and existing details do NOT change
-		out, err := helper.GetFromEKS(region, clusterName, "cluster", "'.[]|.Version'")
+		var out string
+		out, err = helper.GetFromEKS(region, clusterName, "cluster", "'.[]|.Version'")
 		Expect(err).To(BeNil())
 		Expect(out).To(Equal(upgradeToVersion))
 
@@ -200,7 +202,8 @@ func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client, 
 		Expect(*cluster.EKSConfig.LoggingTypes).ShouldNot(HaveExactElements(loggingTypes))
 
 		// Verify the new edits reflect in AWS console and existing details do NOT change
-		out, err := helper.GetFromEKS(region, clusterName, "cluster", "'.[]|.Version'")
+		var out string
+		out, err = helper.GetFromEKS(region, clusterName, "cluster", "'.[]|.Version'")
 		Expect(err).To(BeNil())
 		Expect(out).To(Equal(upgradeToVersion))
 
@@ -218,7 +221,8 @@ func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client, 
 		Expect(len(cluster.EKSConfig.NodeGroups)).To(Equal(currentNodeGroupNumber + 1))
 
 		// Verify the new edits reflect in AWS console and existing details do NOT change
-		out, err := helper.GetFromEKS(region, clusterName, "nodegroup", "'.|length'")
+		var out string
+		out, err = helper.GetFromEKS(region, clusterName, "nodegroup", "'.|length'")
 		Expect(err).To(BeNil())
 		Expect(strconv.Atoi(out)).To(Equal(currentNodeGroupNumber + 1))
 
@@ -238,7 +242,7 @@ func upgradeNodeKubernetesVersionGTCPCheck(cluster *management.Cluster, client *
 
 	// wait until the error is visible on the cluster
 	Eventually(func() bool {
-		cluster, err := client.Management.Cluster.ByID(cluster.ID)
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "are not compatible: the node group version may only be up to three minor versions older than the cluster version")
 	}, "1m", "3s").Should(BeTrue())
@@ -265,7 +269,6 @@ func invalidAccessValuesCheck(cluster *management.Cluster, client *rancher.Clien
 }
 
 func upgradeCPAndAddNgCheck(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string) {
-
 	var err error
 	originalLen := len(cluster.EKSConfig.NodeGroups)
 	newNodeGroupName := pointer.String(namegen.AppendRandomString("ng"))
