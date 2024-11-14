@@ -334,6 +334,14 @@ func FilterUIUnsupportedVersions(versions []string, client *rancher.Client) (fil
 	return
 }
 
+// CheckMapElements checks if map1 keys are subset of map2
+func CheckMapKeys(map1, map2 map[string]string) (exists bool) {
+	for key := range map1 {
+		_, exists = map2[key]
+	}
+	return
+}
+
 // DefaultK8sVersion receives a list of version sorted in descending order (1.29, 1.28, 1.27, etc.);
 // it returns the k8s version to be used by the test depending on forUpgrade param
 func DefaultK8sVersion(descVersions []string, forUpgrade bool) (string, error) {

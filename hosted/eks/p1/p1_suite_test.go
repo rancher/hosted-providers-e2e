@@ -320,11 +320,11 @@ func updateTagsAndLabels(cluster *management.Cluster, client *rancher.Client) {
 	var err error
 	tags := map[string]string{
 		"foo":        "bar",
-		"testCaseID": "144",
+		"testCaseID": "144-97-143",
 	}
 
 	labels := map[string]string{
-		"testCaseID": "142",
+		"testCaseID": "142-99-145",
 	}
 
 	originalClusterTags := *cluster.EKSConfig.Tags
