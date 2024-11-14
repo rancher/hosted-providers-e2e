@@ -136,7 +136,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
-	FIt("should successfully Provision EKS from Rancher with Enabled GPU feature", func() {
+	It("should successfully Provision EKS from Rancher with Enabled GPU feature", func() {
 		testCaseID = 274
 		var gpuNodeName = "gpuenabled"
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
@@ -221,7 +221,7 @@ var _ = Describe("P1Provisioning", func() {
 			})
 		})
 
-		FIt("Update Tags and Labels", func() {
+		It("Update Tags and Labels", func() {
 			testCaseID = 131
 			updateTagsAndLabels(cluster, ctx.RancherAdminClient)
 		})

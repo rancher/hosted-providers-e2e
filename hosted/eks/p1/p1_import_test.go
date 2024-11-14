@@ -66,7 +66,7 @@ var _ = Describe("P1Import", func() {
 		})
 	})
 
-	FIt("should successfully Import cluster with ONLY control plane", func() {
+	It("should successfully Import cluster with ONLY control plane", func() {
 		testCaseID = 94
 		err := helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--without-nodegroup")
 		Expect(err).To(BeNil())
@@ -86,7 +86,7 @@ var _ = Describe("P1Import", func() {
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 	})
 
-	FIt("successfully import EKS cluster with self-managed nodes", func() {
+	It("successfully import EKS cluster with self-managed nodes", func() {
 		testCaseID = 107
 		err := helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels(), "--managed=false")
 		Expect(err).To(BeNil())
@@ -96,7 +96,7 @@ var _ = Describe("P1Import", func() {
 		Expect(err).To(BeNil())
 	})
 
-	FWhen("a cluster with multiple nodegroups is imported", func() {
+	When("a cluster with multiple nodegroups is imported", func() {
 		BeforeEach(func() {
 			err := helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
@@ -161,7 +161,7 @@ var _ = Describe("P1Import", func() {
 			})
 		})
 
-		FIt("Update Tags and Labels", func() {
+		It("Update Tags and Labels", func() {
 			testCaseID = 81
 			updateTagsAndLabels(cluster, ctx.RancherAdminClient)
 		})
