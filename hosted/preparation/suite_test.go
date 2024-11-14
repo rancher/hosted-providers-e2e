@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 - 2023 SUSE LLC
+Copyright © 2022 - 2024 SUSE LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,9 @@ var (
 	rancherHeadVersion string
 	rancherVersion     string
 	proxy              string
-	nightly            string
+	proxyHost          string
+	nightlyChart       string
+	providerOperator   string
 )
 
 /**
@@ -68,7 +70,12 @@ var _ = BeforeSuite(func() {
 	}
 	rancherVersion = os.Getenv("RANCHER_VERSION")
 	proxy = os.Getenv("RANCHER_BEHIND_PROXY")
-	nightly = os.Getenv("NIGHTLY")
+	proxyHost = os.Getenv("PROXY_HOST")
+	if proxyHost == "" {
+		proxyHost = "172.17.0.1:3128"
+	}
+	nightlyChart = os.Getenv("NIGHTLY_CHART")
+	providerOperator = os.Getenv("PROVIDER")
 
 	// Extract Rancher Manager channel/version to install
 	if rancherVersion != "" {

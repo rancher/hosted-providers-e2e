@@ -148,9 +148,10 @@ jobs:
       - name: Install Proxy
         if: ${{ inputs.rancher_installed == 'hostname/password' && inputs.proxy == true }}
         run: |
-          docker run -d --name squid_proxy -v $(pwd)/.github/scripts/squid.conf:/etc/squid/squid.conf -p 3128:3128 ubuntu/squid
           echo "PROXY_HOST=$(gcloud compute instances describe ${{ needs.create-runner.outputs.runner }} \
             --format='get(networkInterfaces[0].networkIP)' --zone ${{ env.GCP_RUNNER_ZONE }}):3128" >> ${GITHUB_ENV}
+          echo "RANCHER_BEHIND_PROXY=enabled" >> ${GITHUB_ENV}
+
 
       - name: Install Go
         uses: actions/setup-go@v5
@@ -164,24 +165,19 @@ jobs:
         if: ${{ inputs.rancher_installed == 'hostname/password' }}
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-          # HELM_VERSION: 3.13.1 # I would stick with the latest version
           INSTALL_K3S_VERSION: ${{ inputs.k3s_version }}
           RANCHER_VERSION: ${{ inputs.rancher_version }}
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
           PROXY_HOST: ${{ env.PROXY_HOST }}
+          RANCHER_BEHIND_PROXY: ${{ env.RANCHER_BEHIND_PROXY }}
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
-            if [ ${{ inputs.proxy }} == true ]; then
-              make prepare-e2e-ci-rancher-hosted-nightly-chart-behind-proxy
-            else
-              make prepare-e2e-ci-rancher-hosted-nightly-chart
-            fi
-          elif [ ${{ inputs.proxy }} == true ]; then
-            make prepare-e2e-ci-rancher-behind-proxy
+            NIGHTLY_CHART="enabled"
           else
-            make prepare-e2e-ci-rancher
+            NIGHTLY_CHART=""
           fi
+          make prepare-rancher
             
       - name: Login to Azure
         uses: azure/login@v2.2.0

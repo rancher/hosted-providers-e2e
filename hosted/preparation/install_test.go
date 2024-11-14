@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 - 2023 SUSE LLC
+Copyright © 2022 - 2024 SUSE LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,9 +26,6 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/rancher"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 )
-
-// So far using global hradcoded proxyUrl
-var proxyUrl = "http://172.17.0.1:3128"
 
 var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() {
 	// Create kubectl context
@@ -57,9 +54,9 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 
 			By("Configure proxy in /etc/default/k3s", func() {
 				k3sConfigPath := "/etc/default/k3s"
-				k3sConfig := fmt.Sprintf(`HTTP_PROXY=%s
-HTTPS_PROXY=%s
-NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local`, proxyUrl, proxyUrl)
+				k3sConfig := fmt.Sprintf(`HTTP_PROXY=http://%s
+HTTPS_PROXY=http://%s
+NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local`, proxyHost, proxyHost)
 				// Write the proxy configuration to the file as root
 				out, err := exec.Command("sh", "-c", fmt.Sprintf("echo '%s' | sudo tee %s", k3sConfig, k3sConfigPath)).CombinedOutput()
 				GinkgoWriter.Println(string(out))
@@ -125,8 +122,8 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			}
 
 			if proxy != "" {
-				flags = append(flags, "--set", "http_proxy="+proxyUrl,
-					"--set", "https_proxy="+proxyUrl,
+				flags = append(flags, "--set", "http_proxy=http://"+proxyHost,
+					"--set", "https_proxy=http://"+proxyHost,
 					"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local")
 			}
 			GinkgoWriter.Printf("Helm flags: %v\n", flags)
@@ -151,7 +148,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			}
 
 			var extraFlags []string
-			if nightly != "" {
+			if nightlyChart != "" {
 				extraFlags = []string{
 					"--set", "extraEnv[2].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION",
 					"--set-string", "extraEnv[2].value=true",
@@ -234,5 +231,17 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 				return rancher.CheckPod(k, checkList)
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
+
+		if nightlyChart != "" {
+			By(fmt.Sprintf("Install nightly %s-operator via Helm", providerOperator), func() {
+				buildDate := time.Now().Format("20060102")
+				RunHelmCmdWithRetry("upgrade", "--install", providerOperator+"-operator-crds",
+					"oci://ttl.sh/"+providerOperator+"-operator/rancher-"+providerOperator+"-operator-crd",
+					"--version", buildDate)
+				RunHelmCmdWithRetry("upgrade", "--install", providerOperator+"-operator",
+					"oci://ttl.sh/"+providerOperator+"-operator/rancher-"+providerOperator+"-operator",
+					"--version", buildDate, "--namespace", "cattle-system")
+			})
+		}
 	})
 })
