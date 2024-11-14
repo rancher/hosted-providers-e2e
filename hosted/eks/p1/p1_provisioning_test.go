@@ -26,16 +26,16 @@ var _ = Describe("P1Provisioning", func() {
 		GinkgoLogr.Info(fmt.Sprintf("While provisioning, using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 	})
 
-	Context("Provisioning/Editing a cluster with invalid config", func() {
+	AfterEach(func() {
+		if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
+			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+		} else {
+			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+		}
+	})
 
-		AfterEach(func() {
-			if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
-				if cluster != nil {
-					err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
-					Expect(err).To(BeNil())
-				}
-			}
-		})
+	Context("Provisioning/Editing a cluster with invalid config", func() {
 
 		It("should error out to provision a cluster with no nodegroups", func() {
 			testCaseID = 141
@@ -178,15 +178,6 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		AfterEach(func() {
-			if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
-				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
-		})
-
 		It("Upgrade version of node group only", func() {
 			testCaseID = 126
 			upgradeNodeKubernetesVersionGTCPCheck(cluster, ctx.RancherAdminClient)
@@ -212,15 +203,6 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
-		})
-
-		AfterEach(func() {
-			if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
-				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
 		})
 
 		It("Update cluster logging types", func() {
