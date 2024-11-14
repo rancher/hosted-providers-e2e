@@ -13,7 +13,10 @@ import (
 )
 
 var _ = Describe("P1Import", func() {
-	var cluster *management.Cluster
+	var (
+		cluster    *management.Cluster
+		k8sVersion string
+	)
 
 	BeforeEach(func() {
 		var err error
@@ -33,36 +36,44 @@ var _ = Describe("P1Import", func() {
 		}
 	})
 
-	When("a cluster is imported for upgrade", func() {
+	Context("Upgrade Testing", func() {
+		var upgradeToVersion string
 
 		BeforeEach(func() {
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)
 			Expect(err).To(BeNil())
 			GinkgoLogr.Info(fmt.Sprintf("Using kubernetes version %s for cluster %s", k8sVersion, clusterName))
-
-			err = helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
-			Expect(err).To(BeNil())
-			cluster, err = helper.ImportEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, region)
-			Expect(err).To(BeNil())
-			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+			upgradeToVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 			Expect(err).To(BeNil())
 		})
 
-		It("Upgrade version of node group only", func() {
-			testCaseID = 88
-			upgradeNodeKubernetesVersionGTCPCheck(cluster, ctx.RancherAdminClient)
-		})
+		When("a cluster is imported", func() {
 
-		// eks-operator/issues/752
-		XIt("should successfully update a cluster while it is still in updating state", func() {
-			testCaseID = 104
-			updateClusterInUpdatingState(cluster, ctx.RancherAdminClient)
-		})
+			BeforeEach(func() {
+				err := helper.CreateEKSClusterOnAWS(region, clusterName, k8sVersion, "1", helpers.GetCommonMetadataLabels())
+				Expect(err).To(BeNil())
+				cluster, err = helper.ImportEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, region)
+				Expect(err).To(BeNil())
+				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
+				Expect(err).To(BeNil())
+			})
 
-		It("Update k8s version of cluster and add node groups", func() {
-			testCaseID = 90
-			upgradeCPAndAddNgCheck(cluster, ctx.RancherAdminClient)
+			It("Upgrade version of node group only", func() {
+				testCaseID = 88
+				upgradeNodeKubernetesVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeToVersion)
+			})
+
+			// eks-operator/issues/752
+			XIt("should successfully update a cluster while it is still in updating state", func() {
+				testCaseID = 104
+				updateClusterInUpdatingState(cluster, ctx.RancherAdminClient, upgradeToVersion)
+			})
+
+			It("Update k8s version of cluster and add node groups", func() {
+				testCaseID = 90
+				upgradeCPAndAddNgCheck(cluster, ctx.RancherAdminClient, upgradeToVersion)
+			})
 		})
 	})
 

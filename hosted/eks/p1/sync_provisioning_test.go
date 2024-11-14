@@ -12,7 +12,10 @@ import (
 )
 
 var _ = Describe("SyncProvisioning", func() {
-	var cluster *management.Cluster
+	var (
+		cluster    *management.Cluster
+		k8sVersion string
+	)
 
 	AfterEach(func() {
 		if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
@@ -24,6 +27,7 @@ var _ = Describe("SyncProvisioning", func() {
 	})
 
 	When("a cluster is created for sync", func() {
+		var upgradeToVersion string
 
 		BeforeEach(func() {
 			var err error
@@ -43,13 +47,13 @@ var _ = Describe("SyncProvisioning", func() {
 			testCaseID = 159
 
 			By("upgrading the ControlPlane & NodeGroup", func() {
-				syncK8sVersionUpgradeCheck(cluster, ctx.RancherAdminClient, true)
+				syncK8sVersionUpgradeCheck(cluster, ctx.RancherAdminClient, true, k8sVersion, upgradeToVersion)
 			})
 		})
 
 		It("Sync from Rancher to AWS console after a sync from AWS console to Rancher", func() {
 			testCaseID = 157
-			syncRancherToAWSCheck(cluster, ctx.RancherAdminClient)
+			syncRancherToAWSCheck(cluster, ctx.RancherAdminClient, k8sVersion, upgradeToVersion)
 		})
 	})
 
