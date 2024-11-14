@@ -173,9 +173,9 @@ jobs:
           RANCHER_BEHIND_PROXY: ${{ env.RANCHER_BEHIND_PROXY }}
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
-            NIGHTLY_CHART="enabled"
+            export NIGHTLY_CHART="enabled"
           else
-            NIGHTLY_CHART=""
+            export NIGHTLY_CHART=""
           fi
           make prepare-rancher
             
