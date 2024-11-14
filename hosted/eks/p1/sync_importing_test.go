@@ -14,6 +14,17 @@ import (
 var _ = Describe("SyncImport", func() {
 	var cluster *management.Cluster
 
+	AfterEach(func() {
+		if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
+			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+			err = helper.DeleteEKSClusterOnAWS(region, clusterName)
+			Expect(err).To(BeNil())
+		} else {
+			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+		}
+	})
+
 	When("a cluster is imported for sync", func() {
 
 		BeforeEach(func() {
@@ -30,17 +41,6 @@ var _ = Describe("SyncImport", func() {
 			Expect(err).To(BeNil())
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
-		})
-
-		AfterEach(func() {
-			if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
-				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
-				Expect(err).To(BeNil())
-				err = helper.DeleteEKSClusterOnAWS(region, clusterName)
-				Expect(err).To(BeNil())
-			} else {
-				fmt.Println("Skipping downstream cluster deletion: ", clusterName)
-			}
 		})
 
 		It("Upgrade k8s version of cluster from EKS and verify it is synced back to Rancher", func() {
