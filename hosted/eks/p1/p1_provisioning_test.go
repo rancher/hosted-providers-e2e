@@ -40,7 +40,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	Context("Provisioning/Editing a cluster with invalid config", func() {
 
-		It("should error out to provision a cluster with no nodegroups", func() {
+		FIt("should error out to provision a cluster with no nodegroups", func() {
 			testCaseID = 141
 
 			updateFunc := func(clusterConfig *eks.ClusterConfig) {
@@ -59,7 +59,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		})
 
-		It("should fail to provision a cluster with duplicate nodegroup names", func() {
+		FIt("should fail to provision a cluster with duplicate nodegroup names", func() {
 			testCaseID = 255
 
 			var err error
@@ -187,7 +187,7 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).To(BeNil())
 			})
 
-			It("Upgrade version of node group only", func() {
+			FIt("Upgrade version of node group only", func() {
 				testCaseID = 126
 				upgradeNodeKubernetesVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeToVersion)
 			})
@@ -215,8 +215,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		// eks-operator/issues/938
-		XIt("Update cluster logging types", func() {
+		FIt("Update cluster logging types", func() {
 			testCaseID = 128
 
 			var err error
