@@ -174,8 +174,6 @@ jobs:
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
             export NIGHTLY_CHART="enabled"
-          else
-            export NIGHTLY_CHART=""
           fi
           make prepare-rancher
             

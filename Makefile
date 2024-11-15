@@ -8,7 +8,7 @@ check-vars-rancher: ## Check whether all required environment variables for inst
 	@$(foreach var,$(REQUIRED_VARS),$(if $(value $(var)),,$(error Error $(var) var is not set)))
 
 prepare-rancher: check-vars-rancher deps install-helm ## Install k3s and Rancher with dependencies on the local machine
-	ginkgo --label-filter install -r -v ./hosted/preparation
+	ginkgo --label-filter install -v ./
 
 install-helm: ## Install latest Helm on the local machine
 	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash

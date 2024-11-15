@@ -46,7 +46,7 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 				GinkgoLogr.Info("Current working directory: " + cwd)
 
 				out, err := exec.Command("docker", "run", "-d", "--rm", "--name", "squid_proxy",
-					"--volume", cwd+"/squid.conf:/etc/squid/squid.conf",
+					"--volume", cwd+"/.github/scripts/squid.conf:/etc/squid/squid.conf",
 					"-p", "3128:3128", "ubuntu/squid").CombinedOutput()
 				GinkgoWriter.Println(string(out))
 				Expect(err).To(Not(HaveOccurred()))
