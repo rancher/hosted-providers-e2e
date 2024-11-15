@@ -217,7 +217,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		XIt("Update cluster logging types", func() {
+		It("Update cluster logging types", func() {
 			// https://github.com/rancher/eks-operator/issues/938
 			testCaseID = 128
 			updateLoggingCheck(cluster, ctx.RancherAdminClient)
