@@ -156,20 +156,10 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("Update cluster logging types", func() {
+		XIt("Update cluster logging types", func() {
+			// https://github.com/rancher/eks-operator/issues/938
 			testCaseID = 77
-
-			var err error
-			loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
-			By("Adding the LoggingTypes", func() {
-				cluster, err = helper.UpdateLogging(cluster, ctx.RancherAdminClient, loggingTypes, true)
-				Expect(err).To(BeNil())
-			})
-
-			By("Removing the LoggingTypes", func() {
-				cluster, err = helper.UpdateLogging(cluster, ctx.RancherAdminClient, []string{loggingTypes[0]}, true)
-				Expect(err).To(BeNil())
-			})
+			updateLoggingCheck(cluster, ctx.RancherAdminClient)
 		})
 
 		It("Update Tags and Labels", func() {

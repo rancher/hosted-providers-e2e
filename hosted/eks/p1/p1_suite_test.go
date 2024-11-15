@@ -244,7 +244,9 @@ func upgradeNodeKubernetesVersionGTCPCheck(cluster *management.Cluster, client *
 	Eventually(func() bool {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
-		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "are not compatible: the node group version may only be up to three minor versions older than the cluster version")
+		// checking for both the messages since different operator version shows different messages. To be removed once the message is updated.
+		// New message:  versions for cluster [1.29] and nodegroup [1.30] not compatible: all nodegroup kubernetes versionsmust be equal to or one minor version lower than the cluster kubernetes version
+		return cluster.Transitioning == "error" && (strings.Contains(cluster.TransitioningMessage, "are not compatible: the node group version may only be up to three minor versions older than the cluster version") || strings.Contains(cluster.TransitioningMessage, "not compatible"))
 	}, "1m", "3s").Should(BeTrue())
 }
 
@@ -371,5 +373,20 @@ func updateTagsAndLabels(cluster *management.Cluster, client *rancher.Client) {
 				Expect(*ng.Labels).ToNot(HaveKeyWithValue(key, value))
 			}
 		}
+	})
+}
+
+// Automates Qase: 128 and 77
+func updateLoggingCheck(cluster *management.Cluster, client *rancher.Client) {
+	var err error
+	loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
+	By("Adding the LoggingTypes", func() {
+		cluster, err = helper.UpdateLogging(cluster, client, loggingTypes, true)
+		Expect(err).To(BeNil())
+	})
+
+	By("Removing the LoggingTypes", func() {
+		cluster, err = helper.UpdateLogging(cluster, client, []string{loggingTypes[0]}, true)
+		Expect(err).To(BeNil())
 	})
 }

@@ -40,7 +40,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	Context("Provisioning/Editing a cluster with invalid config", func() {
 
-		FIt("should error out to provision a cluster with no nodegroups", func() {
+		It("should error out to provision a cluster with no nodegroups", func() {
 			testCaseID = 141
 
 			updateFunc := func(clusterConfig *eks.ClusterConfig) {
@@ -59,7 +59,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		})
 
-		FIt("should fail to provision a cluster with duplicate nodegroup names", func() {
+		It("should fail to provision a cluster with duplicate nodegroup names", func() {
 			testCaseID = 255
 
 			var err error
@@ -80,7 +80,9 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "is not unique within the cluster")
+				// checking for both the messages since different operator version shows different messages. To be removed once the message is updated.
+				// New Message: NodePool names must be unique within the [c-dnzzk] cluster to avoid duplication
+				return cluster.Transitioning == "error" && (strings.Contains(cluster.TransitioningMessage, "is not unique within the cluster") || strings.Contains(cluster.TransitioningMessage, "NodePool names must be unique"))
 			}, "1m", "3s").Should(BeTrue())
 		})
 
@@ -187,7 +189,7 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).To(BeNil())
 			})
 
-			FIt("Upgrade version of node group only", func() {
+			It("Upgrade version of node group only", func() {
 				testCaseID = 126
 				upgradeNodeKubernetesVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeToVersion)
 			})
@@ -215,20 +217,10 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 
-		FIt("Update cluster logging types", func() {
+		XIt("Update cluster logging types", func() {
+			// https://github.com/rancher/eks-operator/issues/938
 			testCaseID = 128
-
-			var err error
-			loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
-			By("Adding the LoggingTypes", func() {
-				cluster, err = helper.UpdateLogging(cluster, ctx.RancherAdminClient, loggingTypes, true)
-				Expect(err).To(BeNil())
-			})
-
-			By("Removing the LoggingTypes", func() {
-				cluster, err = helper.UpdateLogging(cluster, ctx.RancherAdminClient, []string{loggingTypes[0]}, true)
-				Expect(err).To(BeNil())
-			})
+			updateLoggingCheck(cluster, ctx.RancherAdminClient)
 		})
 
 		It("Update Tags and Labels", func() {
