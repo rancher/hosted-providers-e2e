@@ -35,6 +35,7 @@ var (
 	proxyHost          string
 	nightlyChart       string
 	providerOperator   string
+	kubeConfig         string
 )
 
 /**
@@ -64,11 +65,13 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	// Extract environment variables
 	rancherHostname = os.Getenv("RANCHER_HOSTNAME")
-	if rancherHostname == "" {
-		Fail("RANCHER_HOSTNAME environment variable is required")
-	}
+	Expect(rancherHostname).ToNot(BeEmpty(), "RANCHER_HOSTNAME environment variable is required")
 	rancherVersion = os.Getenv("RANCHER_VERSION")
+	Expect(rancherVersion).ToNot(BeEmpty(), "RANCHER_VERSION environment variable is required")
+	kubeConfig = os.Getenv("KUBECONFIG")
+	Expect(kubeConfig).ToNot(BeEmpty(), "KUBECONFIG environment variable is required")
 	proxy = os.Getenv("RANCHER_BEHIND_PROXY")
 	proxyHost = os.Getenv("PROXY_HOST")
 	if proxyHost == "" {
@@ -78,18 +81,11 @@ var _ = BeforeSuite(func() {
 	providerOperator = os.Getenv("PROVIDER")
 
 	// Extract Rancher Manager channel/version to install
-	if rancherVersion != "" {
-		// Split rancherVersion and reset it
-		s := strings.Split(rancherVersion, "/")
-		rancherVersion = ""
-
-		// Get needed informations
-		rancherChannel = s[0]
-		if len(s) > 1 {
-			rancherVersion = s[1]
-		}
-		if len(s) > 2 {
-			rancherHeadVersion = s[2]
-		}
+	s := strings.Split(rancherVersion, "/")
+	Expect(len(s)).To(BeNumerically(">=", 2), "RANCHER_VERSION must contain at least two strings separated by '/'")
+	rancherChannel = s[0]
+	rancherVersion = s[1] // This can be either a string like "2.9.3[-rc4]", "devel", or "latest"
+	if len(s) > 2 {
+		rancherHeadVersion = s[2]
 	}
 })

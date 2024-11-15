@@ -57,7 +57,7 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 				k3sConfig := fmt.Sprintf(`HTTP_PROXY=http://%s
 HTTPS_PROXY=http://%s
 NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local`, proxyHost, proxyHost)
-				// Write the proxy configuration to the file as root
+				// Write the k3s proxy config file as root
 				out, err := exec.Command("sh", "-c", fmt.Sprintf("echo '%s' | sudo tee %s", k3sConfig, k3sConfigPath)).CombinedOutput()
 				GinkgoWriter.Println(string(out))
 				Expect(err).To(Not(HaveOccurred()))
@@ -73,7 +73,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 
 			// Set command and arguments
 			installCmd := exec.Command("sh", fileName)
-			// INSTALL_K3S_VERSION should be already set by the action or user's shell
+			// Set INSTALL_K3S_VERSION to a specific k3s version, if not it will use k3s script default version
 			installCmd.Env = append(os.Environ(), "INSTALL_K3S_EXEC=--disable metrics-server --write-kubeconfig-mode 644")
 
 			// Retry in case of (sporadic) failure...
@@ -234,7 +234,9 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 
 		if nightlyChart != "" {
 			By(fmt.Sprintf("Install nightly %s-operator via Helm", providerOperator), func() {
+				// Get the current date to use as the build date
 				buildDate := time.Now().Format("20060102")
+
 				RunHelmCmdWithRetry("upgrade", "--install", providerOperator+"-operator-crds",
 					"oci://ttl.sh/"+providerOperator+"-operator/rancher-"+providerOperator+"-operator-crd",
 					"--version", buildDate)
