@@ -337,7 +337,7 @@ jobs:
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
           RANCHER_BEHIND_PROXY: ${{ inputs.proxy == true }}
-        if: ${{ !cancelled() }}
+        if: ${{ steps.prepare-cluster.outcome == 'success' }}
         run: |
           chmod +x ${{ env.RANCHER_LOG_COLLECTOR }}
           bash ${{ env.RANCHER_LOG_COLLECTOR }}
