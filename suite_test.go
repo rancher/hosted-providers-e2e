@@ -61,7 +61,7 @@ func FailWithReport(message string, callerSkip ...int) {
 
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(FailWithReport)
-	RunSpecs(t, "Hosted Provider Environment Provisioning")
+	RunSpecs(t, "Hosted Provider Rancher Environment Setup")
 }
 
 var _ = BeforeSuite(func() {

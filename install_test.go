@@ -27,7 +27,7 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 )
 
-var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() {
+var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 	// Create kubectl context
 	// Default timeout is too small, so New() cannot be used
 	k := &kubectl.Kubectl{
@@ -37,9 +37,9 @@ var _ = Describe("Provision k3s cluster with Rancher", Label("install"), func() 
 	}
 
 	It("Install upstream k3s cluster", func() {
-		if proxy != "" {
+		if proxy == "enabled" {
 			By("Run local squid proxy in docker", func() {
-				// Configure proxy before K3s installation if requested
+				// Configure proxy before k3s installation if requested
 				GinkgoLogr.Info("Starting squid proxy")
 
 				cwd, _ := os.Getwd()
@@ -64,12 +64,12 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			})
 		}
 
-		By("Installing K3s", func() {
-			// Get K3s installation script
+		By("Installing k3s", func() {
+			// Get k3s installation script
 			fileName := "k3s-install.sh"
 			Eventually(func() error {
 				return tools.GetFileFromURL("https://get.k3s.io", fileName, true)
-			}, tools.SetTimeout(2*time.Minute), 10*time.Second).ShouldNot(HaveOccurred())
+			}, tools.SetTimeout(2*time.Minute), 10*time.Second).ShouldNot(HaveOccurred(), "Unable to download k3s installation script")
 
 			// Set command and arguments
 			installCmd := exec.Command("sh", fileName)
@@ -79,15 +79,15 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			// Retry in case of (sporadic) failure...
 			count := 1
 			Eventually(func() error {
-				// Execute K3s installation
+				// Execute k3s installation
 				out, err := installCmd.CombinedOutput()
 				GinkgoWriter.Printf("K3s installation loop %d:\n%s\n", count, out)
 				count++
 				return err
-			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(BeNil())
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(BeNil(), "K3s installation failed")
 		})
 
-		By("Starting K3s", func() {
+		By("Starting k3s", func() {
 			err := exec.Command("sudo", "systemctl", "start", "k3s").Run()
 			Expect(err).To(Not(HaveOccurred()))
 
@@ -95,7 +95,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			time.Sleep(tools.SetTimeout(5 * time.Second))
 		})
 
-		By("Waiting for K3s to be started", func() {
+		By("Waiting for k3s to be started", func() {
 			// Wait for all pods to be started
 			checkList := [][]string{
 				{"kube-system", "app=local-path-provisioner"},
@@ -105,7 +105,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "K3s pods are not running")
 		})
 
 		By("Installing CertManager", func() {
@@ -136,7 +136,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "CertManager pods are not running")
 		})
 
 		By("Installing Rancher Manager", func() {
@@ -166,7 +166,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Rancher pod is not running")
 		})
 
 		By("Waiting for fleet", func() {
@@ -180,14 +180,14 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 				GinkgoWriter.Printf("Waiting for fleet-controller deployment, loop %d:\n%s\n", count, out)
 				count++
 				return err
-			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()))
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Fleet-controller deployment failed")
 
 			checkList := [][]string{
 				{"cattle-fleet-system", "app=fleet-controller"},
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Fleet-controller pod is not running")
 		})
 
 		By("Waiting for rancher-webhook", func() {
@@ -201,14 +201,14 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 				GinkgoWriter.Printf("Waiting for rancher-webhook deployment, loop %d:\n%s\n", count, out)
 				count++
 				return err
-			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()))
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Rancher-webhook deployment failed")
 
 			checkList := [][]string{
 				{"cattle-system", "app=rancher-webhook"},
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Rancher-webhook pod is not running")
 		})
 
 		By("Waiting for capi-controller-manager", func() {
@@ -222,17 +222,17 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 				GinkgoWriter.Printf("Waiting for capi-controller-manager deployment, loop %d:\n%s\n", count, out)
 				count++
 				return err
-			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()))
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Capi-controller-manager deployment failed")
 
 			checkList := [][]string{
 				{"cattle-provisioning-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
 			}
 			Eventually(func() error {
 				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Capi-controller-manager pod is not running")
 		})
 
-		if nightlyChart != "" {
+		if nightlyChart == "enabled" {
 			By(fmt.Sprintf("Install nightly %s-operator via Helm", providerOperator), func() {
 				// Get the current date to use as the build date
 				buildDate := time.Now().Format("20060102")
