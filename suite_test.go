@@ -36,6 +36,7 @@ var (
 	nightlyChart       string
 	providerOperator   string
 	kubeConfig         string
+	k3sVersion         string
 )
 
 /**
@@ -72,6 +73,8 @@ var _ = BeforeSuite(func() {
 	Expect(rancherVersion).ToNot(BeEmpty(), "RANCHER_VERSION environment variable is required")
 	kubeConfig = os.Getenv("KUBECONFIG")
 	Expect(kubeConfig).ToNot(BeEmpty(), "KUBECONFIG environment variable is required")
+	k3sVersion := os.Getenv("INSTALL_K3S_VERSION")
+	Expect(k3sVersion).ToNot(BeEmpty(), "INSTALL_K3S_VERSION environment variable is required")
 	proxy = os.Getenv("RANCHER_BEHIND_PROXY")
 	proxyHost = os.Getenv("PROXY_HOST")
 	if proxyHost == "" {

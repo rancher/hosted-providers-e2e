@@ -1,7 +1,7 @@
 STANDARD_TEST_OPTIONS = -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
 
-REQUIRED_VARS := RANCHER_HOSTNAME RANCHER_PASSWORD RANCHER_VERSION KUBECONFIG
-### Optional vars used by prepare-rancher: INSTALL_K3S_VERSION PROVIDER NIGHTLY_CHART RANCHER_BEHIND_PROXY PROXY_HOST (more used by e2e tests)
+REQUIRED_VARS := RANCHER_HOSTNAME RANCHER_PASSWORD RANCHER_VERSION KUBECONFIG INSTALL_K3S_VERSION
+### Optional vars used by prepare-rancher: PROVIDER NIGHTLY_CHART RANCHER_BEHIND_PROXY PROXY_HOST (more used by e2e tests)
 
 check-vars-rancher: ## Check whether all required environment variables for installing Rancher are set
 	@echo "Checking required environment variables are set..."

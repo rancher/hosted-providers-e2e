@@ -65,18 +65,10 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 		}
 
 		By("Installing k3s", func() {
-			// Get k3s installation script
-			fileName := "k3s-install.sh"
-			Eventually(func() error {
-				return tools.GetFileFromURL("https://get.k3s.io", fileName, true)
-			}, tools.SetTimeout(2*time.Minute), 10*time.Second).ShouldNot(HaveOccurred(), "Unable to download k3s installation script")
+			installCmd := exec.Command("sh", "-c", "curl -sfL https://get.k3s.io | sh -s -")
+			installCmd.Env = append(os.Environ(), "INSTALL_K3S_VERSION="+k3sVersion, "INSTALL_K3S_EXEC=--write-kubeconfig-mode 644")
 
-			// Set command and arguments
-			installCmd := exec.Command("sh", fileName)
-			// Set INSTALL_K3S_VERSION to a specific k3s version, if not it will use k3s script default version
-			installCmd.Env = append(os.Environ(), "INSTALL_K3S_EXEC=--disable metrics-server --write-kubeconfig-mode 644")
-
-			// Retry in case of (sporadic) failure...
+			// Execute k3s installation
 			count := 1
 			Eventually(func() error {
 				// Execute k3s installation
@@ -121,7 +113,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 				"--wait", "--wait-for-jobs",
 			}
 
-			if proxy != "" {
+			if proxy == "enabled" {
 				flags = append(flags, "--set", "http_proxy=http://"+proxyHost,
 					"--set", "https_proxy=http://"+proxyHost,
 					"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local")
@@ -141,14 +133,14 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 
 		By("Installing Rancher Manager", func() {
 			var proxyEnabled string
-			if proxy != "" {
+			if proxy == "enabled" {
 				proxyEnabled = "rancher"
 			} else {
 				proxyEnabled = "none"
 			}
 
 			var extraFlags []string
-			if nightlyChart != "" {
+			if nightlyChart == "enabled" {
 				extraFlags = []string{
 					"--set", "extraEnv[2].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION",
 					"--set-string", "extraEnv[2].value=true",
@@ -170,7 +162,7 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 		})
 
 		By("Waiting for fleet", func() {
-			// Wait unit the kubectl command returns exit code 0
+			// Wait until the kubectl command returns exit code 0
 			count := 1
 			Eventually(func() error {
 				out, err := kubectl.Run("rollout", "status",
