@@ -343,7 +343,7 @@ jobs:
           bash ${{ env.RANCHER_LOG_COLLECTOR }}
 
       - name: Upload cluster logs
-        if: ${{ !cancelled() }}
+        if: ${{ steps.prepare-rancher.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: support-logs
