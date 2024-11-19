@@ -64,8 +64,8 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			})
 		}
 
-		By("Installing k3s", func() {
-			installCmd := exec.Command("sh", "-c", "curl -sfL https://get.k3s.io | sh -s -")
+		By("Getting k3s ready", func() {
+			installCmd := exec.Command("sh", "-c", "curl -sfL https://get.k3s.io | sh -s - server --cluster-init")
 			installCmd.Env = append(os.Environ(), "INSTALL_K3S_VERSION="+k3sVersion, "INSTALL_K3S_EXEC=--write-kubeconfig-mode 644")
 
 			// Execute k3s installation
@@ -79,19 +79,12 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(BeNil(), "K3s installation failed")
 		})
 
-		By("Starting k3s", func() {
-			err := exec.Command("sudo", "systemctl", "start", "k3s").Run()
-			Expect(err).To(Not(HaveOccurred()))
-
-			// Delay few seconds before checking
-			time.Sleep(tools.SetTimeout(5 * time.Second))
-		})
-
 		By("Waiting for k3s to be started", func() {
 			// Wait for all pods to be started
 			checkList := [][]string{
 				{"kube-system", "app=local-path-provisioner"},
 				{"kube-system", "k8s-app=kube-dns"},
+				{"kube-system", "k8s-app=metrics-server"},
 				{"kube-system", "app.kubernetes.io/name=traefik"},
 				{"kube-system", "svccontroller.k3s.cattle.io/svcname=traefik"},
 			}
