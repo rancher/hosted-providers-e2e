@@ -51,6 +51,11 @@ var _ = Describe("SyncProvisioning", func() {
 			})
 		})
 
+		FIt("Sync from AWS console to Rancher", func() {
+			testCaseID = 156
+			syncAWSToRancherCheck(cluster, ctx.RancherAdminClient)
+		})
+
 		It("Sync from Rancher to AWS console after a sync from AWS console to Rancher", func() {
 			testCaseID = 157
 			syncRancherToAWSCheck(cluster, ctx.RancherAdminClient, k8sVersion, upgradeToVersion)

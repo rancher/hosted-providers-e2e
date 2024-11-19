@@ -158,6 +158,239 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 	}
 }
 
+func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, k8sVersion, upgradeToVersion string) {
+	By("Enabling the LoggingTypes", func() {
+		loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
+		err := helper.UpdateLoggingOnAWS(clusterName, region, loggingTypes, nil)
+		Expect(err).To(BeNil())
+
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return len(*cluster.EKSConfig.LoggingTypes) == len(loggingTypes) && len(*cluster.EKSStatus.UpstreamSpec.LoggingTypes) == len(loggingTypes)
+		}, "10m", "7s").Should(BeTrue(), "Timed out waiting for LoggingTypes update to appear in Rancher")
+
+		for _, lType := range loggingTypes {
+			Expect(*cluster.EKSConfig.LoggingTypes).To(ContainElement(lType))
+			Expect(*cluster.EKSStatus.UpstreamSpec.LoggingTypes).To(ContainElement(lType))
+		}
+	})
+
+	By("Disabling the LoggingTypes", func() {
+		err := helper.UpdateLoggingOnAWS(clusterName, region, nil, []string{"none"})
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return len(*cluster.EKSConfig.LoggingTypes) == 0 && len(*cluster.EKSStatus.UpstreamSpec.LoggingTypes) == 0
+		}, "10m", "7s").Should(BeTrue(), "Timed out waiting for LoggingTypes update to appear in Rancher")
+	})
+
+	By("Updating public/private access and CIDRs", func() {
+		cidrs := []string{"0.0.0.0/0", helpers.GetRancherIP() + "/32"}
+		err := helper.UpdateVPCAccess(clusterName, region, true, true, cidrs)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			var privateUpdated, publicUpdated, cidrUpdated bool
+			privateUpdated = *cluster.EKSConfig.PrivateAccess && *cluster.EKSStatus.UpstreamSpec.PrivateAccess
+			cidrUpdated = len(*cluster.EKSConfig.PublicAccessSources) == len(cidrs) && len(*cluster.EKSStatus.UpstreamSpec.PublicAccessSources) == len(cidrs)
+			publicUpdated = *cluster.EKSConfig.PublicAccess && *cluster.EKSStatus.UpstreamSpec.PublicAccess
+			return privateUpdated && publicUpdated && cidrUpdated
+		}, "10m", "7s").Should(BeTrue(), "Timed out waiting for private/public access to appear in Rancher")
+		for _, cidr := range cidrs {
+			Expect(*cluster.EKSConfig.PublicAccessSources).To(ContainElement(cidr))
+			Expect(*cluster.EKSStatus.UpstreamSpec.PublicAccessSources).To(ContainElement(cidr))
+		}
+	})
+
+	By("upgrading control plane and nodegroup", func() {
+		syncK8sVersionUpgradeCheck(cluster, client, true, k8sVersion, upgradeToVersion)
+	})
+
+	By("scaling up the NodeGroup", func() {
+		ng := cluster.EKSConfig.NodeGroups[0]
+		nodeCount := *ng.DesiredSize + 2
+
+		err := helper.ScaleNodeGroupOnAWS(*ng.NodegroupName, clusterName, region, nodeCount, nodeCount+2, nodeCount-1)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			return *cluster.EKSStatus.UpstreamSpec.NodeGroups[0].DesiredSize == nodeCount && *cluster.EKSConfig.NodeGroups[0].DesiredSize == nodeCount
+		}, "10m", "7s").Should(BeTrue(), "Timed out waiting for NodeGroup scale to show in Rancher")
+	})
+
+	var nodeName = namegen.AppendRandomString("ng")
+	ngCount := len(cluster.EKSStatus.UpstreamSpec.NodeGroups)
+
+	if helpers.IsImport {
+		// The following error is encountered when adding nodegroup to a non-eksctl managed cluster; so we skip it for now
+		// Error: loading VPC spec for cluster "auto-eks-hp-ci-atiia": VPC configuration required for creating nodegroups on clusters not owned by eksctl: vpc.subnets, vpc.id, vpc.securityGroup
+		By("adding a NodeGroup", func() {
+			err := helper.AddNodeGroupOnAWS(nodeName, clusterName, region)
+			Expect(err).To(BeNil())
+
+			Eventually(func() bool {
+				cluster, err = client.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				if len(cluster.EKSStatus.UpstreamSpec.NodeGroups) != ngCount+1 && len(cluster.EKSConfig.NodeGroups) != ngCount+1 {
+					return false
+				}
+				var nodeGroupAddedToUpstream, nodeGroupAddedToConfig bool
+				for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+					if *ng.NodegroupName == nodeName {
+						nodeGroupAddedToUpstream = true
+						break
+					}
+				}
+				for _, ng := range cluster.EKSConfig.NodeGroups {
+					if *ng.NodegroupName == nodeName {
+						nodeGroupAddedToConfig = true
+						break
+					}
+				}
+				return nodeGroupAddedToConfig && nodeGroupAddedToUpstream
+			}, "10m", "7s").Should(BeTrue(), "Timed out waiting for new NodeGroup to appear in Rancher")
+		})
+	}
+
+	By("deleting a NodeGroup", func() {
+		if !helpers.IsImport {
+			// making sure there are at least 2 nodes in the cluster before deleting it for rancher-provisioned clusters
+			var err error
+			cluster, err = helper.AddNodeGroup(cluster, 1, client, true, true)
+			Expect(err).To(BeNil())
+			nodeName = *cluster.EKSConfig.NodeGroups[1].NodegroupName
+		}
+		err := helper.ModifyEKSNodegroupOnAWS(nodeName, clusterName, region, "delete", "--wait")
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			if len(cluster.EKSStatus.UpstreamSpec.NodeGroups) != ngCount && len(cluster.EKSConfig.NodeGroups) != ngCount {
+				return false
+			}
+			var nodeGroupPresentInUpstream, nodeGroupPresentInConfig bool
+			for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+				if *ng.NodegroupName == nodeName {
+					nodeGroupPresentInUpstream = true
+					break
+				}
+			}
+			for _, ng := range cluster.EKSConfig.NodeGroups {
+				if *ng.NodegroupName == nodeName {
+					nodeGroupPresentInConfig = true
+					break
+				}
+			}
+			return nodeGroupPresentInConfig && nodeGroupPresentInUpstream
+		}, "10m", "7s").Should(BeFalse(), "Timed out waiting for NodeGroup to delete from Rancher")
+	})
+
+	tags := map[string]string{"foo": "bar", "updated": "via-cli"}
+	By("adding tags to EKS cluster", func() {
+		err := helper.AddClusterTagsOnAWS(clusterName, region, tags)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			configTags := *cluster.EKSConfig.Tags
+			upstreamTags := *cluster.EKSStatus.UpstreamSpec.Tags
+			for key := range tags {
+				_, existsConfig := configTags[key]
+				_, existsUpstream := upstreamTags[key]
+				if !(existsConfig || existsUpstream) {
+					// return early if the key doesn't exist in either of the specs
+					return false
+				}
+			}
+			return true
+		}, "10m", "5s").Should(BeTrue(), "Timed out waiting for EKS tags to be updated")
+		for key, value := range tags {
+			Expect(*cluster.EKSConfig.Tags).To(HaveKeyWithValue(key, value))
+			Expect(*cluster.EKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue(key, value))
+		}
+	})
+
+	By("removing tags from EKS cluster", func() {
+		var removeTags []string
+		for key := range tags {
+			removeTags = append(removeTags, key)
+		}
+		err := helper.RemoveClusterTagsOnAWS(clusterName, region, removeTags)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			configTags := *cluster.EKSConfig.Tags
+			upstreamTags := *cluster.EKSStatus.UpstreamSpec.Tags
+			for key := range tags {
+				_, existsConfig := configTags[key]
+				_, existsUpstream := upstreamTags[key]
+				if existsConfig || existsUpstream {
+					return false
+				}
+			}
+			return true
+		}, "10m", "5s").Should(BeTrue(), "Timed out waiting for EKS tags to be removed")
+	})
+
+	addLabels := map[string]string{"foo": "bar", "updated": "via-cli"}
+	By("add labels to Nodegroup", func() {
+		ng := cluster.EKSConfig.NodeGroups[0]
+		err := helper.UpdateNodeGroupLabelsOnAWS(clusterName, *ng.NodegroupName, region, addLabels, nil)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			configTags := *cluster.EKSConfig.NodeGroups[0].Tags
+			upstreamTags := *cluster.EKSStatus.UpstreamSpec.NodeGroups[0].Tags
+
+			for key := range addLabels {
+				_, existConfig := configTags[key]
+				_, existUpstream := upstreamTags[key]
+				if !(existConfig || existUpstream) {
+					// return early if the key doesn't exist in either of the specs
+					return false
+				}
+			}
+			return true
+		}, "10m", "5s").Should(BeTrue(), "Timed out waiting for EKS nodegroup labels to be added")
+
+		for key, value := range addLabels {
+			Expect(*cluster.EKSConfig.NodeGroups[0].Tags).To(HaveKeyWithValue(key, value))
+			Expect(*cluster.EKSStatus.UpstreamSpec.NodeGroups[0].Tags).To(HaveKeyWithValue(key, value))
+		}
+	})
+
+	By("deleting labels from Nodegroup", func() {
+		var removeLabels []string
+		for key := range addLabels {
+			removeLabels = append(removeLabels, key)
+		}
+		ng := cluster.EKSConfig.NodeGroups[0]
+		err := helper.UpdateNodeGroupLabelsOnAWS(clusterName, *ng.NodegroupName, region, nil, removeLabels)
+		Expect(err).To(BeNil())
+		Eventually(func() bool {
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			configTags := *cluster.EKSConfig.NodeGroups[0].Tags
+			upstreamTags := *cluster.EKSStatus.UpstreamSpec.NodeGroups[0].Tags
+			for _, key := range removeLabels {
+				_, existsConfig := configTags[key]
+				_, existsUpstream := upstreamTags[key]
+				if existsConfig || existsUpstream {
+					// return early if the key exists in either of the specs
+					return false
+				}
+			}
+			return true
+		}, "10m", "5s").Should(BeTrue(), "Timed out waiting for EKS nodegroup labels to be deleted")
+	})
+}
+
 func syncRancherToAWSCheck(cluster *management.Cluster, client *rancher.Client, k8sVersion, upgradeToVersion string) {
 	var err error
 	loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
