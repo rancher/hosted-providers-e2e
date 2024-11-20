@@ -159,8 +159,8 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 }
 
 func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, k8sVersion, upgradeToVersion string) {
+	loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
 	By("Enabling the LoggingTypes", func() {
-		loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
 		err := helper.UpdateLoggingOnAWS(clusterName, region, loggingTypes, nil)
 		Expect(err).To(BeNil())
 
@@ -177,7 +177,7 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 	})
 
 	By("Disabling the LoggingTypes", func() {
-		err := helper.UpdateLoggingOnAWS(clusterName, region, nil, []string{"none"})
+		err := helper.UpdateLoggingOnAWS(clusterName, region, nil, []string{"all"})
 		Expect(err).To(BeNil())
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)

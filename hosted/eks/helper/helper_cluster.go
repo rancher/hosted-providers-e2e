@@ -625,7 +625,7 @@ func RemoveResourceTagsOnAWS(resourceArn, clusterName, region string, tags []str
 }
 
 // UpdateLoggingOnAWS enabled and disabled the logging of a cluster
-// types: all, none, api, audit, authenticator, controllerManager, scheduler
+// types: all, api, audit, authenticator, controllerManager, scheduler
 func UpdateLoggingOnAWS(clusterName, region string, enableLoggingTypes, disableLoggingTypes []string, extraArgs ...string) error {
 	fmt.Println("Updating Logging of EKS cluster ...")
 	args := []string{"utils", "update-cluster-logging", "--region", region, "--cluster", clusterName, "--approve"}
