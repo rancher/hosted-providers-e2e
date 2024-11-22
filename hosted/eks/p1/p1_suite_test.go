@@ -227,7 +227,7 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 	})
 
 	By("scaling up the NodeGroup", func() {
-		ng := cluster.EKSConfig.NodeGroups[0]
+		ng := cluster.EKSStatus.UpstreamSpec.NodeGroups[0]
 		nodeCount := *ng.DesiredSize + 2
 
 		err := helper.ScaleNodeGroupOnAWS(*ng.NodegroupName, clusterName, region, nodeCount, nodeCount+2, nodeCount-1)
@@ -247,8 +247,9 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 	ngCount := len(cluster.EKSStatus.UpstreamSpec.NodeGroups)
 
 	if helpers.IsImport {
-		// The following error is encountered when adding nodegroup to a non-eksctl managed cluster; so we skip it for now
+		// The following error is encountered when adding nodegroup to a non-eksctl managed i.e. rancher provisioned cluster; so we skip it for now
 		// Error: loading VPC spec for cluster "auto-eks-hp-ci-atiia": VPC configuration required for creating nodegroups on clusters not owned by eksctl: vpc.subnets, vpc.id, vpc.securityGroup
+		// If this is implemented for rancher-provisioned cluster; make sure to check for Config spec.
 		By("adding a NodeGroup", func() {
 			err := helper.AddNodeGroupOnAWS(nodeName, clusterName, region)
 			Expect(err).To(BeNil())
@@ -256,30 +257,23 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 			Eventually(func() bool {
 				cluster, err = client.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
-				if len(cluster.EKSStatus.UpstreamSpec.NodeGroups) != ngCount+1 && len(cluster.EKSConfig.NodeGroups) != ngCount+1 {
+				if len(cluster.EKSStatus.UpstreamSpec.NodeGroups) != ngCount+1 {
 					return false
 				}
-				var nodeGroupAddedToUpstream, nodeGroupAddedToConfig bool
 				for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
 					if *ng.NodegroupName == nodeName {
-						nodeGroupAddedToUpstream = true
-						break
+						return true
 					}
 				}
-				for _, ng := range cluster.EKSConfig.NodeGroups {
-					if *ng.NodegroupName == nodeName {
-						nodeGroupAddedToConfig = true
-						break
-					}
-				}
-				return nodeGroupAddedToConfig && nodeGroupAddedToUpstream
+				return false
 			}, "10m", "7s").Should(BeTrue(), "Timed out waiting for new NodeGroup to appear in Rancher")
 		})
 	}
 
 	By("deleting a NodeGroup", func() {
 		if !helpers.IsImport {
-			// making sure there are at least 2 nodes in the cluster before deleting it for rancher-provisioned clusters
+			// adding an extra nodegroup to make sure there are at least 2 nodes in the cluster before deleting it for rancher-provisioned clusters
+			// remove this if and when By("adding a Nodegroup") is implemented for rancher-provisioned cluster
 			var err error
 			cluster, err = helper.AddNodeGroup(cluster, 1, client, true, true)
 			Expect(err).To(BeNil())
@@ -290,11 +284,11 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			earlyCheck := len(cluster.EKSStatus.UpstreamSpec.NodeGroups) != ngCount
+			updated := len(cluster.EKSStatus.UpstreamSpec.NodeGroups) != ngCount
 			if !helpers.IsImport {
-				earlyCheck = earlyCheck && len(cluster.EKSConfig.NodeGroups) != ngCount
+				updated = updated && len(cluster.EKSConfig.NodeGroups) != ngCount
 			}
-			if earlyCheck {
+			if updated {
 				return false
 			}
 			var nodeGroupPresentInUpstream, nodeGroupPresentInConfig bool
@@ -326,13 +320,13 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			configTags := *cluster.EKSConfig.Tags
 			upstreamTags := *cluster.EKSStatus.UpstreamSpec.Tags
 			for key := range tags {
 				_, existsUpstream := upstreamTags[key]
 
 				var existsConfig bool
 				if !helpers.IsImport {
+					configTags := *cluster.EKSConfig.Tags
 					_, existsConfig = configTags[key]
 				} else {
 					// if the cluster is imported, Config will be null, so we assign this variable to true to do easy check
@@ -364,12 +358,12 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			configTags := *cluster.EKSConfig.Tags
 			upstreamTags := *cluster.EKSStatus.UpstreamSpec.Tags
 			for key := range tags {
 				_, existsUpstream := upstreamTags[key]
 				var existsConfig bool
 				if !helpers.IsImport {
+					configTags := *cluster.EKSConfig.Tags
 					_, existsConfig = configTags[key]
 				}
 				if existsConfig || existsUpstream {
@@ -388,13 +382,13 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			configTags := *cluster.EKSConfig.NodeGroups[0].Tags
 			upstreamTags := *cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Tags
 
 			for key := range addLabels {
 				_, existUpstream := upstreamTags[key]
 				var existConfig bool
 				if !helpers.IsImport {
+					configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Tags
 					_, existConfig = configTags[key]
 				} else {
 					// if the cluster is imported, Config will be null, so we assign this variable to true to do easy check
@@ -426,12 +420,12 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Tags
 			upstreamTags := *cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Tags
 			for _, key := range removeLabels {
 				_, existsUpstream := upstreamTags[key]
 				var existsConfig bool
 				if !helpers.IsImport {
+					configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Tags
 					_, existsConfig = configTags[key]
 				}
 				if existsConfig || existsUpstream {
