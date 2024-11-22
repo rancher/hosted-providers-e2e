@@ -279,7 +279,7 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 			Expect(err).To(BeNil())
 			nodeName = *cluster.EKSConfig.NodeGroups[1].NodegroupName
 		}
-		err := helper.ModifyEKSNodegroupOnAWS(nodeName, clusterName, region, "delete", "--wait")
+		err := helper.ModifyEKSNodegroupOnAWS(region, clusterName, nodeName, "delete", "--wait")
 		Expect(err).To(BeNil())
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
