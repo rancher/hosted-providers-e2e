@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -134,12 +135,17 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 
 			var extraFlags []string
 			if nightlyChart == "enabled" {
-				extraFlags = []string{
-					"--set", "extraEnv[2].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION",
-					"--set-string", "extraEnv[2].value=true",
+				// Ensure proper extraEnv index sequence for helm rendering
+				// All head versions and releases from prime-optimus[-alpha] channel require an extraEnv index of 2
+				// See https://github.com/rancher-sandbox/ele-testhelpers/blob/main/rancher/install.go
+				extraEnvIndex := 1
+				if rancherHeadVersion != "" || strings.Contains(rancherChannel, "prime-optimus") {
+					extraEnvIndex = 2
 				}
-			} else {
-				extraFlags = nil
+				extraFlags = []string{
+					"--set", fmt.Sprintf("extraEnv[%d].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION", extraEnvIndex),
+					"--set-string", fmt.Sprintf("extraEnv[%d].value=true", extraEnvIndex),
+				}
 			}
 
 			err := rancher.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", proxyEnabled, extraFlags)
