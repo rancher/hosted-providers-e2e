@@ -567,7 +567,7 @@ func UpdateNodeGroupLabelsOnAWS(clusterName, nodegroupName, region string, addOr
 	if err != nil {
 		return errors.Wrap(err, "Failed to update labels to nodegroup: "+out)
 	}
-	fmt.Println("Updated labels to nodegroup: ", nodegroupName)
+	fmt.Println("Updated labels to nodegroup: ", nodegroupName, "\n", out)
 	return nil
 }
 
@@ -600,7 +600,7 @@ func UpdateResoureTagsOnAWS(resourceArn, clusterName, region string, tags map[st
 	if err != nil {
 		return errors.Wrap(err, "Failed to update tag: "+out)
 	}
-	fmt.Println("Updated tag on EKS cluster: ", clusterName)
+	fmt.Println("Updated tag on EKS cluster: ", clusterName, "\n", out)
 	return nil
 }
 
@@ -620,7 +620,7 @@ func RemoveResourceTagsOnAWS(resourceArn, clusterName, region string, tags []str
 	if err != nil {
 		return errors.Wrap(err, "Failed to remove tag: "+out)
 	}
-	fmt.Println("Removed tag on EKS cluster: ", clusterName)
+	fmt.Println("Removed tag on EKS cluster: ", clusterName, "\n", out)
 	return nil
 }
 
@@ -645,7 +645,7 @@ func UpdateLoggingOnAWS(clusterName, region string, enableLoggingTypes, disableL
 	if err != nil {
 		return errors.Wrap(err, "Failed to update logging: "+out)
 	}
-	fmt.Println("Updated logging of EKS cluster: ", clusterName)
+	fmt.Println("Updated logging of EKS cluster: ", clusterName, "\n", out)
 	return nil
 }
 

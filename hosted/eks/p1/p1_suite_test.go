@@ -151,6 +151,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 				// For imported clusters, EKSConfig always has null values; so we check EKSConfig only when testing provisioned clusters
 				Expect(*cluster.EKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 				for _, ng := range cluster.EKSConfig.NodeGroups {
+					Expect(ng.Version).ToNot(BeNil())
 					Expect(*ng.Version).To(BeEquivalentTo(upgradeToVersion), "EKSConfig.NodePools upgrade check failed")
 				}
 			}
@@ -332,7 +333,7 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 					// if the cluster is imported, Config will be null, so we assign this variable to true to do easy check
 					existsConfig = true
 				}
-				if !(existsConfig || existsUpstream) {
+				if !(existsConfig && existsUpstream) {
 					// TODO: check this logic
 					// return early if the key doesn't exist in either of the specs
 					return false
@@ -394,7 +395,7 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 					// if the cluster is imported, Config will be null, so we assign this variable to true to do easy check
 					existConfig = true
 				}
-				if !(existConfig || existUpstream) {
+				if !(existConfig && existUpstream) {
 					// return early if the key doesn't exist in either of the specs
 					return false
 				}
