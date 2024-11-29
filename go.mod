@@ -9,7 +9,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/pkg/errors v0.9.1
-	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20240531071842-35c37fffa28c
+	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20241114104736-0d5b41ca9158
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
 	github.com/rancher/shepherd v0.0.0-20240524164713-3271d2ea92d5 // rancher/shepherd relase/v2.8-HEAD commit
 	github.com/sirupsen/logrus v1.9.3
