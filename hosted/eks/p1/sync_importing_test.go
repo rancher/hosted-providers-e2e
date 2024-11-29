@@ -24,7 +24,7 @@ var _ = Describe("SyncImport", func() {
 			err = helper.DeleteEKSClusterOnAWS(region, clusterName)
 			Expect(err).To(BeNil())
 		} else {
-			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+			GinkgoLogr.Info(fmt.Sprintf("Skipping downstream cluster deletion: %s", clusterName))
 		}
 	})
 

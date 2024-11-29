@@ -22,7 +22,7 @@ var _ = Describe("SyncProvisioning", func() {
 			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		} else {
-			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
+			GinkgoLogr.Info(fmt.Sprintf("Skipping downstream cluster deletion: %s", clusterName))
 		}
 	})
 
