@@ -600,7 +600,7 @@ func RunCommand(clusterName, resourceGroup, command string, extraArgs ...string)
 		return errors.Wrap(err, "Failed to run command: "+out)
 	}
 
-	args := []string{"aks", "command", "invoke", "--resource-group", resourceGroup, "--name", clusterName, "--command", command, "--subscription", subscriptionID}
+	args := []string{"aks", "command", "invoke", "--resource-group", resourceGroup, "--name", clusterName, "--subscription", subscriptionID, "--command", command}
 	fmt.Printf("Running command inside the cluster: az %v\n", args)
 
 	out, err = proc.RunW("az", args...)
