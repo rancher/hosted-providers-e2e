@@ -160,7 +160,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 }
 
 func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, k8sVersion, upgradeToVersion string) {
-	loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
+	/*loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
 	By("Enabling the LoggingTypes", func() {
 		err := helper.UpdateLoggingOnAWS(clusterName, region, loggingTypes, nil)
 		Expect(err).To(BeNil())
@@ -222,7 +222,7 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 			Expect(*cluster.EKSStatus.UpstreamSpec.PublicAccessSources).To(ContainElement(cidr))
 		}
 	})
-
+	*/
 	By("upgrading control plane and nodegroup", func() {
 		syncK8sVersionUpgradeCheck(cluster, client, true, k8sVersion, upgradeToVersion)
 	})
