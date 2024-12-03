@@ -602,7 +602,7 @@ var _ = Describe("P1Provisioning", func() {
 		}, "5m", "5s").Should(BeTrue(), "Failed while waiting for k8s upgrade.")
 	})
 
-	FIt("should Create NP with AZ for region where AZ is not supported", func() {
+	It("should Create NP with AZ for region where AZ is not supported", func() {
 		testCaseID = 196
 		// none of the availability zones are supported in this location
 		location = "westus"
@@ -773,10 +773,13 @@ var _ = Describe("P1Provisioning", func() {
 			err = helper.RunCommand(cluster.AKSConfig.ClusterName, cluster.AKSConfig.ResourceGroup, registrationToken.InsecureCommand)
 			Expect(err).To(BeNil())
 
+			//Failed to communicate with cluster: error generating service account token: Post "https://auto-aks-pvala-hp-ci-rqbte-dns-gs1f40rx.006641f3-b627-466d-917b-c2c6bca16c4c.privatelink.centralindia.azmk8s.io:443/api/v1/namespaces": dial tcp: address auto-aks-pvala-hp-ci-rqbte-dns-gs1f40rx.006641f3-b627-466d-917b-c2c6bca16c4c.priva
+
+			//Failed to communicate with cluster: error generating service account token: Post "https://pvala-aks-dns-i0lznum3.9f8ba64d-e36e-4aaa-84d2-d0a8935cdb32.privatelink.centralindia.azmk8s.io:443/api/v1/namespaces": cluster agent disconnected
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		})
-		It("should successfully Create a private cluster", func() {
+		FIt("should successfully Create a private cluster", func() {
 			testCaseID = 240
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 		})
