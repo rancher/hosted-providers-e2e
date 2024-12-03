@@ -607,6 +607,7 @@ func RunCommand(clusterName, resourceGroup, command string, extraArgs ...string)
 	if err != nil {
 		return errors.Wrap(err, "Failed to run command: "+out)
 	}
+	fmt.Println("output: ", out)
 	return nil
 }
 
