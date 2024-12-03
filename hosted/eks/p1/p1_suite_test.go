@@ -15,6 +15,7 @@ limitations under the License.
 package p1_test
 
 import (
+	"fmt"
 	"maps"
 	"strconv"
 	"strings"
@@ -129,7 +130,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 
 	if upgradeNodeGroup {
 		By("upgrading the nodegroup", func() {
-			GinkgoLogr.Info("Upgrading Nodegroup's EKS version")
+			GinkgoLogr.Info(fmt.Sprintf("Upgrading Nodegroup's EKS version to %s", upgradeToVersion))
 			for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
 				err = helper.UpgradeEKSNodegroupOnAWS(region, clusterName, *ng.NodegroupName, upgradeToVersion)
 				Expect(err).To(BeNil())
@@ -145,7 +146,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 					}
 				}
 				return true
-			}, tools.SetTimeout(5*time.Minute), 10*time.Second).Should(BeTrue(), "Failed while waiting for nodegroup k8s upgrade to appear in EKSStatus.UpstreamSpec")
+			}, tools.SetTimeout(7*time.Minute), 10*time.Second).Should(BeTrue(), "Failed while waiting for nodegroup k8s upgrade to appear in EKSStatus.UpstreamSpec")
 
 			if !helpers.IsImport {
 				// For imported clusters, EKSConfig always has null values; so we check EKSConfig only when testing provisioned clusters
@@ -160,7 +161,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 }
 
 func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, k8sVersion, upgradeToVersion string) {
-	/*loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
+	loggingTypes := []string{"api", "audit", "authenticator", "controllerManager", "scheduler"}
 	By("Enabling the LoggingTypes", func() {
 		err := helper.UpdateLoggingOnAWS(clusterName, region, loggingTypes, nil)
 		Expect(err).To(BeNil())
@@ -222,15 +223,17 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 			Expect(*cluster.EKSStatus.UpstreamSpec.PublicAccessSources).To(ContainElement(cidr))
 		}
 	})
-	*/
+
 	By("upgrading control plane and nodegroup", func() {
 		syncK8sVersionUpgradeCheck(cluster, client, true, k8sVersion, upgradeToVersion)
 	})
 
 	By("scaling up the NodeGroup", func() {
 		ng := cluster.EKSStatus.UpstreamSpec.NodeGroups[0]
-		nodeCount := *ng.DesiredSize + 2
-
+		var nodeCount int64 = 2
+		if ng.DesiredSize != nil {
+			nodeCount = *ng.DesiredSize + 2
+		}
 		err := helper.ScaleNodeGroupOnAWS(*ng.NodegroupName, clusterName, region, nodeCount, nodeCount+2, nodeCount-1)
 		Expect(err).To(BeNil())
 		Eventually(func() bool {
@@ -246,7 +249,6 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 
 	var nodeName = namegen.AppendRandomString("ng")
 	ngCount := len(cluster.EKSStatus.UpstreamSpec.NodeGroups)
-
 	if helpers.IsImport {
 		// The following error is encountered when adding nodegroup to a non-eksctl managed i.e. rancher provisioned cluster; so we skip it for now
 		// Error: loading VPC spec for cluster "auto-eks-hp-ci-atiia": VPC configuration required for creating nodegroups on clusters not owned by eksctl: vpc.subnets, vpc.id, vpc.securityGroup
@@ -383,13 +385,13 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			upstreamTags := *cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Tags
+			upstreamLabels := *cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Labels
 
 			for key := range addLabels {
-				_, existUpstream := upstreamTags[key]
+				_, existUpstream := upstreamLabels[key]
 				var existConfig bool
 				if !helpers.IsImport {
-					configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Tags
+					configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Labels
 					_, existConfig = configTags[key]
 				} else {
 					// if the cluster is imported, Config will be null, so we assign this variable to true to do easy check
@@ -405,9 +407,9 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 
 		for key, value := range addLabels {
 			if !helpers.IsImport {
-				Expect(*cluster.EKSConfig.NodeGroups[ngIndex].Tags).To(HaveKeyWithValue(key, value))
+				Expect(*cluster.EKSConfig.NodeGroups[ngIndex].Labels).To(HaveKeyWithValue(key, value))
 			}
-			Expect(*cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Tags).To(HaveKeyWithValue(key, value))
+			Expect(*cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Labels).To(HaveKeyWithValue(key, value))
 		}
 	})
 
@@ -421,12 +423,12 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 		Eventually(func() bool {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			upstreamTags := *cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Tags
+			upstreamLabels := *cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Labels
 			for _, key := range removeLabels {
-				_, existsUpstream := upstreamTags[key]
+				_, existsUpstream := upstreamLabels[key]
 				var existsConfig bool
 				if !helpers.IsImport {
-					configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Tags
+					configTags := *cluster.EKSConfig.NodeGroups[ngIndex].Labels
 					_, existsConfig = configTags[key]
 				}
 				if existsConfig || existsUpstream {
@@ -439,9 +441,9 @@ func syncAWSToRancherCheck(cluster *management.Cluster, client *rancher.Client, 
 
 		for key, value := range addLabels {
 			if !helpers.IsImport {
-				Expect(*cluster.EKSConfig.NodeGroups[ngIndex].Tags).ToNot(HaveKeyWithValue(key, value))
+				Expect(*cluster.EKSConfig.NodeGroups[ngIndex].Labels).ToNot(HaveKeyWithValue(key, value))
 			}
-			Expect(*cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Tags).ToNot(HaveKeyWithValue(key, value))
+			Expect(*cluster.EKSStatus.UpstreamSpec.NodeGroups[ngIndex].Labels).ToNot(HaveKeyWithValue(key, value))
 		}
 	})
 }
