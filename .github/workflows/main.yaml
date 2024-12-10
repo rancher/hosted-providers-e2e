@@ -348,7 +348,7 @@ jobs:
         if: ${{ steps.prepare-rancher.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
-          name: support-logs
+          name: support-logs-${{ inputs.hosted_provider }}
           path: ${{ github.workspace }}/logs/*
           if-no-files-found: ignore
 
@@ -361,6 +361,8 @@ jobs:
           echo "K3s on Rancher Manager: ${{ inputs.k3s_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "Downstream ${{ inputs.hosted_provider }} minor version: ${{ inputs.downstream_k8s_minor_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "Tests run: ${{ inputs.tests_to_run }}" >> ${GITHUB_STEP_SUMMARY}
+          OPERATOR_HELM_VERSION=$(helm get metadata rancher-${{ inputs.hosted_provider }}-operator -n cattle-system -o json | jq -r .version)
+          echo "Installed rancher-${{ inputs.hosted_provider }}-operator chart version: $OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
 
   delete-runner:
     if: ${{ always() && inputs.destroy_runner == true }}
