@@ -353,6 +353,8 @@ jobs:
           if-no-files-found: ignore
 
       - name: Add summary
+        env:
+          KUBECONFIG: /etc/rancher/k3s/k3s.yaml
         if: ${{ !cancelled() }}
         run: |
           # Add summary
