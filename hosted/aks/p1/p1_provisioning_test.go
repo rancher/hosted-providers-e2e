@@ -748,7 +748,8 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	FContext("Private Cluster", func() {
+	XContext("Private Cluster", func() {
+		// Blocked on: https://github.com/rancher/rancher/issues/43772
 		BeforeEach(func() {
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
@@ -779,7 +780,7 @@ var _ = Describe("P1Provisioning", func() {
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		})
-		FIt("should successfully Create a private cluster", func() {
+		It("should successfully Create a private cluster", func() {
 			testCaseID = 240
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 		})
