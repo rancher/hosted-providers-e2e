@@ -216,7 +216,7 @@ jobs:
           echo -e "Exported values:\nQASE_RUN_ID=${ID}\nQASE_RUN_DESCRIPTION=${QASE_RUN_DESCRIPTION}\nQASE_RUN_NAME=${QASE_RUN_NAME}"
 
       - name: Provisioning cluster tests
-        if: ${{ steps.prepare-rancher.outcome != 'failure' && contains(inputs.tests_to_run, 'p0_provisioning') }}
+        if: ${{ !cancelled() && steps.prepare-rancher.outcome != 'failure' && contains(inputs.tests_to_run, 'p0_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -355,7 +355,7 @@ jobs:
       - name: Add summary
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        if: ${{ steps.prepare-rancher.outcome == 'success' }}
+        if: ${{ always() && steps.prepare-rancher.outcome == 'success' }}
         run: |
           # Add summary
           echo "## General information" >> ${GITHUB_STEP_SUMMARY}
