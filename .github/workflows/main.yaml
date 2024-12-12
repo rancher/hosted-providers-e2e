@@ -355,7 +355,7 @@ jobs:
       - name: Add summary
         env:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-        if: ${{ !cancelled() }}
+        if: ${{ steps.prepare-rancher.outcome == 'success' }}
         run: |
           # Add summary
           echo "## General information" >> ${GITHUB_STEP_SUMMARY}
