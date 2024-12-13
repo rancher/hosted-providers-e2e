@@ -208,13 +208,6 @@ jobs:
           sudo ./aws/install
           rm -rf aws/
 
-      - name: Install Go
-        uses: actions/setup-go@v5
-        env:
-          GOTOOLCHAIN: local
-        with:
-          go-version-file: go.mod
-
       - name: Create/Export Qase Run
         id: qase
         run: |

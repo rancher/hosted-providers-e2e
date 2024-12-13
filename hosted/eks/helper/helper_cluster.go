@@ -571,6 +571,7 @@ func UpdateNodeGroupLabelsOnAWS(clusterName, nodegroupName, region string, addOr
 	return nil
 }
 
+// AddClusterTagsOnAWS adds label to cluster using AWS cli
 func AddClusterTagsOnAWS(clusterName, region string, tags map[string]string, extraArgs ...string) error {
 	arn, err := GetFromEKS(region, clusterName, "cluster", ".[].Arn")
 	if err != nil {
@@ -579,6 +580,7 @@ func AddClusterTagsOnAWS(clusterName, region string, tags map[string]string, ext
 	return UpdateResoureTagsOnAWS(arn, clusterName, region, tags, extraArgs...)
 }
 
+// RemoveClusterTagsOnAWS removes label from cluster using AWS cli
 func RemoveClusterTagsOnAWS(clusterName, region string, tags []string, extraArgs ...string) error {
 	arn, err := GetFromEKS(region, clusterName, "cluster", ".[].Arn")
 	if err != nil {
