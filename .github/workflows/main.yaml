@@ -39,6 +39,9 @@ on:
       downstream_cluster_cleanup:
         description: Cleanup downstream clusters after test
         type: boolean
+      proxy:
+        description: Install Rancher behind proxy
+        type: boolean
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
