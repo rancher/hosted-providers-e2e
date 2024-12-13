@@ -583,7 +583,8 @@ func ClusterExistsOnAzure(clusterName, resourceGroup string) (bool, error) {
 	return false, nil
 }
 
-func RunCommand(clusterName, resourceGroup, command string, extraArgs ...string) error {
+// RunCommand executes `aks command invoke` which runs a command inside a cluster;  useful when registering a private cluster with rancher
+func RunCommand(clusterName, resourceGroup, command string) error {
 	currentKubeconfig := os.Getenv("KUBECONFIG")
 	downstreamKubeconfig := helpers.DownstreamKubeconfig(clusterName)
 	defer func() {
@@ -607,7 +608,6 @@ func RunCommand(clusterName, resourceGroup, command string, extraArgs ...string)
 	if err != nil {
 		return errors.Wrap(err, "Failed to run command: "+out)
 	}
-	fmt.Println("output: ", out)
 	return nil
 }
 

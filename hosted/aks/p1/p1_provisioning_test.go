@@ -752,7 +752,7 @@ var _ = Describe("P1Provisioning", func() {
 		// Blocked on: https://github.com/rancher/rancher/issues/43772
 		BeforeEach(func() {
 			var err error
-			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
+			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
 
@@ -781,8 +781,32 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).To(BeNil())
 		})
 		It("should successfully Create a private cluster", func() {
-			testCaseID = 240
+			testCaseID = 240 // 241, 242
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+
+			availableVersions, err := helper.ListAKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
+			Expect(err).To(BeNil())
+			upgradeK8sVersion := availableVersions[0]
+
+			By("upgrading control plane k8s version", func() {
+				cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeK8sVersion, ctx.RancherAdminClient, true)
+				Expect(err).To(BeNil())
+			})
+
+			By("upgrading nodepool k8s version", func() {
+				cluster, err = helper.UpgradeNodeKubernetesVersion(cluster, upgradeK8sVersion, ctx.RancherAdminClient, true, true)
+				Expect(err).To(BeNil())
+			})
+
+			By("adding a nodepool", func() {
+				cluster, err = helper.AddNodePool(cluster, 1, ctx.RancherAdminClient, true, true)
+				Expect(err).To(BeNil())
+			})
+
+			By("updating autoscaling", func() {
+				cluster, err = helper.UpdateAutoScaling(cluster, ctx.RancherAdminClient, true, 5, 2, true)
+				Expect(err).To(BeNil())
+			})
 		})
 
 	})
