@@ -43,6 +43,10 @@ on:
         type: string
         required: true
         default: p0_provisioning/p0_importing
+      proxy:
+        description: Install Rancher behind proxy
+        type: boolean
+        default: false
 
 jobs:
   eks-e2e:
@@ -59,3 +63,4 @@ jobs:
       downstream_k8s_minor_version: ${{ inputs.downstream_k8s_minor_version }}
       rancher_installed: ${{ inputs.rancher_installed || 'hostname/password' }}
       downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup == true }}
+      proxy: ${{ inputs.proxy }}
