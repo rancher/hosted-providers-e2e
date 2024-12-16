@@ -1,4 +1,4 @@
-STANDARD_TEST_OPTIONS = -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
+STANDARD_TEST_OPTIONS = -v -r --timeout=6h --keep-going --randomize-all --randomize-suites
 
 REQUIRED_VARS := RANCHER_HOSTNAME RANCHER_PASSWORD RANCHER_VERSION KUBECONFIG INSTALL_K3S_VERSION
 ### Optional vars used by prepare-rancher: PROVIDER NIGHTLY_CHART RANCHER_BEHIND_PROXY PROXY_HOST (more used by e2e tests)

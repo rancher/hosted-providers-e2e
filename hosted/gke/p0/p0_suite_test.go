@@ -55,6 +55,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 var _ = BeforeEach(func() {
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	// Add an index of each ginkgo node to the clusterName to make it unique
+	clusterName = fmt.Sprintf("%s-%d", clusterName, GinkgoParallelProcess())
 	zone = helpers.GetGKEZone()
 	region = helpers.GetGKERegion()
 	project = helpers.GetGKEProjectID()
