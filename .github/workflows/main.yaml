@@ -233,8 +233,8 @@ jobs:
         run: |
           # Enable temporary debug output for GKE operator
           if [ ${{ inputs.hosted_provider }} == 'gke' ]; then
-            export RANCHER_CLIENT_DEBUG="true"
-            kubectl patch deployment gke-config-operator -n cattle-system --patch '{"spec":{"template":{"spec":{"containers":[{"name":"rancher-gke-operator","env":[{"name":"GODEBUG","value":"http2debug=1"}]}]}}}}'
+            # export RANCHER_CLIENT_DEBUG="true"
+            kubectl patch deployment gke-config-operator -n cattle-system --patch '{"spec":{"template":{"spec":{"containers":[{"name":"rancher-gke-operator","env":[{"name":"GODEBUG","value":"http2debug=2"}]}]}}}}'
           fi
           make e2e-provisioning-tests
 
