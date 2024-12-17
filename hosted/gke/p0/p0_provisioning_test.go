@@ -16,7 +16,9 @@ package p0_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -42,24 +44,24 @@ var _ = Describe("P0Provisioning", func() {
 			testBody:  p0NodesChecks,
 			testTitle: "should successfully provision the zonal cluster & add, delete, scale nodepool",
 		},
-//		{
-//			qaseID:    11,
-//			isUpgrade: true,
-//			testBody:  p0upgradeK8sVersionChecks,
-//			testTitle: "should be able to upgrade k8s version of the zonal provisioned cluster",
-//		},
-//		{
-//			qaseID:    300,
-//			isUpgrade: false,
-//			testBody:  p0NodesChecks,
-//			testTitle: "should successfully provision the regional cluster & add, delete, scale nodepool",
-//		},
-//		{
-//			qaseID:    301,
-//			isUpgrade: true,
-//			testBody:  p0upgradeK8sVersionChecks,
-//			testTitle: "should be able to upgrade k8s version of the regional provisioned cluster",
-//		},
+		//		{
+		//			qaseID:    11,
+		//			isUpgrade: true,
+		//			testBody:  p0upgradeK8sVersionChecks,
+		//			testTitle: "should be able to upgrade k8s version of the zonal provisioned cluster",
+		//		},
+		//		{
+		//			qaseID:    300,
+		//			isUpgrade: false,
+		//			testBody:  p0NodesChecks,
+		//			testTitle: "should successfully provision the regional cluster & add, delete, scale nodepool",
+		//		},
+		//		{
+		//			qaseID:    301,
+		//			isUpgrade: true,
+		//			testBody:  p0upgradeK8sVersionChecks,
+		//			testTitle: "should be able to upgrade k8s version of the regional provisioned cluster",
+		//		},
 	} {
 		testData := testData
 		When("a cluster is created", func() {
@@ -79,8 +81,11 @@ var _ = Describe("P0Provisioning", func() {
 				Expect(err).NotTo(HaveOccurred())
 				GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
 
+				// Introduce a small random delay to avoid simultaneous requests when creating multiple clusters by many nodes
+				time.Sleep(time.Duration(rand.Intn(2000)+1000) * time.Millisecond)
 				cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, zone, region, project, updateFunc)
 				Expect(err).To(BeNil())
+
 				cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 				Expect(err).To(BeNil())
 			})
