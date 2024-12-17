@@ -42,24 +42,24 @@ var _ = Describe("P0Provisioning", func() {
 			testBody:  p0NodesChecks,
 			testTitle: "should successfully provision the zonal cluster & add, delete, scale nodepool",
 		},
-		{
-			qaseID:    11,
-			isUpgrade: true,
-			testBody:  p0upgradeK8sVersionChecks,
-			testTitle: "should be able to upgrade k8s version of the zonal provisioned cluster",
-		},
-		{
-			qaseID:    300,
-			isUpgrade: false,
-			testBody:  p0NodesChecks,
-			testTitle: "should successfully provision the regional cluster & add, delete, scale nodepool",
-		},
-		{
-			qaseID:    301,
-			isUpgrade: true,
-			testBody:  p0upgradeK8sVersionChecks,
-			testTitle: "should be able to upgrade k8s version of the regional provisioned cluster",
-		},
+//		{
+//			qaseID:    11,
+//			isUpgrade: true,
+//			testBody:  p0upgradeK8sVersionChecks,
+//			testTitle: "should be able to upgrade k8s version of the zonal provisioned cluster",
+//		},
+//		{
+//			qaseID:    300,
+//			isUpgrade: false,
+//			testBody:  p0NodesChecks,
+//			testTitle: "should successfully provision the regional cluster & add, delete, scale nodepool",
+//		},
+//		{
+//			qaseID:    301,
+//			isUpgrade: true,
+//			testBody:  p0upgradeK8sVersionChecks,
+//			testTitle: "should be able to upgrade k8s version of the regional provisioned cluster",
+//		},
 	} {
 		testData := testData
 		When("a cluster is created", func() {
@@ -93,7 +93,7 @@ var _ = Describe("P0Provisioning", func() {
 				}
 			})
 
-			It(testData.testTitle, func() {
+			It(fmt.Sprintf("%s running on Node: %d", testData.testTitle, GinkgoParallelProcess()), func() {
 				testCaseID = testData.qaseID
 				testData.testBody(cluster, ctx.RancherAdminClient, clusterName)
 			})

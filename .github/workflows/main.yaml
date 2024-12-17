@@ -218,6 +218,7 @@ jobs:
       - name: Provisioning cluster tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome != 'failure' && contains(inputs.tests_to_run, 'p0_provisioning') }}
         env:
+          RANCHER_CLIENT_DEBUG: true
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
           CATTLE_TEST_CONFIG: ${{ github.workspace }}/cattle-config-provisioning.yaml
