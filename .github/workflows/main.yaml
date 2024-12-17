@@ -231,6 +231,10 @@ jobs:
           CATTLE_TEST_CONFIG: ${{ github.workspace }}/cattle-config-provisioning.yaml
           QASE_RUN_ID: ${{ steps.qase.outputs.qase_run_id }}
         run: |
+          # Enable temporary shepherd debug output for GKE
+          if [ ${{ inputs.hosted_provider }} == 'gke' ]; then
+            export RANCHER_CLIENT_DEBUG="true"
+          fi
           make e2e-provisioning-tests
 
       - name: Import cluster tests
