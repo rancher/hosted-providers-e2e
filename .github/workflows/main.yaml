@@ -232,7 +232,7 @@ jobs:
           QASE_RUN_ID: ${{ steps.qase.outputs.qase_run_id }}
         run: |
           # Enable temporary debug output for GKE operator
-          if [ ${{ inputs.hosted_provider }} == "gke" ] && [ ${{ inputs.operator_nightly_chart}} == "true" ]; then
+          if [ ${{ inputs.hosted_provider }} == "gke" ] && [ ${{ inputs.operator_nightly_chart }} == "true" ]; then
             # export RANCHER_CLIENT_DEBUG="true"
             kubectl patch deployment gke-config-operator -n cattle-system --patch '{"spec":{"template":{"spec":{"containers":[{"name":"rancher-gke-operator","env":[{"name":"GODEBUG","value":"http2debug=2"}]}]}}}}'
           fi
