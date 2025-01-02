@@ -17,9 +17,11 @@ package p0_test
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"golang.org/x/exp/rand"
 
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
@@ -78,6 +80,11 @@ var _ = Describe("P0Provisioning", func() {
 				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, region, testData.isUpgrade)
 				Expect(err).NotTo(HaveOccurred())
 				GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
+
+				// Do not create clusters exactly at the same time for all ginkgo nodes
+				nodeIndex := GinkgoParallelNode()
+				randomDelay := time.Duration((nodeIndex%3+1)*1000+rand.Intn(1000)) * time.Millisecond
+				time.Sleep(randomDelay)
 
 				cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, zone, region, project, updateFunc)
 				Expect(err).To(BeNil())
