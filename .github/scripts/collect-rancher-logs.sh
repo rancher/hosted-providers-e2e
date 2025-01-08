@@ -16,7 +16,7 @@ mkdir -p -m 755 cluster-logs
 cd cluster-logs
 curl -L ${RANCHER_LOG_COLLECTER} -o rancherlogcollector.sh
 chmod +x rancherlogcollector.sh
-sudo ./rancherlogcollector.sh -d ../cluster-logs
+sudo ./rancherlogcollector.sh -d ../cluster-logs -s 0
 
 # Move back to logs dir
 cd ..
