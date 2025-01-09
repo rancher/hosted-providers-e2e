@@ -501,7 +501,7 @@ func CreateAKSRGOnAzure(name, location string) error {
 
 	out, err := proc.RunW("az", rgargs...)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create cluster: "+out)
+		return errors.Wrap(err, "Failed to create resource group: "+out)
 	}
 	fmt.Println("Created AKS resource group: ", name)
 	return nil
