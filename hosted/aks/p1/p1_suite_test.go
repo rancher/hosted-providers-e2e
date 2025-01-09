@@ -172,7 +172,7 @@ func npUpgradeToVersionGTCPCheck(cluster *management.Cluster, client *rancher.Cl
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
 		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, fmt.Sprintf("Node pool version %s and control plane version %s are incompatible.", upgradeK8sVersion, k8sVersion))
-	}, "2m", "2s").Should(BeTrue())
+	}, "1m", "2s").Should(BeTrue())
 }
 
 // updateTagsCheck runs checks to add and delete the cluster with a new tag and an empty tag
