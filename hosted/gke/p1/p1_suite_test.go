@@ -77,7 +77,7 @@ func updateLoggingAndMonitoringServiceCheck(cluster *management.Cluster, client 
 
 // updateAutoScaling tests updating `autoscaling` for GKE node pools
 func updateAutoScaling(cluster *management.Cluster, client *rancher.Client, autoscale bool) {
-	for _, np := range cluster.GKEConfig.NodePools {
+	for _, np := range *cluster.GKEConfig.NodePools {
 		if np.Autoscaling != nil {
 			Expect(np.Autoscaling.Enabled).ToNot(BeEquivalentTo(autoscale))
 		}
@@ -110,7 +110,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 		}, tools.SetTimeout(7*time.Minute), 10*time.Second).Should(Equal(upgradeToVersion), "Failed while waiting for k8s upgrade to appear in GKEStatus.UpstreamSpec")
 
 		// Ensure nodepool version is still the same.
-		for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+		for _, np := range *cluster.GKEStatus.UpstreamSpec.NodePools {
 			Expect(np.Version).To(BeEquivalentTo(currentVersion))
 		}
 
@@ -123,14 +123,14 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 			Expect(err).To(BeNil())
 
 			Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeToVersion))
-			for _, np := range cluster.GKEConfig.NodePools {
+			for _, np := range *cluster.GKEConfig.NodePools {
 				Expect(np.Version).To(BeEquivalentTo(currentVersion), "GKEConfig.NodePools check failed")
 			}
 		}
 	})
 
 	By("upgrading the node pool", func() {
-		for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+		for _, np := range *cluster.GKEStatus.UpstreamSpec.NodePools {
 			err = helper.UpgradeGKEClusterOnGCloud(zone, clusterName, project, upgradeToVersion, true, *np.Name)
 			Expect(err).To(BeNil())
 		}
@@ -140,7 +140,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+			for _, np := range *cluster.GKEStatus.UpstreamSpec.NodePools {
 				if *np.Version != upgradeToVersion {
 					return false
 				}
@@ -150,7 +150,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 
 		if !helpers.IsImport {
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
-			for _, np := range cluster.GKEConfig.NodePools {
+			for _, np := range *cluster.GKEConfig.NodePools {
 				Expect(*np.Version).To(BeEquivalentTo(upgradeToVersion), "GKEConfig.NodePools upgrade check failed")
 			}
 		}
@@ -160,7 +160,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 	var poolName = namegen.AppendRandomString("new-np")
-	currentNodeCount := len(cluster.GKEConfig.NodePools)
+	currentNodeCount := len(*cluster.GKEConfig.NodePools)
 
 	By("adding a nodepool", func() {
 		err := helper.AddNodePoolOnGCloud(clusterName, zone, project, poolName)
@@ -172,12 +172,12 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return len(cluster.GKEStatus.UpstreamSpec.NodePools)
+			return len(*cluster.GKEStatus.UpstreamSpec.NodePools)
 		}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(Equal(currentNodeCount + 1))
 
 		// check that the new node pool has been added
 		Expect(func() bool {
-			for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+			for _, np := range *cluster.GKEStatus.UpstreamSpec.NodePools {
 				if *np.Name == poolName {
 					return true
 				}
@@ -188,10 +188,10 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 		if !helpers.IsImport {
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
-			Expect(len(cluster.GKEConfig.NodePools)).To(Equal(currentNodeCount + 1))
+			Expect(len(*cluster.GKEConfig.NodePools)).To(Equal(currentNodeCount + 1))
 
 			Expect(func() bool {
-				for _, np := range cluster.GKEConfig.NodePools {
+				for _, np := range *cluster.GKEConfig.NodePools {
 					if *np.Name == poolName {
 						return true
 					}
@@ -209,12 +209,12 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 		Eventually(func() int {
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return len(cluster.GKEStatus.UpstreamSpec.NodePools)
+			return len(*cluster.GKEStatus.UpstreamSpec.NodePools)
 		}, tools.SetTimeout(5*time.Minute), 2*time.Second).Should(Equal(currentNodeCount))
 
 		// check that the new node pool has been deleted
 		Expect(func() bool {
-			for _, np := range cluster.GKEStatus.UpstreamSpec.NodePools {
+			for _, np := range *cluster.GKEStatus.UpstreamSpec.NodePools {
 				if *np.Name == poolName {
 					return true
 				}
@@ -225,10 +225,10 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 		if !helpers.IsImport {
 			// For imported clusters, GKEConfig always has null values; so we check GKEConfig only when testing provisioned clusters
-			Expect(len(cluster.GKEConfig.NodePools)).To(Equal(currentNodeCount))
+			Expect(len(*cluster.GKEConfig.NodePools)).To(Equal(currentNodeCount))
 
 			Expect(func() bool {
-				for _, np := range cluster.GKEConfig.NodePools {
+				for _, np := range *cluster.GKEConfig.NodePools {
 					if *np.Name == poolName {
 						return true
 					}
@@ -245,7 +245,7 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 	Expect(err).To(BeNil())
 	upgradeK8sVersion := availableVersions[0]
 
-	currentNodePoolCount := len(cluster.GKEConfig.NodePools)
+	currentNodePoolCount := len(*cluster.GKEConfig.NodePools)
 	cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeK8sVersion, client, false, false, false)
 	Expect(err).To(BeNil())
 	Expect(*cluster.GKEConfig.KubernetesVersion).To(Equal(upgradeK8sVersion))
@@ -256,7 +256,7 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 	cluster, err = helper.AddNodePool(cluster, client, 1, "", false, false)
 	Expect(err).To(BeNil())
 
-	Expect(len(cluster.GKEConfig.NodePools)).Should(BeNumerically("==", currentNodePoolCount+1))
+	Expect(len(*cluster.GKEConfig.NodePools)).Should(BeNumerically("==", currentNodePoolCount+1))
 
 	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
 	Expect(err).To(BeNil())
@@ -265,7 +265,7 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 		GinkgoLogr.Info("Waiting for the changes to appear in GKEStatus.UpstreamSpec ...")
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
-		return len(cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
+		return len(*cluster.GKEStatus.UpstreamSpec.NodePools) == currentNodePoolCount+1 && *cluster.GKEStatus.UpstreamSpec.KubernetesVersion == upgradeK8sVersion
 	}, "5m", "5s").Should(BeTrue())
 }
 
@@ -278,7 +278,7 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 	)
 	var err error
 	cluster, err = helper.UpdateCluster(cluster, client, func(upgradedCluster *management.Cluster) {
-		updatedNp := upgradedCluster.GKEConfig.NodePools
+		updatedNp := *upgradedCluster.GKEConfig.NodePools
 		for i := range updatedNp {
 			np := updatedNp[i]
 			// update autoscaling and initial node count
@@ -297,7 +297,7 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 			}
 		}
 
-		upgradedCluster.GKEConfig.NodePools = updatedNp
+		upgradedCluster.GKEConfig.NodePools = &updatedNp
 		upgradedCluster.GKEConfig.LoggingService = pointer.String(disableService)
 		upgradedCluster.GKEConfig.MonitoringService = pointer.String(disableService)
 	})
@@ -305,7 +305,7 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 
 	Expect(*cluster.GKEConfig.LoggingService).To(Equal(disableService))
 	Expect(*cluster.GKEConfig.MonitoringService).To(Equal(disableService))
-	for _, np := range cluster.GKEConfig.NodePools {
+	for _, np := range *cluster.GKEConfig.NodePools {
 		Expect(*np.InitialNodeCount).Should(Equal(minCount))
 		Expect(np.Autoscaling.Enabled).Should(BeTrue())
 		Expect(np.Autoscaling.MaxNodeCount).Should(Equal(maxCount))
@@ -324,7 +324,7 @@ func combinationMutableParameterUpdate(cluster *management.Cluster, client *ranc
 			return false
 		}
 
-		for _, np := range clusterState.GKEStatus.UpstreamSpec.NodePools {
+		for _, np := range *clusterState.GKEStatus.UpstreamSpec.NodePools {
 			if np.Autoscaling != nil && !(np.Autoscaling.Enabled && np.Autoscaling.MinNodeCount == minCount && np.Autoscaling.MaxNodeCount == maxCount && *np.InitialNodeCount == minCount) {
 				return false
 			}

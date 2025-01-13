@@ -98,12 +98,12 @@ var _ = Describe("P1Import", func() {
 		It("updating a cluster to all windows nodepool should fail", func() {
 			testCaseID = 264
 			_, err := helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
-				updateNodePoolsList := cluster.GKEConfig.NodePools
+				updateNodePoolsList := *cluster.GKEConfig.NodePools
 				for i := 0; i < len(updateNodePoolsList); i++ {
 					updateNodePoolsList[i].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
 				}
 
-				upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
+				upgradedCluster.GKEConfig.NodePools = &updateNodePoolsList
 			})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("at least 1 Linux node pool is required"))
@@ -139,10 +139,10 @@ var _ = Describe("P1Import", func() {
 			testCaseID = 55
 			var err error
 			cluster, err = helper.UpdateCluster(cluster, ctx.RancherAdminClient, func(upgradedCluster *management.Cluster) {
-				updateNodePoolsList := cluster.GKEConfig.NodePools
+				updateNodePoolsList := *cluster.GKEConfig.NodePools
 				updateNodePoolsList[0].Config.ImageType = "WINDOWS_LTSC_CONTAINERD"
 
-				upgradedCluster.GKEConfig.NodePools = updateNodePoolsList
+				upgradedCluster.GKEConfig.NodePools = &updateNodePoolsList
 			})
 			Expect(err).To(BeNil())
 

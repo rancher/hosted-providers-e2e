@@ -79,7 +79,7 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 		// Check if the desired config is set correctly
 		Expect(*cluster.EKSConfig.KubernetesVersion).To(Equal(upgradeToVersion))
 		// ensure nodegroup version is still the same when config is applied
-		for _, ng := range cluster.EKSConfig.NodeGroups {
+		for _, ng := range *cluster.EKSConfig.NodeGroups {
 			Expect(*ng.Version).To(Equal(currentVersion))
 		}
 
@@ -93,7 +93,7 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 		}, tools.SetTimeout(15*time.Minute), 30*time.Second).Should(BeTrue())
 
 		// ensure nodegroup version is same in Rancher
-		for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+		for _, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
 			Expect(*ng.Version).To(Equal(currentVersion))
 		}
 	}
@@ -109,8 +109,9 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 
 	if !useEksctl {
 		upgradedCluster := cluster
-		for i := range upgradedCluster.EKSConfig.NodeGroups {
-			upgradedCluster.EKSConfig.NodeGroups[i].Version = &upgradeToVersion
+		configNodeGroups := *upgradedCluster.EKSConfig.NodeGroups
+		for i := range configNodeGroups {
+			configNodeGroups[i].Version = &upgradeToVersion
 		}
 
 		cluster, err = client.Management.Cluster.Update(cluster, &upgradedCluster)
@@ -122,7 +123,7 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 		}
 	} else {
 		// Upgrade Nodegroup using eksctl due to custom Launch template
-		for _, ng := range cluster.EKSConfig.NodeGroups {
+		for _, ng := range *cluster.EKSConfig.NodeGroups {
 			err = UpgradeEKSNodegroupOnAWS(helpers.GetEKSRegion(), cluster.EKSConfig.DisplayName, *ng.NodegroupName, upgradeToVersion)
 			Expect(err).To(BeNil())
 		}
@@ -134,7 +135,7 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			ginkgo.GinkgoLogr.Info("waiting for the nodegroup upgrade to appear in EKSStatus.UpstreamSpec ...")
-			for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+			for _, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
 				if ng.Version == nil || *ng.Version != upgradeToVersion {
 					return false
 				}
@@ -144,7 +145,7 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 	}
 
 	// Ensure nodegroup version is correct in Rancher after upgrade
-	for _, ng := range cluster.EKSConfig.NodeGroups {
+	for _, ng := range *cluster.EKSConfig.NodeGroups {
 		Expect(*ng.Version).To(Equal(upgradeToVersion))
 	}
 
@@ -155,15 +156,16 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 // if checkClusterConfig is set to true, it will validate that nodegroup has been added successfully
 func AddNodeGroup(cluster *management.Cluster, increaseBy int, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
+	currentNodeGroupNumber := len(*cluster.EKSConfig.NodeGroups)
 
 	// Workaround for eks-operator/issues/406
 	// We use management.EKSClusterConfigSpec instead of the usual eks.ClusterConfig to unmarshal the data without the need of a lot of post-processing.
 	var eksClusterConfig management.EKSClusterConfigSpec
 	config.LoadConfig(eks.EKSClusterConfigConfigurationFileKey, &eksClusterConfig)
-	ngTemplate := eksClusterConfig.NodeGroups[0]
+	nodeGroups := *eksClusterConfig.NodeGroups
+	ngTemplate := nodeGroups[0]
 
-	updateNodeGroupsList := cluster.EKSConfig.NodeGroups
+	updateNodeGroupsList := *cluster.EKSConfig.NodeGroups
 	for i := 1; i <= increaseBy; i++ {
 		newNodeGroup := management.NodeGroup{
 			NodegroupName: pointer.String(namegen.AppendRandomString("ng")),
@@ -175,15 +177,15 @@ func AddNodeGroup(cluster *management.Cluster, increaseBy int, client *rancher.C
 		}
 		updateNodeGroupsList = append([]management.NodeGroup{newNodeGroup}, updateNodeGroupsList...)
 	}
-	upgradedCluster.EKSConfig.NodeGroups = updateNodeGroupsList
+	upgradedCluster.EKSConfig.NodeGroups = &updateNodeGroupsList
 
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
 	Expect(err).To(BeNil())
 
 	if checkClusterConfig {
 		// Check if the desired config is set correctly
-		Expect(len(cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber+increaseBy))
-		for i, ng := range cluster.EKSConfig.NodeGroups {
+		Expect(len(*cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber+increaseBy))
+		for i, ng := range *cluster.EKSConfig.NodeGroups {
 			Expect(ng.NodegroupName).To(Equal(updateNodeGroupsList[i].NodegroupName))
 		}
 	}
@@ -199,10 +201,10 @@ func AddNodeGroup(cluster *management.Cluster, increaseBy int, client *rancher.C
 			ginkgo.GinkgoLogr.Info("Waiting for the total nodegroup count to increase in EKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return len(cluster.EKSStatus.UpstreamSpec.NodeGroups)
+			return len(*cluster.EKSStatus.UpstreamSpec.NodeGroups)
 		}, tools.SetTimeout(15*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodeGroupNumber+increaseBy))
 
-		for i, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+		for i, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
 			Expect(ng.NodegroupName).To(Equal(updateNodeGroupsList[i].NodegroupName))
 		}
 	}
@@ -231,17 +233,18 @@ func AddNodeGroupToConfig(eksClusterConfig eks.ClusterConfig, ngCount int) (eks.
 // TODO: Modify this method to delete a custom qty of DeleteNodeGroup, perhaps by adding an `decreaseBy int` arg
 func DeleteNodeGroup(cluster *management.Cluster, client *rancher.Client, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
-	updateNodeGroupsList := cluster.EKSConfig.NodeGroups[:1]
-	upgradedCluster.EKSConfig.NodeGroups = updateNodeGroupsList
+	currentNodeGroupNumber := len(*cluster.EKSConfig.NodeGroups)
+	configNodeGroups := *cluster.EKSConfig.NodeGroups
+	updateNodeGroupsList := configNodeGroups[:1]
+	upgradedCluster.EKSConfig.NodeGroups = &updateNodeGroupsList
 
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
 	Expect(err).To(BeNil())
 
 	if checkClusterConfig {
 		// Check if the desired config is set correctly
-		Expect(len(cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber-1))
-		for i, ng := range cluster.EKSConfig.NodeGroups {
+		Expect(len(*cluster.EKSConfig.NodeGroups)).Should(BeNumerically("==", currentNodeGroupNumber-1))
+		for i, ng := range *cluster.EKSConfig.NodeGroups {
 			Expect(ng.NodegroupName).To(Equal(updateNodeGroupsList[i].NodegroupName))
 		}
 	}
@@ -256,9 +259,9 @@ func DeleteNodeGroup(cluster *management.Cluster, client *rancher.Client, wait, 
 			ginkgo.GinkgoLogr.Info("Waiting for the total nodegroup count to decrease in EKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return len(cluster.EKSStatus.UpstreamSpec.NodeGroups)
+			return len(*cluster.EKSStatus.UpstreamSpec.NodeGroups)
 		}, tools.SetTimeout(15*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodeGroupNumber-1))
-		for i, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+		for i, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
 			Expect(ng.NodegroupName).To(Equal(updateNodeGroupsList[i].NodegroupName))
 		}
 	}
@@ -270,9 +273,10 @@ func DeleteNodeGroup(cluster *management.Cluster, client *rancher.Client, wait, 
 // if checkClusterConfig is set to true, it will validate that nodegroup has been scaled successfully
 func ScaleNodeGroup(cluster *management.Cluster, client *rancher.Client, nodeCount int64, wait, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	for i := range upgradedCluster.EKSConfig.NodeGroups {
-		upgradedCluster.EKSConfig.NodeGroups[i].DesiredSize = pointer.Int64(nodeCount)
-		upgradedCluster.EKSConfig.NodeGroups[i].MaxSize = pointer.Int64(nodeCount)
+	configNodeGroups := *upgradedCluster.EKSConfig.NodeGroups
+	for i := range configNodeGroups {
+		configNodeGroups[i].DesiredSize = pointer.Int64(nodeCount)
+		configNodeGroups[i].MaxSize = pointer.Int64(nodeCount)
 	}
 
 	cluster, err := client.Management.Cluster.Update(cluster, &upgradedCluster)
@@ -280,8 +284,9 @@ func ScaleNodeGroup(cluster *management.Cluster, client *rancher.Client, nodeCou
 
 	if checkClusterConfig {
 		// Check if the desired config is set correctly
-		for i := range cluster.EKSConfig.NodeGroups {
-			Expect(*cluster.EKSConfig.NodeGroups[i].DesiredSize).To(BeNumerically("==", nodeCount))
+		configNodeGroups = *cluster.EKSConfig.NodeGroups
+		for i := range configNodeGroups {
+			Expect(*configNodeGroups[i].DesiredSize).To(BeNumerically("==", nodeCount))
 		}
 	}
 
@@ -296,8 +301,9 @@ func ScaleNodeGroup(cluster *management.Cluster, client *rancher.Client, nodeCou
 			ginkgo.GinkgoLogr.Info("Waiting for the node count change to appear in EKSStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			for i := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
-				if ng := cluster.EKSStatus.UpstreamSpec.NodeGroups[i]; *ng.DesiredSize != nodeCount {
+			upstreamNodeGroups := *cluster.EKSStatus.UpstreamSpec.NodeGroups
+			for i := range upstreamNodeGroups {
+				if ng := upstreamNodeGroups[i]; *ng.DesiredSize != nodeCount {
 					return false
 				}
 			}
@@ -406,9 +412,10 @@ func UpdateClusterTags(cluster *management.Cluster, client *rancher.Client, tags
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client, tags, labels map[string]string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	for i := range upgradedCluster.EKSConfig.NodeGroups {
-		*upgradedCluster.EKSConfig.NodeGroups[i].Tags = tags
-		*upgradedCluster.EKSConfig.NodeGroups[i].Labels = labels
+	configNodeGroups := *upgradedCluster.EKSConfig.NodeGroups
+	for i := range configNodeGroups {
+		*configNodeGroups[i].Tags = tags
+		*configNodeGroups[i].Labels = labels
 	}
 
 	var err error
@@ -417,7 +424,7 @@ func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client
 
 	if checkClusterConfig {
 		// Check if the desired config is set correctly
-		for _, ng := range cluster.EKSConfig.NodeGroups {
+		for _, ng := range *cluster.EKSConfig.NodeGroups {
 			for key, value := range tags {
 				Expect(*ng.Tags).Should(HaveKeyWithValue(key, value))
 			}
@@ -431,7 +438,7 @@ func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 
-			for _, ng := range cluster.EKSStatus.UpstreamSpec.NodeGroups {
+			for _, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
 				if maps.Equal(tags, *ng.Tags) && maps.Equal(labels, *ng.Labels) {
 					return true
 				}
