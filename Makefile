@@ -19,28 +19,28 @@ deps: ## Install the Go dependencies
 	go mod tidy
 
 e2e-import-tests: deps	## Run the 'P0Import' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Import" ./hosted/${PROVIDER}/p0/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "P0Import" ./hosted/${PROVIDER}/p0/
 
 e2e-provisioning-tests: deps ## Run the 'P0Provisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Provisioning" ./hosted/${PROVIDER}/p0/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "P0Provisioning" ./hosted/${PROVIDER}/p0/
 
 e2e-p1-import-tests: deps	## Run the 'P1Import' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P1Import" ./hosted/${PROVIDER}/p1/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "P1Import" ./hosted/${PROVIDER}/p1/
 
 e2e-p1-provisioning-tests: deps ## Run the 'P1Provisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P1Provisioning" ./hosted/${PROVIDER}/p1/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "P1Provisioning" ./hosted/${PROVIDER}/p1/
 
 e2e-sync-import-tests: deps ## Run "SyncImport" test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SyncImport" ./hosted/${PROVIDER}/p1
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "SyncImport" ./hosted/${PROVIDER}/p1
 
 e2e-sync-provisioning-tests: deps ## Run "SyncProvisioning" test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SyncProvisioning" ./hosted/${PROVIDER}/p1
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "SyncProvisioning" ./hosted/${PROVIDER}/p1
 
 e2e-support-matrix-import-tests: deps ## Run the 'SupportMatrixImport' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SupportMatrixImport" ./hosted/${PROVIDER}/support_matrix/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "SupportMatrixImport" ./hosted/${PROVIDER}/support_matrix/
 
 e2e-support-matrix-provisioning-tests: deps ## Run the 'SupportMatrixProvisioning' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "SupportMatrixProvisioning" ./hosted/${PROVIDER}/support_matrix/
+	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 1 --focus "SupportMatrixProvisioning" ./hosted/${PROVIDER}/support_matrix/
 
 e2e-k8s-chart-support-import-tests-upgrade: deps ## Run the 'K8sChartSupportUpgradeImport' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "K8sChartSupportUpgradeImport" ./hosted/${PROVIDER}/k8s_chart_support/upgrade
