@@ -246,7 +246,7 @@ var _ = Describe("P1Import", func() {
 			testCaseID = 269
 			npUpgradeToVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
 		})
-		FIt("should Update a cluster when a cluster is in Updating State", func() {
+		It("should Update a cluster when a cluster is in Updating State", func() {
 			testCaseID = 303
 			updateClusterWhenUpdating(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
 		})
