@@ -31,8 +31,6 @@ on:
         description: Cleanup downstream clusters after test
         default: true
         type: boolean
-      downstream_k8s_minor_version:
-        description: Downstream cluster minor K8s version to test (e.g., 1.30)
       rancher_installed:
         description: Rancher details if already installed
         default: 'hostname/password'
@@ -62,7 +60,6 @@ jobs:
       tests_to_run: ${{ inputs.tests_to_run }}
       destroy_runner: ${{ inputs.destroy_runner }}
       runner_template: ${{ inputs.runner_template }}
-      downstream_k8s_minor_version: ${{ inputs.downstream_k8s_minor_version }}
       rancher_installed: ${{ inputs.rancher_installed }}
       downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup }}
       proxy: ${{ inputs.proxy }}
