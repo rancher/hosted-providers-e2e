@@ -169,7 +169,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(amiID).To(Or(Equal("AL2_x86_64_GPU"), Equal("AL2023_x86_64_NVIDIA")))
 	})
 
-	FIt("Deploy a cluster with Public/Priv access then disable Public access", func() {
+	It("Deploy a cluster with Public/Priv access then disable Public access", func() {
 		testCaseID = 151
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
 			clusterConfig.PublicAccess = pointer.Bool(true)
@@ -239,7 +239,7 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).To(BeNil())
 			})
 
-			FIt("Update k8s version of node groups - sequential & simultaneous upgrade of multiple node groups", func() {
+			It("Update k8s version of node groups - sequential & simultaneous upgrade of multiple node groups", func() {
 				testCaseID = 153
 				var err error
 				cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, true)
