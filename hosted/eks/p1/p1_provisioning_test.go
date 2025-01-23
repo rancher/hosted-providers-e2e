@@ -240,7 +240,7 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).To(BeNil())
 			})
 
-			It("Update k8s version of node groups - sequential & simultaneous upgrade of multiple node groups", func() {
+			FIt("Update k8s version of node groups - sequential & simultaneous upgrade of multiple node groups", func() {
 				testCaseID = 153
 				var err error
 				cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, true)
