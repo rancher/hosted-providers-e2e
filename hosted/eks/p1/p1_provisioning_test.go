@@ -258,7 +258,7 @@ var _ = Describe("P1Provisioning", func() {
 				err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 				Expect(err).To(BeNil())
 				Eventually(func() bool {
-					cluster, err = helper.UpdateCluster(cluster, ctx.RancherAdminClient, updateFunc)
+					cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 					Expect(err).To(BeNil())
 					nodeGroups := cluster.EKSStatus.UpstreamSpec.NodeGroups
 					for i := 0; i <= 1; i++ {
