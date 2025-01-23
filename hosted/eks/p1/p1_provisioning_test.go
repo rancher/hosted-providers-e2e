@@ -170,6 +170,7 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	It("Deploy a cluster with Public/Priv access then disable Public access", func() {
+		// https://github.com/rancher/eks-operator/issues/752#issuecomment-2609144199
 		testCaseID = 151
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
 			clusterConfig.PublicAccess = pointer.Bool(true)
