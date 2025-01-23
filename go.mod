@@ -76,7 +76,7 @@ require (
 	github.com/rancher/gke-operator v1.10.0 // indirect
 	github.com/rancher/lasso v0.0.0-20240924233157-8f384efc8813 // indirect
 	github.com/rancher/norman v0.0.0-20241001183610-78a520c160ab // indirect
-	github.com/rancher/rancher/pkg/apis v0.0.0-20241113133627-598640d1556c // indirect
+	github.com/rancher/rancher/pkg/apis v0.0.0-20241127174121-c051d99dcded // indirect
 	github.com/rancher/rke v1.7.0-rc.5 // indirect
 	github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20240301001845-4eacc2dabbde // indirect
 	github.com/rancher/wrangler v1.1.2 // indirect
@@ -129,3 +129,5 @@ replace (
 	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
 	k8s.io/client-go => k8s.io/client-go v0.31.1
 )
+
+replace github.com/rancher/shepherd v0.0.0-20241113142845-1338e51b4891 => github.com/valaparthvi/shepherd v0.0.0-20250113150307-791e30f90eea
