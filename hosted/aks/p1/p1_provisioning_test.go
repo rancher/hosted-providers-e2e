@@ -26,6 +26,9 @@ var _ = Describe("P1Provisioning", func() {
 	var k8sVersion string
 
 	BeforeEach(func() {
+		// assigning cluster nil value so that every new test has a fresh value of the variable
+		// this is to avoid using residual value of a cluster in a test that does not use it
+		cluster = nil
 		GinkgoLogr.Info(fmt.Sprintf("Running on process: %d", GinkgoParallelProcess()))
 		var err error
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
@@ -485,9 +488,6 @@ var _ = Describe("P1Provisioning", func() {
 	// Refer: https://github.com/rancher/hosted-providers-e2e/issues/192
 	It("should successfully create 2 clusters in the same RG", func() {
 		testCaseID = 214
-
-		// Setting this to nil ensures we do not use the `cluster` variable value from another test running in parallel with this one.
-		cluster = nil
 
 		// Create the resource group via CLI
 		rgName := namegen.AppendRandomString(helpers.ClusterNamePrefix + "-custom-rg")
