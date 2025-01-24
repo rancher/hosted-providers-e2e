@@ -260,8 +260,6 @@ github.com/rancher/rancher/pkg/apis v0.0.0-20241023011518-955534c18d04 h1:WHianQ
 github.com/rancher/rancher/pkg/apis v0.0.0-20241023011518-955534c18d04/go.mod h1:F+ShRgIUMIFmsHedfp8QZrqLtoUlOG2iDDtuTXIUTds=
 github.com/rancher/rke v1.7.0-rc.1 h1:6rSHO8OoYZmE6TEChPK1clj2fcWtob0WGQvME9BEbmU=
 github.com/rancher/rke v1.7.0-rc.1/go.mod h1:VbDpfxcO2US2+mZUaLPr9vADjHLE7Gg5ZDbNmjKKBWY=
-github.com/rancher/shepherd v0.0.0-20241025145813-8ea8a1fe9750 h1:BntuAnFyQbUw35ZEWVUXUmuL20A52bJ72WE5AOpzsBc=
-github.com/rancher/shepherd v0.0.0-20241025145813-8ea8a1fe9750/go.mod h1:J++Mv5VQPMrxeHO3drDJojpo8PXrfib/psOzmjRl7G4=
 github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20240301001845-4eacc2dabbde h1:x5VZI/0TUx1MeZirh6e0OMAInhCmq6yRvD6897458Ng=
 github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20240301001845-4eacc2dabbde/go.mod h1:04o7UUy7ZFiMDEtHEjO1yS7IkO8TcsgjBl93Fcjq7Gg=
 github.com/rancher/wrangler v1.1.2 h1:oXbXo9k7y/H4drUpb4RM1c++vT9O3rpoNEfyusGykiU=
@@ -293,6 +291,8 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/valaparthvi/shepherd v0.0.0-20250124091632-1ff70483ebcd h1:omo2Ystzt+5ugmJb5VpCxckGvEE+cBprCpdk71CR5tU=
+github.com/valaparthvi/shepherd v0.0.0-20250124091632-1ff70483ebcd/go.mod h1:bvzK93Jifq6qk5SRxcaRByxjmFIj2APAJQ8lLUUK0ZE=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/xlab/treeprint v1.2.0 h1:HzHnuAF1plUN2zGlAFHbSQP2qJ0ZAD3XF5XD7OesXRQ=

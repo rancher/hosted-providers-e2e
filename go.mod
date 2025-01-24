@@ -129,3 +129,5 @@ replace (
 	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
 	k8s.io/client-go => k8s.io/client-go v0.31.1
 )
+
+replace github.com/rancher/shepherd v0.0.0-20241025145813-8ea8a1fe9750 => github.com/valaparthvi/shepherd v0.0.0-20250124091632-1ff70483ebcd
