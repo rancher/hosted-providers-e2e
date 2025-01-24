@@ -27,6 +27,9 @@ var _ = Describe("P1Provisioning", func() {
 	var k8sVersion string
 
 	BeforeEach(func() {
+		// assigning cluster nil value so that every new test has a fresh value of the variable
+		// this is to avoid using residual value of a cluster in a test that does not use it
+		cluster = nil
 		GinkgoLogr.Info(fmt.Sprintf("Running on process: %d", GinkgoParallelProcess()))
 		var err error
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
@@ -102,7 +105,7 @@ var _ = Describe("P1Provisioning", func() {
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
-		for _, np := range cluster.AKSConfig.NodePools {
+		for _, np := range *cluster.AKSConfig.NodePools {
 			npName := *np.Name
 			az := npName[len(npName)-1]
 			Expect(*np.AvailabilityZones).To(Equal([]string{string(az)}))
@@ -179,7 +182,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(k8sVersion))
 
-		initialNPCount := len(cluster.AKSConfig.NodePools)
+		initialNPCount := len(*cluster.AKSConfig.NodePools)
 		cluster, err = helper.AddNodePool(cluster, 3, ctx.RancherAdminClient, false, false)
 		Expect(err).To(BeNil())
 		Expect(cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + 3))
@@ -306,10 +309,10 @@ var _ = Describe("P1Provisioning", func() {
 			}, "1m", "2s").Should(BeTrue())
 		})
 
-		It("should fail to create a cluster with 0 nodepool", func() {
+		It("should fail to create a cluster with nil nodepool", func() {
 			testCaseID = 187
 			updateFunc := func(aksConfig *aks.ClusterConfig) {
-				aksConfig.NodePools = &[]aks.NodePool{}
+				aksConfig.NodePools = nil
 			}
 			var err error
 			cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
@@ -319,6 +322,16 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).NotTo(HaveOccurred())
 				return cluster.Transitioning == "error" && cluster.TransitioningMessage == "at least one NodePool with mode System is required"
 			}, "1m", "2s").Should(BeTrue())
+		})
+
+		It("should fail to create a cluster with an empty nodepool array", func() {
+			updateFunc := func(aksConfig *aks.ClusterConfig) {
+				aksConfig.NodePools = &[]aks.NodePool{}
+			}
+			var err error
+			_, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(ContainSubstring("must have at least one nodepool"))
 		})
 
 		It("should fail to create cluster with Nodepool Max pods per node 9", func() {
@@ -367,7 +380,7 @@ var _ = Describe("P1Provisioning", func() {
 			originalNPMap := make(map[string][]string)
 			newAZ := []string{"3"}
 			updateFunc := func(cluster *management.Cluster) {
-				nodepools := cluster.AKSConfig.NodePools
+				nodepools := *cluster.AKSConfig.NodePools
 				for i := range nodepools {
 					originalNPMap[*nodepools[i].Name] = *nodepools[i].AvailabilityZones
 					nodepools[i].AvailabilityZones = &newAZ
@@ -376,7 +389,7 @@ var _ = Describe("P1Provisioning", func() {
 			var err error
 			cluster, err = helper.UpdateCluster(cluster, ctx.RancherAdminClient, updateFunc)
 			Expect(err).To(BeNil())
-			for _, np := range cluster.AKSConfig.NodePools {
+			for _, np := range *cluster.AKSConfig.NodePools {
 				Expect(*np.AvailabilityZones).To(Equal(newAZ))
 			}
 
@@ -466,9 +479,6 @@ var _ = Describe("P1Provisioning", func() {
 	// Refer: https://github.com/rancher/hosted-providers-e2e/issues/192
 	It("should successfully create 2 clusters in the same RG", func() {
 		testCaseID = 214
-
-		// Setting this to nil ensures we do not use the `cluster` variable value from another test running in parallel with this one.
-		cluster = nil
 
 		// Create the resource group via CLI
 		rgName := namegen.AppendRandomString(helpers.ClusterNamePrefix + "-custom-rg")
@@ -602,7 +612,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(err).To(BeNil())
 
 		Expect(*cluster.AKSConfig.KubernetesVersion).To(Equal(cpK8sVersion))
-		for _, np := range cluster.AKSConfig.NodePools {
+		for _, np := range *cluster.AKSConfig.NodePools {
 			Expect(*np.OrchestratorVersion).To(Equal(cpK8sVersion))
 		}
 
@@ -617,7 +627,7 @@ var _ = Describe("P1Provisioning", func() {
 				return false
 			}
 
-			for _, np := range clusterState.AKSStatus.UpstreamSpec.NodePools {
+			for _, np := range *clusterState.AKSStatus.UpstreamSpec.NodePools {
 				if *np.OrchestratorVersion != cpK8sVersion {
 					return false
 				}
@@ -683,8 +693,8 @@ var _ = Describe("P1Provisioning", func() {
 			testCaseID = 189
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
-			Expect(len(cluster.AKSConfig.NodePools)).To(Equal(2))
-			Expect(len(cluster.AKSStatus.UpstreamSpec.NodePools)).To(Equal(2))
+			Expect(len(*cluster.AKSConfig.NodePools)).To(Equal(2))
+			Expect(len(*cluster.AKSStatus.UpstreamSpec.NodePools)).To(Equal(2))
 		})
 
 		XIt("should to able to delete a nodepool and add a new one with different availability zone", func() {

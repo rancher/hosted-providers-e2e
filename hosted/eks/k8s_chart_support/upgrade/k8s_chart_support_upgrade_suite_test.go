@@ -186,7 +186,8 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 
 	By("making a change to the cluster (scaling the node up) to validate functionality after chart downgrade", func() {
 		var err error
-		initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
+		configNodeGroups := *cluster.EKSConfig.NodeGroups
+		initialNodeCount := *configNodeGroups[0].DesiredSize
 		const (
 			increaseBy = 1
 		)
@@ -199,7 +200,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 	})
 
 	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
-		currentNodeGroupNumber := len(cluster.EKSConfig.NodeGroups)
+		currentNodeGroupNumber := len(*cluster.EKSConfig.NodeGroups)
 		var err error
 		cluster, err = helper.AddNodeGroup(cluster, 1, ctx.RancherAdminClient, false, false)
 		Expect(err).To(BeNil())
@@ -214,7 +215,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 		Eventually(func() int {
 			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return len(cluster.EKSStatus.UpstreamSpec.NodeGroups)
+			return len(*cluster.EKSStatus.UpstreamSpec.NodeGroups)
 		}, tools.SetTimeout(20*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodeGroupNumber+1))
 	})
 

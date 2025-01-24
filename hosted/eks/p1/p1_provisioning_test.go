@@ -24,6 +24,10 @@ var _ = Describe("P1Provisioning", func() {
 	)
 
 	var _ = BeforeEach(func() {
+		// assigning cluster nil value so that every new test has a fresh value of the variable
+		// this is to avoid using residual value of a cluster in a test that does not use it
+		cluster = nil
+
 		var err error
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 		Expect(err).To(BeNil())
@@ -41,11 +45,11 @@ var _ = Describe("P1Provisioning", func() {
 
 	Context("Provisioning/Editing a cluster with invalid config", func() {
 
-		It("should error out to provision a cluster with no nodegroups", func() {
+		It("should error out to provision a cluster when nodegroups is nil", func() {
 			testCaseID = 141
 
 			updateFunc := func(clusterConfig *eks.ClusterConfig) {
-				*clusterConfig.NodeGroupsConfig = nil
+				clusterConfig.NodeGroupsConfig = nil
 			}
 
 			var err error
@@ -58,6 +62,16 @@ var _ = Describe("P1Provisioning", func() {
 				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Cluster must have at least one managed nodegroup or one self-managed node")
 			}, "10m", "30s").Should(BeTrue())
 
+		})
+
+		It("should fail to create cluster when nodegroups is an empty array", func() {
+			createFunc := func(clusterConfig *eks.ClusterConfig) {
+				clusterConfig.NodeGroupsConfig = &[]eks.NodeGroupConfig{}
+			}
+			var err error
+			_, err = helper.CreateEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, region, createFunc)
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(ContainSubstring("must have at least one nodegroup"))
 		})
 
 		It("should fail to provision a cluster with duplicate nodegroup names", func() {
@@ -294,6 +308,11 @@ var _ = Describe("P1Provisioning", func() {
 		It("Update Tags and Labels", func() {
 			testCaseID = 131
 			updateTagsAndLabels(cluster, ctx.RancherAdminClient)
+		})
+
+		It("should fail to Delete all Node groups", func() {
+			testCaseID = 134
+			deleteAllNodeGroupsCheck(cluster, ctx.RancherAdminClient)
 		})
 	})
 })
