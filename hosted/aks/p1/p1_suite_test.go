@@ -179,7 +179,7 @@ func npUpgradeToVersionGTCPCheck(cluster *management.Cluster, client *rancher.Cl
 // Qase ID: 223 and 303
 func updateClusterWhenUpdating(cluster *management.Cluster, client *rancher.Client, upgradeK8sVersion string) {
 	var err error
-	initialNPLength := len(cluster.AKSConfig.NodePools)
+	initialNPLength := len(*cluster.AKSConfig.NodePools)
 	cluster, err = helper.AddNodePool(cluster, 1, client, false, false)
 	Expect(err).To(BeNil())
 
@@ -194,7 +194,7 @@ func updateClusterWhenUpdating(cluster *management.Cluster, client *rancher.Clie
 	Eventually(func() int {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
-		return len(cluster.AKSStatus.UpstreamSpec.NodePools)
+		return len(*cluster.AKSStatus.UpstreamSpec.NodePools)
 	}, "10m", "5s").Should(BeEquivalentTo(initialNPLength + 1))
 }
 
