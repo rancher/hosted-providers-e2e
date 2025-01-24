@@ -142,7 +142,7 @@ var _ = Describe("P1Provisioning", func() {
 		})
 	})
 
-	FIt("should successfully Provision EKS with secrets encryption (KMS)", func() {
+	It("should successfully Provision EKS with secrets encryption (KMS)", func() {
 		testCaseID = 149
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
 			clusterConfig.KmsKey = pointer.String(os.Getenv("AWS_KMS_KEY"))
