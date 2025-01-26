@@ -67,4 +67,6 @@ jobs:
       downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup }}
       proxy: ${{ inputs.proxy }}
       backup_operator_version: ${{ inputs.backup_operator_version }}
+      qase_run_id: 'auto'
+
 

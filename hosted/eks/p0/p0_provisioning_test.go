@@ -52,6 +52,10 @@ var _ = Describe("P0Provisioning", func() {
 			var cluster *management.Cluster
 
 			BeforeEach(func() {
+				if testData.isUpgrade && helpers.SkipUpgradeTests {
+					Skip("Skipping upgrade tests...")
+				}
+
 				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, testData.isUpgrade)
 				Expect(err).To(BeNil())
 				GinkgoLogr.Info(fmt.Sprintf("While provisioning, using K8s version %s for cluster %s", k8sVersion, clusterName))

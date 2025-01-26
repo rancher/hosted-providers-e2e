@@ -66,6 +66,10 @@ var _ = Describe("P0Provisioning", func() {
 			var cluster *management.Cluster
 
 			BeforeEach(func() {
+				if testData.isUpgrade && helpers.SkipUpgradeTests {
+					Skip("Skipping upgrade tests...")
+				}
+
 				if strings.Contains(testData.testTitle, "regional") {
 					zone = ""
 					updateFunc = func(clusterConfig *gke.ClusterConfig) {

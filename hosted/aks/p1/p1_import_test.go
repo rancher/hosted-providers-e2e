@@ -108,6 +108,9 @@ var _ = Describe("P1Import", func() {
 	})
 
 	It("should successfully Import a cluster in Region without AZ", func() {
+		if helpers.SkipUpgradeTests {
+			Skip("Skipping test for v2.8 ...")
+		}
 		location = "ukwest"
 		testCaseID = 276
 
@@ -142,6 +145,10 @@ var _ = Describe("P1Import", func() {
 	When("a cluster with custom kubelet and os config is created and imported for upgrade", func() {
 		var upgradeToVersion string
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping upgrade tests...")
+			}
+
 			kubeletConfigJsonData := `{"cpuManagerPolicy": "static", "cpuCfsQuota": true, "cpuCfsQuotaPeriod": "200ms", "imageGcHighThreshold": 90, "imageGcLowThreshold": 70, "topologyManagerPolicy": "best-effort", "allowedUnsafeSysctls": ["kernel.msg*","net.*"], "failSwapOn": false}`
 			kubeletConfigDotJson, err := os.CreateTemp("", "custom-kubelet-*.json")
 			Expect(err).ToNot(HaveOccurred())
@@ -226,6 +233,10 @@ var _ = Describe("P1Import", func() {
 	When("a cluster is created and imported for upgrade", func() {
 		var upgradeK8sVersion string
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping upgrade tests...")
+			}
+
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())

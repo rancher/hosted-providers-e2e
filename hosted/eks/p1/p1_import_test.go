@@ -40,6 +40,10 @@ var _ = Describe("P1Import", func() {
 		var upgradeToVersion string
 
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping upgrade tests...")
+			}
+
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)
 			Expect(err).To(BeNil())

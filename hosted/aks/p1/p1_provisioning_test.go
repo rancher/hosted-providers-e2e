@@ -45,6 +45,9 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	It("should successfully Create a cluster in Region without AZ", func() {
+		if helpers.SkipUpgradeTests {
+			Skip("Skipping test for v2.8 ...")
+		}
 		location = "ukwest"
 		testCaseID = 275
 
@@ -362,6 +365,10 @@ var _ = Describe("P1Provisioning", func() {
 		})
 
 		It("should not be able to edit availability zone of a nodepool", func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping test for v2.8 ...")
+			}
+
 			// Refer: https://github.com/rancher/aks-operator/issues/669
 			testCaseID = 195
 			originalNPMap := make(map[string][]string)
@@ -510,6 +517,10 @@ var _ = Describe("P1Provisioning", func() {
 	When("a cluster is created for upgrade", func() {
 		var upgradeK8sVersion string
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping upgrade tests...")
+			}
+
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())
@@ -579,8 +590,11 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	It("should not be able to select NP K8s version; CP K8s version should take precedence", func() {
-		testCaseID = 182
+		if helpers.SkipUpgradeTests {
+			Skip("Skipping upgrade tests...")
+		}
 
+		testCaseID = 182
 		k8sVersions, err := helper.ListSingleVariantAKSAllVersions(ctx.RancherAdminClient, ctx.CloudCredID, location)
 		Expect(err).To(BeNil())
 		Expect(len(k8sVersions)).To(BeNumerically(">=", 2))

@@ -270,6 +270,10 @@ func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) 
 	})
 
 	By("disabling the monitoring", func() {
+		if helpers.SkipUpgradeTests {
+			Skip("Skipping test for v2.8 ...")
+		}
+
 		updateFunc := func(cluster *management.Cluster) {
 			cluster.AKSConfig.Monitoring = pointer.Bool(false)
 		}

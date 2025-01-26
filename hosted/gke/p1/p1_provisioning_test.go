@@ -117,6 +117,9 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	It("should be able to create a cluster with CP K8s version v-XX-1 and NP K8s version v-XX should use v-XX-1 for both CP and NP", func() {
+		if helpers.SkipUpgradeTests {
+			Skip("Skipping upgrade tests...")
+		}
 		testCaseID = 33
 
 		k8sVersions, err := helper.ListSingleVariantGKEAvailableVersions(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "")
@@ -297,6 +300,10 @@ var _ = Describe("P1Provisioning", func() {
 	When("a cluster is created for upgrade scenarios", func() {
 
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping upgrade tests...")
+			}
+
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", true)
 			Expect(err).To(BeNil())

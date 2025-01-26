@@ -157,6 +157,10 @@ var _ = Describe("P1Import", func() {
 	When("a cluster is created for upgrade scenario", func() {
 
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping upgrade tests...")
+			}
+
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", true)
 			Expect(err).To(BeNil())
