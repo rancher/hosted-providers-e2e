@@ -55,6 +55,9 @@ var _ = Describe("SyncImport", func() {
 		var availableUpgradeVersions []string
 
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping test for v2.8 ...")
+			}
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())

@@ -63,9 +63,11 @@ var _ = Describe("P0Provisioning", func() {
 	} {
 		testData := testData
 		When("a cluster is created", func() {
-			var cluster *management.Cluster
-
 			BeforeEach(func() {
+				if testData.isUpgrade && helpers.SkipUpgradeTests {
+					Skip("Skipping test for v2.8 ...")
+				}
+
 				if strings.Contains(testData.testTitle, "regional") {
 					zone = ""
 					updateFunc = func(clusterConfig *gke.ClusterConfig) {

@@ -49,9 +49,10 @@ var _ = Describe("P0Import", func() {
 	} {
 		testData := testData
 		When("a cluster is import", func() {
-			var cluster *management.Cluster
-
 			BeforeEach(func() {
+				if testData.isUpgrade && helpers.SkipUpgradeTests {
+					Skip("Skipping test for v2.8 ...")
+				}
 				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", testData.isUpgrade)
 				Expect(err).NotTo(HaveOccurred())
 				GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))

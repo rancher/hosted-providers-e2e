@@ -5,7 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/eks/helper"
@@ -13,11 +12,7 @@ import (
 )
 
 var _ = Describe("P1Import", func() {
-	var (
-		cluster    *management.Cluster
-		k8sVersion string
-	)
-
+	var k8sVersion string
 	BeforeEach(func() {
 		var err error
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
@@ -40,6 +35,10 @@ var _ = Describe("P1Import", func() {
 		var upgradeToVersion string
 
 		BeforeEach(func() {
+			if helpers.SkipUpgradeTests {
+				Skip("Skipping test for v2.8 ...")
+			}
+
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)
 			Expect(err).To(BeNil())
