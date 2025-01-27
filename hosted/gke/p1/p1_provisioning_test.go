@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/cloudcredentials"
+	"github.com/rancher/shepherd/extensions/cloudcredentials/google"
 	"github.com/rancher/shepherd/extensions/clusters/gke"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 	"k8s.io/utils/pointer"
@@ -44,6 +47,51 @@ var _ = Describe("P1Provisioning", func() {
 			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, "@!invalid-gke-name-@#", ctx.CloudCredID, k8sVersion, zone, "", project, nil)
 			Expect(err).ToNot(BeNil())
 			Expect(err.Error()).To(ContainSubstring("InvalidFormat"))
+		})
+
+		It("User should not be able to add cluster with invalid GKE creds in Rancher", func() {
+			testCaseID = 2
+			By("creating invalid creds")
+			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: "{\"invalid-key\":\"invalid-value\"}"}}
+			cloudCredential, err := google.CreateGoogleCloudCredentials(ctx.RancherAdminClient, cloudCredentialConfig)
+			Expect(err).To(BeNil())
+			cloudCredentialID := fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name)
+
+			By("creating the cluster")
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, cloudCredentialID, k8sVersion, zone, "", project, nil)
+			Expect(err).To(BeNil())
+			Eventually(func() bool {
+				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return cluster.Transitioning == "error"
+			}, "2m", "3s").Should(BeTrue())
+		})
+
+		It("User should not be able to add a cluster using an expired GKE creds", func() {
+			testCaseID = 6
+			By("adding the creds")
+			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: os.Getenv("GOOGLE_APPLICATIONS_CREDENTIALS_TEST_CREDS")}}
+			cloudCredential, err := google.CreateGoogleCloudCredentials(ctx.RancherAdminClient, cloudCredentialConfig)
+			Expect(err).To(BeNil())
+			cloudCredentialID := fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name)
+
+			By("disabling the creds")
+			const clientID = "hosted-providers-ci-creds-test"
+			err = helper.EnableDisableServiceAccountOnGCloud(clientID, project, "disable")
+			Expect(err).To(BeNil())
+			defer func() {
+				By("cleanup: enabling the creds")
+				err = helper.EnableDisableServiceAccountOnGCloud(clientID, project, "enable")
+				Expect(err).To(BeNil())
+			}()
+
+			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, cloudCredentialID, k8sVersion, zone, "", project, nil)
+			Expect(err).To(BeNil())
+			Eventually(func() bool {
+				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "cannot fetch token")
+			}, "2m", "3s").Should(BeTrue())
 		})
 
 		It("should fail to provision a cluster with invalid nodepool name", func() {

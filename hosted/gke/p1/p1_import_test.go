@@ -7,6 +7,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
+	"github.com/rancher/shepherd/extensions/cloudcredentials"
+	"github.com/rancher/shepherd/extensions/cloudcredentials/google"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -31,6 +33,33 @@ var _ = Describe("P1Import", func() {
 		} else {
 			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
+	})
+
+	When("a cluster is created", func() {
+		BeforeEach(func() {
+			var err error
+			err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
+			Expect(err).To(BeNil())
+		})
+
+		It("User should not be able to import cluster with invalid GKE creds in Rancher", func() {
+			testCaseID = 305
+
+			By("creating invalid creds")
+			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: "{\"invalid-key\":\"invalid-value\"}"}}
+			cloudCredential, err := google.CreateGoogleCloudCredentials(ctx.RancherAdminClient, cloudCredentialConfig)
+			Expect(err).To(BeNil())
+			cloudCredentialID := fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name)
+
+			By("importing the cluster")
+			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherAdminClient, clusterName, cloudCredentialID, zone, project)
+			Expect(err).To(BeNil())
+			Eventually(func() bool {
+				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+				Expect(err).To(BeNil())
+				return cluster.Transitioning == "error"
+			}, "2m", "3s").Should(BeTrue())
+		})
 	})
 
 	When("a cluster is created and imported", func() {
