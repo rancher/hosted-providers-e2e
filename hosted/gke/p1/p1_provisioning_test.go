@@ -70,7 +70,7 @@ var _ = Describe("P1Provisioning", func() {
 		It("User should not be able to add a cluster using an expired GKE creds", func() {
 			testCaseID = 6
 			By("adding the creds")
-			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: os.Getenv("GOOGLE_APPLICATIONS_CREDENTIALS_TEST_CREDS")}}
+			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: os.Getenv("SECONDARY_GCP_CREDENTIALS")}}
 			cloudCredential, err := google.CreateGoogleCloudCredentials(ctx.RancherAdminClient, cloudCredentialConfig)
 			Expect(err).To(BeNil())
 			cloudCredentialID := fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name)
@@ -85,6 +85,7 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).To(BeNil())
 			}()
 
+			By("provisioning the cluster")
 			cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, cloudCredentialID, k8sVersion, zone, "", project, nil)
 			Expect(err).To(BeNil())
 			Eventually(func() bool {
