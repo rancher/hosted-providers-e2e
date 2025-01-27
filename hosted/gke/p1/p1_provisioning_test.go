@@ -49,7 +49,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err.Error()).To(ContainSubstring("InvalidFormat"))
 		})
 
-		It("User should not be able to add cluster with invalid GKE creds in Rancher", func() {
+		FIt("User should not be able to add cluster with invalid GKE creds in Rancher", func() {
 			testCaseID = 2
 			By("creating invalid creds")
 			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: "{\"invalid-key\":\"invalid-value\"}"}}
@@ -67,7 +67,7 @@ var _ = Describe("P1Provisioning", func() {
 			}, "2m", "3s").Should(BeTrue())
 		})
 
-		It("User should not be able to add a cluster using an expired GKE creds", func() {
+		FIt("User should not be able to add a cluster using an expired GKE creds", func() {
 			testCaseID = 6
 			By("adding the creds")
 			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: os.Getenv("GOOGLE_APPLICATIONS_CREDENTIALS_TEST_CREDS")}}

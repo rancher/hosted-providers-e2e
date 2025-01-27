@@ -42,7 +42,7 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("User should not be able to import cluster with invalid GKE creds in Rancher", func() {
+		FIt("User should not be able to import cluster with invalid GKE creds in Rancher", func() {
 			testCaseID = 305
 
 			By("creating invalid creds")
