@@ -311,7 +311,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateTagsAndLabels(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("Update the cloud creds", func() {
+		It("Update the cloud creds", func() {
 			testCaseID = 109
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})

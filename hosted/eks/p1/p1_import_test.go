@@ -183,7 +183,7 @@ var _ = Describe("P1Import", func() {
 			Expect(cluster.EKSStatus.UpstreamSpec.NodeGroups).To(HaveLen(nodepoolcount + 1))
 		})
 
-		FIt("Update the cloud creds", func() {
+		It("Update the cloud creds", func() {
 			testCaseID = 155
 			updateCloudCredentialsCheck(cluster, ctx.RancherAdminClient)
 		})
