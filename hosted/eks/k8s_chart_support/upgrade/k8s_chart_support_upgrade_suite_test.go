@@ -28,6 +28,7 @@ var (
 	clusterName, k8sVersion string
 	region                  = helpers.GetEKSRegion()
 	testCaseID              int64
+	k                       = kubectl.New()
 )
 
 func TestK8sChartSupportUpgrade(t *testing.T) {
@@ -36,20 +37,17 @@ func TestK8sChartSupportUpgrade(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
-	Expect(helpers.RancherVersion).ToNot(BeEmpty())
 	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.9-head)
-	Expect(helpers.RancherVersion).ToNot(ContainSubstring("devel"))
+	Expect(helpers.RancherVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
 
 	Expect(helpers.RancherUpgradeVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
-	By("Adding the necessary chart repos", func() {
-		helpers.AddRancherCharts()
-	})
-
 	By(fmt.Sprintf("Installing Rancher Manager v%s", helpers.RancherVersion), func() {
-		helpers.DeployRancherManager(helpers.RancherVersion, true)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
 	})
 
 	helpers.CommonSynchronizedBeforeSuite()
@@ -69,7 +67,9 @@ var _ = AfterEach(func() {
 	// Restoring rancher back to its original state is necessary because in case DOWNSTREAM_CLUSTER_CLEANUP is set to false; in which case clusters will be retained for the next test.
 	// Once the operator is uninstalled, it might be reinstalled since the cluster exists, and installing rancher back to its original state ensures that the version is not the one we want to test.
 	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherVersion), func() {
-		helpers.DeployRancherManager(helpers.RancherVersion, true)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
 	})
 
 	By("Uninstalling the existing operator charts", func() {
@@ -98,10 +98,13 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 	})
 
 	By("upgrading rancher", func() {
-		helpers.DeployRancherManager(rancherUpgradedVersion, true)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(rancherUpgradedVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
+
 		By("ensuring operator pods are also up", func() {
 			Eventually(func() error {
-				return kubectl.New().WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
+				return k.WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
 		By("regenerating the token and initiating a new rancher client", func() {

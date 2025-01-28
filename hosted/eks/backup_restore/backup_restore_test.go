@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
+
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
@@ -68,7 +69,7 @@ var _ = Describe("BackupRestore", func() {
 		})
 
 		By("Performing post migration installations: Installing Rancher Manager", func() {
-			rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions()
+			rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
 			helpers.InstallRancherManager(k, os.Getenv("RANCHER_HOSTNAME"), rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
 		})
 

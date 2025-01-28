@@ -1,0 +1,62 @@
+name: K8s Chart Upgrade Test
+run-name: Rancher `${{ inputs.rancher_version }}` on `${{ inputs.k3s_version }}` running `${{ inputs.tests_to_run }}`
+
+on:
+  workflow_dispatch:
+    inputs:
+      rancher_version:
+        description: Rancher version channel/version. This must be a released stable rancher version.
+        required: true
+        type: string
+        default: latest/2.9
+      rancher_upgrade_version:
+        description: Rancher upgrade version
+        required: true
+        type: string
+        default: latest/devel/2.10
+      k8s_upgrade_minor_version:
+        description: K8s minor version to test
+        required: true
+        type: string
+      k3s_version:
+        description: k3s version of local cluster
+        required: true
+        type: string
+        default: v1.30.5+k3s1
+      runner_template:
+        description: Runner template to use
+        default: hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v3
+        type: string
+      destroy_runner:
+        description: Destroy the auto-generated self-hosted runner
+        default: true
+        type: boolean
+      downstream_cluster_cleanup:
+        description: Cleanup downstream clusters after test
+        default: true
+        type: boolean
+      tests_to_run:
+        description: Tests to run
+        required: true
+        default: k8s_chart_support_upgrade_provisioning/k8s_chart_support_upgrade_import
+
+
+jobs:
+  e2e-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [aks, eks, gke]
+    uses: ./.github/workflows/main.yaml
+    secrets: inherit
+    with:
+      hosted_provider: ${{ matrix.provider }}
+      rancher_version: ${{ inputs.rancher_version }}
+      rancher_upgrade_version: ${{ inputs.rancher_upgrade_version }}
+      k8s_upgrade_minor_version: ${{ inputs.k8s_upgrade_minor_version }}
+      k3s_version: ${{ inputs.k3s_version }}
+      tests_to_run: ${{ inputs.tests_to_run }}
+      destroy_runner: ${{ inputs.destroy_runner }}
+      runner_template: ${{ inputs.runner_template }}
+      rancher_installed: 'skip' #passing a random value since rancher will only be installed if this value is 'hostname/provider'
+      downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup }}
