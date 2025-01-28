@@ -46,12 +46,12 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err.Error()).To(ContainSubstring("InvalidFormat"))
 		})
 
-		FIt("User should not be able to add cluster with invalid GKE creds in Rancher", func() {
+		It("User should not be able to add cluster with invalid GKE creds in Rancher", func() {
 			testCaseID = 2
 			invalidCredCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("User should not be able to add a cluster using an expired GKE creds", func() {
+		It("User should not be able to add a cluster using an expired GKE creds", func() {
 			testCaseID = 6
 			expiredCredCheck(cluster, ctx.RancherAdminClient)
 		})

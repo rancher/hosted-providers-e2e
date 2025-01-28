@@ -39,12 +39,12 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 		})
 
-		FIt("User should not be able to import a cluster using an expired GKE creds", func() {
+		It("User should not be able to import a cluster using an expired GKE creds", func() {
 			testCaseID = 305
 			expiredCredCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("User should not be able to import cluster with invalid GKE creds in Rancher", func() {
+		It("User should not be able to import cluster with invalid GKE creds in Rancher", func() {
 			testCaseID = 306
 			invalidCredCheck(cluster, ctx.RancherAdminClient)
 		})
