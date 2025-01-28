@@ -2,14 +2,11 @@ package p1_test
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/cloudcredentials"
-	"github.com/rancher/shepherd/extensions/cloudcredentials/google"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -45,49 +42,12 @@ var _ = Describe("P1Import", func() {
 
 		It("User should not be able to import a cluster using an expired GKE creds", func() {
 			testCaseID = 305
-			By("adding the creds")
-			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: os.Getenv("SECONDARY_GCP_CREDENTIALS")}}
-			cloudCredential, err := google.CreateGoogleCloudCredentials(ctx.RancherAdminClient, cloudCredentialConfig)
-			Expect(err).To(BeNil())
-			cloudCredentialID := fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name)
-
-			By("disabling the creds")
-			const clientID = "hosted-providers-ci-creds-test"
-			err = helper.EnableDisableServiceAccountOnGCloud(clientID, project, "disable")
-			Expect(err).To(BeNil())
-			defer func() {
-				By("cleanup: enabling the creds")
-				err = helper.EnableDisableServiceAccountOnGCloud(clientID, project, "enable")
-				Expect(err).To(BeNil())
-			}()
-
-			By("importing the cluster")
-			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherAdminClient, clusterName, cloudCredentialID, zone, project)
-			Expect(err).To(BeNil())
-			Eventually(func() bool {
-				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
-				Expect(err).To(BeNil())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "cannot fetch token")
-			}, "2m", "3s").Should(BeTrue())
+			expiredCredCheck(cluster, ctx.RancherAdminClient)
 		})
 
 		It("User should not be able to import cluster with invalid GKE creds in Rancher", func() {
 			testCaseID = 306
-
-			By("creating invalid creds")
-			cloudCredentialConfig := cloudcredentials.CloudCredential{GoogleCredentialConfig: &cloudcredentials.GoogleCredentialConfig{AuthEncodedJSON: "{\"invalid-key\":\"invalid-value\"}"}}
-			cloudCredential, err := google.CreateGoogleCloudCredentials(ctx.RancherAdminClient, cloudCredentialConfig)
-			Expect(err).To(BeNil())
-			cloudCredentialID := fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name)
-
-			By("importing the cluster")
-			cluster, err = helper.ImportGKEHostedCluster(ctx.RancherAdminClient, clusterName, cloudCredentialID, zone, project)
-			Expect(err).To(BeNil())
-			Eventually(func() bool {
-				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
-				Expect(err).To(BeNil())
-				return cluster.Transitioning == "error"
-			}, "2m", "3s").Should(BeTrue())
+			invalidCredCheck(cluster, ctx.RancherAdminClient)
 		})
 	})
 
