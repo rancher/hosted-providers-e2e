@@ -26,12 +26,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-const (
-	backupResourceName  = "hp-backup"
-	restoreResourceName = "hp-restore"
-)
-
-var _ = Describe("BackupRestore", func() {
+var _ = Describe("BackupRestoreProvisioning", func() {
 	// Create kubectl context
 	// Default timeout is too small, so New() cannot be used
 	k := &kubectl.Kubectl{
@@ -41,7 +36,7 @@ var _ = Describe("BackupRestore", func() {
 	}
 
 	It("Do a full backup/restore test", func() {
-		testCaseID = 246 // Report to Qase
+		testCaseID = 164 // Report to Qase
 		By("Checking hosted cluster is ready", func() {
 			helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 		})

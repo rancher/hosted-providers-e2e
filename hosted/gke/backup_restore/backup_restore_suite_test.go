@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	increaseBy = 1
+	increaseBy          = 1
+	backupResourceName  = "hp-backup"
+	restoreResourceName = "hp-restore"
 )
 
 var (
@@ -66,10 +68,19 @@ var _ = BeforeEach(func() {
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 	k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", false)
 	Expect(err).NotTo(HaveOccurred())
-
 	GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
-	cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, zone, "", project, nil)
-	Expect(err).To(BeNil())
+
+	if helpers.IsImport {
+		By("importing the cluster")
+		err = helper.CreateGKEClusterOnGCloud(zone, clusterName, project, k8sVersion)
+		Expect(err).To(BeNil())
+		cluster, err = helper.ImportGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, zone, project)
+		Expect(err).To(BeNil())
+	} else {
+		By("provisioning the cluster")
+		cluster, err = helper.CreateGKEHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, zone, "", project, nil)
+		Expect(err).To(BeNil())
+	}
 	cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 	Expect(err).To(BeNil())
 })
@@ -78,6 +89,10 @@ var _ = AfterEach(func() {
 	if ctx.ClusterCleanup && cluster != nil {
 		err := helper.DeleteGKEHostCluster(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
+		if helpers.IsImport {
+			err = helper.DeleteGKEClusterOnGCloud(zone, project, clusterName)
+			Expect(err).To(BeNil())
+		}
 	} else {
 		fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 	}
