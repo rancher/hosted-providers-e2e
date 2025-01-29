@@ -58,5 +58,5 @@ jobs:
       tests_to_run: ${{ inputs.tests_to_run }}
       destroy_runner: ${{ inputs.destroy_runner }}
       runner_template: ${{ inputs.runner_template }}
-      rancher_installed: 'skip' #passing a random value since rancher will only be installed if this value is 'hostname/provider'
+      rancher_installed: 'hostname/password' # we pass hostname/password, but rancher will not be installed since NO_RANCHER_INSTALL will be set to true
       downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup }}

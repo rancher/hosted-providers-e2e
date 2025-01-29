@@ -220,6 +220,7 @@ jobs:
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
           PROXY_HOST: ${{ env.PROXY_HOST }}
           RANCHER_BEHIND_PROXY: ${{ env.RANCHER_BEHIND_PROXY }}
+          NO_INSTALL_RANCHER: ${{ contains(inputs.test_to_run, 'k8s_chart_support_upgrade') }}
         run: |
           if [ ${{ inputs.operator_nightly_chart }} == true ]; then
             export NIGHTLY_CHART="enabled"
