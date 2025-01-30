@@ -18,15 +18,8 @@ const (
 )
 
 var (
-	RancherPassword = os.Getenv("RANCHER_PASSWORD")
-	RancherHostname = os.Getenv("RANCHER_HOSTNAME")
-	RancherChannel  = func() string {
-		if channel := os.Getenv("RANCHER_CHANNEL"); channel != "" {
-			return channel
-		} else {
-			return "latest"
-		}
-	}()
+	RancherPassword   = os.Getenv("RANCHER_PASSWORD")
+	RancherHostname   = os.Getenv("RANCHER_HOSTNAME")
 	Provider          = os.Getenv("PROVIDER")
 	testuser, _       = user.Current()
 	clusterCleanup, _ = strconv.ParseBool(os.Getenv("DOWNSTREAM_CLUSTER_CLEANUP"))

@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
+
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
@@ -42,13 +43,17 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 			helpers.InstallCertManager(k, proxy, proxyHost)
 		})
 
-		By("Installing Rancher Manager", func() {
-			helpers.InstallRancherManager(k, rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, proxy, nightlyChart)
-		})
+		if noInstallRancher != "true" {
+			By("Installing Rancher Manager", func() {
+				helpers.InstallRancherManager(k, rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, proxy, nightlyChart)
+			})
 
-		By("Checking Rancher Deployments", func() {
-			helpers.CheckRancherDeployments(k)
-		})
+			By("Checking Rancher Deployments", func() {
+				helpers.CheckRancherDeployments(k)
+			})
+		} else {
+			GinkgoLogr.Info("Skipping Rancher Manager installation; NO_INSTALL_RANCHER=\"true\"")
+		}
 
 		if nightlyChart == "enabled" {
 			By(fmt.Sprintf("Install nightly rancher-%s-operator via Helm", providerOperator), func() {

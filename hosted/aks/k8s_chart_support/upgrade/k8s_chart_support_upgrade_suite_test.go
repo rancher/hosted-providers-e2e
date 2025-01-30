@@ -28,6 +28,7 @@ var (
 	clusterName, k8sVersion string
 	testCaseID              int64
 	location                = helpers.GetAKSLocation()
+	k                       = kubectl.New()
 )
 
 func TestK8sChartSupportUpgrade(t *testing.T) {
@@ -36,21 +37,19 @@ func TestK8sChartSupportUpgrade(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
-	Expect(helpers.RancherVersion).ToNot(BeEmpty())
 	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.9-head)
-	Expect(helpers.RancherVersion).ToNot(ContainSubstring("devel"))
+	Expect(helpers.RancherVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
 
 	Expect(helpers.RancherUpgradeVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
-	By("Adding the necessary chart repos", func() {
-		helpers.AddRancherCharts()
+	By(fmt.Sprintf("Installing Rancher Manager v%s", helpers.RancherVersion), func() {
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
 	})
 
-	By(fmt.Sprintf("Installing Rancher Manager v%s", helpers.RancherVersion), func() {
-		helpers.DeployRancherManager(helpers.RancherVersion, true)
-	})
 	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
 
@@ -67,7 +66,9 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	// The test must restore the env to its original state, so we install rancher back to its original version and uninstall the operator charts
 	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherVersion), func() {
-		helpers.DeployRancherManager(helpers.RancherVersion, true)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
 	})
 
 	By("Uninstalling the existing operator charts", func() {
@@ -97,10 +98,13 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 	})
 
 	By("upgrading rancher", func() {
-		helpers.DeployRancherManager(rancherUpgradedVersion, true)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(rancherUpgradedVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
+
 		By("ensuring operator pods are also up", func() {
 			Eventually(func() error {
-				return kubectl.New().WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
+				return k.WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
 		By("regenerating the token and initiating a new rancher client", func() {
@@ -117,15 +121,6 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 			rancherClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
 			Expect(err).To(BeNil())
 			ctx.RancherAdminClient = rancherClient
-
-			setting := new(management.Setting)
-			resp, err := rancherClient.Management.Setting.ByID("server-url")
-			Expect(err).To(BeNil())
-
-			setting.Source = "env"
-			setting.Value = fmt.Sprintf("https://%s", hostname)
-			resp, err = rancherClient.Management.Setting.Update(resp, setting)
-			Expect(err).To(BeNil())
 
 			var isConnected bool
 			isConnected, err = ctx.RancherAdminClient.IsConnected()

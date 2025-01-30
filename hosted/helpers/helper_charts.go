@@ -15,11 +15,9 @@ import (
 	"github.com/rancher/shepherd/clients/rancher/catalog"
 )
 
-// AddRancherCharts adds the repo from which rancher can be installed
+// AddRancherCharts adds the repo from which rancher operator charts can be installed
 func AddRancherCharts() {
 	err := kubectl.RunHelmBinaryWithCustomErr("repo", "add", catalog.RancherChartRepo, "https://charts.rancher.io")
-	Expect(err).To(BeNil())
-	err = kubectl.RunHelmBinaryWithCustomErr("repo", "add", fmt.Sprintf("rancher-%s", RancherChannel), fmt.Sprintf("https://releases.rancher.com/server-charts/%s", RancherChannel))
 	Expect(err).To(BeNil())
 }
 

@@ -10,13 +10,10 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
-	"github.com/rancher/rancher/tests/v2/actions/pipeline"
-	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/workloads/pods"
-	"github.com/rancher/shepherd/pkg/config"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/eks/helper"
@@ -28,6 +25,7 @@ var (
 	clusterName, k8sVersion string
 	region                  = helpers.GetEKSRegion()
 	testCaseID              int64
+	k                       = kubectl.New()
 )
 
 func TestK8sChartSupportUpgrade(t *testing.T) {
@@ -36,20 +34,17 @@ func TestK8sChartSupportUpgrade(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
-	Expect(helpers.RancherVersion).ToNot(BeEmpty())
 	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.9-head)
-	Expect(helpers.RancherVersion).ToNot(ContainSubstring("devel"))
+	Expect(helpers.RancherVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
 
 	Expect(helpers.RancherUpgradeVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
-	By("Adding the necessary chart repos", func() {
-		helpers.AddRancherCharts()
-	})
-
-	By(fmt.Sprintf("Installing Rancher Manager v%s", helpers.RancherVersion), func() {
-		helpers.DeployRancherManager(helpers.RancherVersion, true)
+	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherVersion), func() {
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
 	})
 
 	helpers.CommonSynchronizedBeforeSuite()
@@ -69,7 +64,9 @@ var _ = AfterEach(func() {
 	// Restoring rancher back to its original state is necessary because in case DOWNSTREAM_CLUSTER_CLEANUP is set to false; in which case clusters will be retained for the next test.
 	// Once the operator is uninstalled, it might be reinstalled since the cluster exists, and installing rancher back to its original state ensures that the version is not the one we want to test.
 	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherVersion), func() {
-		helpers.DeployRancherManager(helpers.RancherVersion, true)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.CheckRancherDeployments(k)
 	})
 
 	By("Uninstalling the existing operator charts", func() {
@@ -90,6 +87,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
 
 	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+
 	var originalChartVersion string
 	By("checking the chart version", func() {
 		originalChartVersion = helpers.GetCurrentOperatorChartVersion()
@@ -97,46 +95,26 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
 	})
 
-	By("upgrading rancher", func() {
-		helpers.DeployRancherManager(rancherUpgradedVersion, true)
+	By(fmt.Sprintf("upgrading rancher to %v", rancherUpgradedVersion), func() {
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(rancherUpgradedVersion)
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
+		helpers.CheckRancherDeployments(k)
+
 		By("ensuring operator pods are also up", func() {
 			Eventually(func() error {
-				return kubectl.New().WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
+				return k.WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
+
 		By("regenerating the token and initiating a new rancher client", func() {
-			//	regenerate the tokens and initiate a new rancher client
-			rancherConfig := new(rancher.Config)
-			config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
-
-			token, err := pipeline.CreateAdminToken(helpers.RancherPassword, rancherConfig)
-			Expect(err).To(BeNil())
-
-			config.LoadAndUpdateConfig(rancher.ConfigurationFileKey, rancherConfig, func() {
-				rancherConfig.AdminToken = token
-			})
-			rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
-			Expect(err).To(BeNil())
-			ctx.RancherAdminClient = rancherAdminClient
-
-			setting := new(management.Setting)
-			resp, err := rancherAdminClient.Management.Setting.ByID("server-url")
-			Expect(err).To(BeNil())
-
-			setting.Source = "env"
-			setting.Value = fmt.Sprintf("https://%s", hostname)
-			resp, err = rancherAdminClient.Management.Setting.Update(resp, setting)
-			Expect(err).To(BeNil())
-
-			var isConnected bool
-			isConnected, err = ctx.RancherAdminClient.IsConnected()
+			isConnected, err := ctx.RancherAdminClient.IsConnected()
 			Expect(err).To(BeNil())
 			Expect(isConnected).To(BeTrue())
 		})
 	})
 
 	By("making sure the local cluster is ready", func() {
-		localClusterID := "local"
+		const localClusterID = "local"
 		By("checking all management nodes are ready", func() {
 			err := nodestat.AllManagementNodeReady(ctx.RancherAdminClient, localClusterID, helpers.Timeout)
 			Expect(err).To(BeNil())
@@ -156,11 +134,19 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 	})
 
+	By("making sure the downstream cluster is ready", func() {
+		var err error
+		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+	})
+
 	var latestVersion *string
 	By(fmt.Sprintf("fetching a list of available k8s versions and ensure the v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
 		versions, err := helper.ListEKSAvailableVersions(ctx.RancherAdminClient, cluster)
 		Expect(err).To(BeNil())
 		Expect(versions).ToNot(BeEmpty())
+		GinkgoLogr.Info(fmt.Sprintf("Available EKS versions: %v", versions))
 
 		latestVersion = &versions[0]
 		Expect(*latestVersion).To(ContainSubstring(k8sUpgradedVersion))
