@@ -414,3 +414,12 @@ func GetRancherVersions() (string, string, string) {
 	}
 	return rancherChannel, rancherVersion, rancherHeadVersion
 }
+
+// GetRancherServerVersion returns the value of `server-version` Setting
+func GetRancherServerVersion(client *rancher.Client) (string, error) {
+	serverVersion, err := client.Management.Setting.ByID("server-version")
+	if err != nil {
+		return "", err
+	}
+	return serverVersion.Value, nil
+}
