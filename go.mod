@@ -14,7 +14,7 @@ require (
 	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20241114104736-0d5b41ca9158
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
 	github.com/rancher/rancher v0.0.0-00010101000000-000000000000
-	github.com/rancher/shepherd v0.0.0-20241113142845-1338e51b4891 // rancher/shepherd main commit
+	github.com/rancher/shepherd v0.0.0-20250128173158-b3e7a07abe9a // rancher/shepherd main commit
 	github.com/sirupsen/logrus v1.9.3
 	k8s.io/apimachinery v0.31.1
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
@@ -129,5 +129,3 @@ replace (
 	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
 	k8s.io/client-go => k8s.io/client-go v0.31.1
 )
-
-replace github.com/rancher/shepherd v0.0.0-20241113142845-1338e51b4891 => github.com/valaparthvi/shepherd v0.0.0-20250113150307-791e30f90eea
