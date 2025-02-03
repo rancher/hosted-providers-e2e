@@ -70,11 +70,12 @@ func WaitUntilOperatorChartInstallation(chartVersion, comparator string, compare
 	}
 	Eventually(func() int {
 		currentChartVersion := GetCurrentOperatorChartVersion()
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("CurrentChartVersion: %s; comparing with %s to %s %d", currentChartVersion, chartVersion, comparator, compareTo))
 		if currentChartVersion == "" {
 			return 10
 		}
 		return VersionCompare(currentChartVersion, chartVersion)
-	}, tools.SetTimeout(1*time.Minute), 5*time.Second).Should(BeNumerically(comparator, compareTo))
+	}, tools.SetTimeout(4*time.Minute), 3*time.Second).Should(BeNumerically(comparator, compareTo))
 
 }
 

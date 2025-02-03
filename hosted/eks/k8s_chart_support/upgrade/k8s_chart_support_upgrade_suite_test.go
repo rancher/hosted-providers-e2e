@@ -10,10 +10,12 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
+	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/workloads/pods"
+	"github.com/rancher/shepherd/pkg/config"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/eks/helper"
@@ -25,7 +27,6 @@ var (
 	clusterName, k8sVersion string
 	region                  = helpers.GetEKSRegion()
 	testCaseID              int64
-	k                       = kubectl.New()
 )
 
 func TestK8sChartSupportUpgrade(t *testing.T) {
@@ -36,13 +37,13 @@ func TestK8sChartSupportUpgrade(t *testing.T) {
 var _ = BeforeEach(func() {
 	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.9-head)
 	Expect(helpers.RancherVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
-
 	Expect(helpers.RancherUpgradeVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
 	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		k := kubectl.New()
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
 	})
@@ -50,8 +51,17 @@ var _ = BeforeEach(func() {
 	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
 
+	token, err := ctx.RancherAdminClient.Management.Token.Create(&management.Token{})
+	Expect(err).NotTo(HaveOccurred())
+	rancherConfig := new(rancher.Config)
+	config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+	rancherConfig.AdminToken = token.Token
+	config.UpdateConfig(rancher.ConfigurationFileKey, rancherConfig)
+	rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
+	Expect(err).To(BeNil())
+	ctx.RancherAdminClient = rancherAdminClient
+
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-	var err error
 	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 	Expect(err).To(BeNil())
 	Expect(k8sVersion).ToNot(BeEmpty())
@@ -65,6 +75,8 @@ var _ = AfterEach(func() {
 	// Once the operator is uninstalled, it might be reinstalled since the cluster exists, and installing rancher back to its original state ensures that the version is not the one we want to test.
 	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		// Create kubectl context
+		k := kubectl.New()
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
 	})
@@ -97,6 +109,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 
 	By(fmt.Sprintf("upgrading rancher to %v", rancherUpgradedVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(rancherUpgradedVersion)
+		k := kubectl.New()
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
 		helpers.CheckRancherDeployments(k)
 
@@ -129,7 +142,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 	var upgradedChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
 		// the chart is sometimes auto-upgraded to the latest version (mostly happens when running the test on un-rc-ed charts, so we check with `>=`
-		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, ">=", 0)
+		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "==", 1)
 		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
 	})
