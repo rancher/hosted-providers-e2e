@@ -284,7 +284,7 @@ var _ = Describe("P1Provisioning", func() {
 
 				// upgrade 2 nodegroups simultaneously
 				updateFunc := func(cluster *management.Cluster) {
-					nodeGroups := cluster.EKSConfig.NodeGroups
+					nodeGroups := *cluster.EKSConfig.NodeGroups
 					for i := 0; i <= 1; i++ {
 						nodeGroups[i].Version = &upgradeToVersion
 					}
@@ -296,7 +296,7 @@ var _ = Describe("P1Provisioning", func() {
 				Eventually(func() bool {
 					cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 					Expect(err).To(BeNil())
-					nodeGroups := cluster.EKSStatus.UpstreamSpec.NodeGroups
+					nodeGroups := *cluster.EKSStatus.UpstreamSpec.NodeGroups
 					for i := 0; i <= 1; i++ {
 						if nodeGroups[i].Version == nil || *nodeGroups[i].Version != upgradeToVersion {
 							return false
