@@ -82,7 +82,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		})
 
-		FIt("should fail to provision a cluster nodepools is nil", func() {
+		It("should fail to provision a cluster nodepools is nil", func() {
 			testCaseID = 27
 
 			updateFunc := func(clusterConfig *gke.ClusterConfig) {
