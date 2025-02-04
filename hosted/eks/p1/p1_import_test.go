@@ -186,7 +186,7 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 
 			// verify that the nodegroups are intact
-			Expect(cluster.EKSStatus.UpstreamSpec.NodeGroups).To(HaveLen(nodepoolcount + 1))
+			Expect(*cluster.EKSStatus.UpstreamSpec.NodeGroups).To(HaveLen(nodepoolcount + 1))
 		})
 
 		It("Update the cloud creds", func() {
@@ -220,6 +220,8 @@ var _ = Describe("P1Import", func() {
 					Expect(err).To(BeNil())
 					return cluster.State == "waiting"
 				}, "5m", "15s").Should(BeTrue())
+
+				cluster.EKSConfig = cluster.EKSStatus.UpstreamSpec
 
 				By("adding a NodeGroup", func() {
 					cluster, err = helper.AddNodeGroup(cluster, 1, ctx.RancherAdminClient, false, true)
