@@ -51,16 +51,20 @@ var _ = BeforeEach(func() {
 	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
 
-	token, err := ctx.RancherAdminClient.Management.Token.Create(&management.Token{})
-	Expect(err).NotTo(HaveOccurred())
-	rancherConfig := new(rancher.Config)
-	config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
-	rancherConfig.AdminToken = token.Token
-	config.UpdateConfig(rancher.ConfigurationFileKey, rancherConfig)
-	rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
-	Expect(err).To(BeNil())
-	ctx.RancherAdminClient = rancherAdminClient
+	By("creating and using a more permanent token", func() {
+		token, err := ctx.RancherAdminClient.Management.Token.Create(&management.Token{})
+		Expect(err).NotTo(HaveOccurred())
+		rancherConfig := new(rancher.Config)
+		config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+		rancherConfig.AdminToken = token.Token
+		config.UpdateConfig(rancher.ConfigurationFileKey, rancherConfig)
 
+		rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
+		Expect(err).To(BeNil())
+		ctx.RancherAdminClient = rancherAdminClient
+	})
+
+	var err error
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 	Expect(err).To(BeNil())
@@ -96,7 +100,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
+func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, k8sUpgradedVersion string) {
 
 	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
@@ -141,7 +145,6 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 
 	var upgradedChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
-		// the chart is sometimes auto-upgraded to the latest version (mostly happens when running the test on un-rc-ed charts, so we check with `>=`
 		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "==", 1)
 		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)

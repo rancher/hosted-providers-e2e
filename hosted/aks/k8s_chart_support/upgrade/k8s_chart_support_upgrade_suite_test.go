@@ -10,7 +10,6 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	. "github.com/rancher-sandbox/qase-ginkgo"
-	"github.com/rancher/rancher/tests/v2/actions/pipeline"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
@@ -53,6 +52,19 @@ var _ = BeforeEach(func() {
 	helpers.CommonSynchronizedBeforeSuite()
 	ctx = helpers.CommonBeforeSuite()
 
+	By("creating and using a more permanent token", func() {
+		token, err := ctx.RancherAdminClient.Management.Token.Create(&management.Token{})
+		Expect(err).NotTo(HaveOccurred())
+		rancherConfig := new(rancher.Config)
+		config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+		rancherConfig.AdminToken = token.Token
+		config.UpdateConfig(rancher.ConfigurationFileKey, rancherConfig)
+
+		rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
+		Expect(err).To(BeNil())
+		ctx.RancherAdminClient = rancherAdminClient
+	})
+
 	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
 	var err error
 	// For k8s chart support upgrade we want to begin with the default k8s version; we will upgrade rancher and then upgrade k8s to the default available there.
@@ -86,7 +98,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, hostname, k8sUpgradedVersion string) {
+func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, k8sUpgradedVersion string) {
 	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
 	var originalChartVersion string
@@ -107,23 +119,8 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 				return k.WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
-		By("regenerating the token and initiating a new rancher client", func() {
-			//	regenerate the tokens and initiate a new rancher client
-			rancherConfig := new(rancher.Config)
-			config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
-
-			token, err := pipeline.CreateAdminToken(helpers.RancherPassword, rancherConfig)
-			Expect(err).To(BeNil())
-
-			config.LoadAndUpdateConfig(rancher.ConfigurationFileKey, rancherConfig, func() {
-				rancherConfig.AdminToken = token
-			})
-			rancherClient, err := rancher.NewClient(rancherConfig.AdminToken, ctx.Session)
-			Expect(err).To(BeNil())
-			ctx.RancherAdminClient = rancherClient
-
-			var isConnected bool
-			isConnected, err = ctx.RancherAdminClient.IsConnected()
+		By("ensuring the client is connected", func() {
+			isConnected, err := ctx.RancherAdminClient.IsConnected()
 			Expect(err).To(BeNil())
 			Expect(isConnected).To(BeTrue())
 		})
@@ -144,10 +141,16 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 
 	var upgradedChartVersion string
 	By("checking the chart version and validating it is > the old version", func() {
-		// the chart is sometimes auto-upgraded to the latest version (mostly happens when running the test on un-rc-ed charts, so we check with `>=`
-		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, ">=", 0)
+		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "==", 1)
 		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
+	})
+
+	By("making sure the downstream cluster is ready", func() {
+		var err error
+		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 	})
 
 	var latestK8sVersion string

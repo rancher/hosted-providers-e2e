@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        provider: [eks]
+        provider: [aks, eks, gke]
     uses: ./.github/workflows/main.yaml
     secrets: inherit
     with:

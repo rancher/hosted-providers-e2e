@@ -36,6 +36,6 @@ var _ = Describe("K8sChartSupportUpgradeImport", func() {
 		GinkgoLogr.Info(fmt.Sprintf("Testing K8s %s chart support for import on Rancher upgraded from %s to %s", helpers.K8sUpgradedMinorVersion, helpers.RancherVersion, helpers.RancherUpgradeVersion))
 		testCaseID = 167 // Report to Qase
 
-		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.RancherHostname, helpers.K8sUpgradedMinorVersion)
+		commonchecks(&ctx, cluster, clusterName, helpers.RancherUpgradeVersion, helpers.K8sUpgradedMinorVersion)
 	})
 })
