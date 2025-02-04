@@ -159,6 +159,11 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+
+		// since no changes have been made to the cluster so far, we need reinstantiate EKSConfig after fetching the cluster
+		if helpers.IsImport {
+			cluster.EKSConfig = cluster.EKSStatus.UpstreamSpec
+		}
 	})
 
 	var latestVersion *string

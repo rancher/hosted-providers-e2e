@@ -161,6 +161,11 @@ func commonChartSupportUpgrade(ctx *helpers.RancherContext, cluster *management.
 		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
+
+		// since no changes have been made to the cluster so far, we need reinstantiate GKEConfig after fetching the cluster
+		if helpers.IsImport {
+			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
+		}
 	})
 
 	By(fmt.Sprintf("fetching a list of available k8s versions and ensuring v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
