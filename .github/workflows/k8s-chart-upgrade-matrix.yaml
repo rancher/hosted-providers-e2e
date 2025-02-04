@@ -44,13 +44,18 @@ on:
         description: Tests to run
         required: true
         default: k8s_chart_support_upgrade_provisioning/k8s_chart_support_upgrade_import
+      providers:
+        description: Providers to the run the test on
+        required: true
+        type: string
+        default: '["eks", "gke", "aks"]'
 
 jobs:
   e2e-tests:
     strategy:
       fail-fast: false
       matrix:
-        provider: [aks, eks, gke]
+        provider: ${{ fromJSON(inputs.providers) }}
     uses: ./.github/workflows/main.yaml
     secrets: inherit
     with:
