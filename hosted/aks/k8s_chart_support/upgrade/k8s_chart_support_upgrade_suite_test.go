@@ -123,7 +123,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 				return k.WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
-		By("ensuring the client is connected", func() {
+		By("ensuring the rancher client is connected", func() {
 			isConnected, err := ctx.RancherAdminClient.IsConnected()
 			Expect(err).To(BeNil())
 			Expect(isConnected).To(BeTrue())

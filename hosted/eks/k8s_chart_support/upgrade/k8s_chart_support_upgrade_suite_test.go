@@ -127,7 +127,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
 
-		By("regenerating the token and initiating a new rancher client", func() {
+		By("ensuring the rancher client is connected", func() {
 			isConnected, err := ctx.RancherAdminClient.IsConnected()
 			Expect(err).To(BeNil())
 			Expect(isConnected).To(BeTrue())
