@@ -41,6 +41,10 @@ var _ = BeforeEach(func() {
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
+	By("Adding the necessary chart repos", func() {
+		helpers.AddRancherCharts()
+	})
+
 	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
 		k := kubectl.New()
