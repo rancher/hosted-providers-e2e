@@ -172,7 +172,7 @@ var _ = Describe("P1Import", func() {
 			updateTagsAndLabels(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("Add a nodegroup in EKS -> Syncs to Rancher -> Update cluster, the nodegroup is intact", func() {
+		It("Add a nodegroup in EKS -> Syncs to Rancher -> Update cluster, the nodegroup is intact", func() {
 			testCaseID = 87
 			nodepoolcount := len(*cluster.EKSStatus.UpstreamSpec.NodeGroups)
 			err := helper.AddNodeGroupOnAWS(namegen.AppendRandomString("ng"), clusterName, region)
@@ -204,7 +204,7 @@ var _ = Describe("P1Import", func() {
 				Expect(err).To(MatchError(ContainSubstring("cluster already exists for EKS cluster")))
 			})
 
-			FIt("Add node groups to the control-plane only cluster", func() {
+			It("Add node groups to the control-plane only cluster", func() {
 				testCaseID = 95
 
 				var err error

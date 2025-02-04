@@ -136,7 +136,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
-	FIt("should be able to create cluster with container monitoring enabled", func() {
+	It("should be able to create cluster with container monitoring enabled", func() {
 		// Refer: https://github.com/rancher/shepherd/issues/274
 		testCaseID = 199
 		updateFunc := func(aksConfig *aks.ClusterConfig) {
@@ -456,7 +456,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateMonitoringCheck(cluster, ctx.RancherAdminClient)
 		})
 
-		FIt("recreating a cluster while it is being deleted should recreate the cluster", func() {
+		It("recreating a cluster while it is being deleted should recreate the cluster", func() {
 			testCaseID = 219
 
 			err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
@@ -655,7 +655,7 @@ var _ = Describe("P1Provisioning", func() {
 		}, "5m", "5s").Should(BeTrue(), "Failed while waiting for k8s upgrade.")
 	})
 
-	FIt("should Create NP with AZ for region where AZ is not supported", func() {
+	It("should Create NP with AZ for region where AZ is not supported", func() {
 		testCaseID = 196
 		// none of the availability zones are supported in this location
 		location = "westus"
