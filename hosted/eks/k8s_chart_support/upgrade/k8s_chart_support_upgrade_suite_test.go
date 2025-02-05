@@ -27,6 +27,7 @@ var (
 	clusterName, k8sVersion string
 	region                  = helpers.GetEKSRegion()
 	testCaseID              int64
+	k                       = kubectl.New()
 )
 
 func TestK8sChartSupportUpgrade(t *testing.T) {
@@ -47,7 +48,6 @@ var _ = BeforeEach(func() {
 
 	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
-		k := kubectl.New()
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
 	})
@@ -83,8 +83,6 @@ var _ = AfterEach(func() {
 	// Once the operator is uninstalled, it might be reinstalled since the cluster exists, and installing rancher back to its original state ensures that the version is not the one we want to test.
 	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
-		// Create kubectl context
-		k := kubectl.New()
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
 	})
@@ -117,7 +115,6 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 
 	By(fmt.Sprintf("upgrading rancher to %v", rancherUpgradedVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(rancherUpgradedVersion)
-		k := kubectl.New()
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
 		helpers.CheckRancherDeployments(k)
 
@@ -198,10 +195,7 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 	By("making a change to the cluster (scaling the node up) to validate functionality after chart downgrade", func() {
 		var err error
 		initialNodeCount := *cluster.EKSConfig.NodeGroups[0].DesiredSize
-		const (
-			increaseBy = 1
-		)
-		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherAdminClient, initialNodeCount+increaseBy, true, true)
+		cluster, err = helper.ScaleNodeGroup(cluster, ctx.RancherAdminClient, initialNodeCount+1, true, true)
 		Expect(err).To(BeNil())
 	})
 

@@ -47,7 +47,7 @@ var _ = BeforeEach(func() {
 		helpers.AddRancherCharts()
 	})
 
-	By(fmt.Sprintf("Installing Rancher Manager v%s", helpers.RancherVersion), func() {
+	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
@@ -166,6 +166,9 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 	By(fmt.Sprintf("fetching a list of available k8s versions and ensure the v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
 		versions, err := helper.ListAKSAvailableVersions(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
+		Expect(versions).ToNot(BeEmpty())
+		GinkgoLogr.Info(fmt.Sprintf("Available AKS versions: %v", versions))
+
 		latestK8sVersion = versions[len(versions)-1]
 		Expect(latestK8sVersion).To(ContainSubstring(k8sUpgradedVersion))
 		Expect(helpers.VersionCompare(latestK8sVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
