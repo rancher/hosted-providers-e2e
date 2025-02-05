@@ -37,7 +37,7 @@ var (
 	providerOperator   string
 	kubeConfig         string
 	k3sVersion         string
-	noInstallRancher   string
+	skipInstallRancher string
 )
 
 /**
@@ -83,7 +83,7 @@ var _ = BeforeSuite(func() {
 	}
 	nightlyChart = os.Getenv("NIGHTLY_CHART")
 	providerOperator = os.Getenv("PROVIDER")
-	noInstallRancher = os.Getenv("NO_INSTALL_RANCHER")
+	skipInstallRancher = os.Getenv("SKIP_RANCHER_INSTALL")
 
 	// Extract Rancher Manager channel/version to install
 	s := strings.Split(rancherVersion, "/")

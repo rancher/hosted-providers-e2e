@@ -39,9 +39,9 @@ func TestK8sChartSupportUpgrade(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.9-head)
-	Expect(helpers.RancherVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
+	Expect(helpers.RancherFullVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
 
-	Expect(helpers.RancherUpgradeVersion).ToNot(BeEmpty())
+	Expect(helpers.RancherUpgradeFullVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
 
@@ -49,8 +49,8 @@ var _ = BeforeEach(func() {
 		helpers.AddRancherCharts()
 	})
 
-	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherVersion), func() {
-		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+	By(fmt.Sprintf("Installing Rancher Manager %s", helpers.RancherFullVersion), func() {
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherFullVersion)
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
 	})
@@ -82,8 +82,8 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	// The test must restore the env to its original state, so we install rancher back to its original version and uninstall the operator charts
-	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherVersion), func() {
-		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherFullVersion), func() {
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherFullVersion)
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
 	})

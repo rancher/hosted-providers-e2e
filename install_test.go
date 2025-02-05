@@ -36,7 +36,7 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 			helpers.InstallCertManager(k, proxy, proxyHost)
 		})
 
-		if noInstallRancher != "true" {
+		if skipInstallRancher != "true" {
 			By("Installing Rancher Manager", func() {
 				helpers.InstallRancherManager(k, rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, proxy, nightlyChart)
 			})
@@ -45,7 +45,7 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 				helpers.CheckRancherDeployments(k)
 			})
 		} else {
-			GinkgoLogr.Info("Skipping Rancher Manager installation; NO_INSTALL_RANCHER=\"true\"")
+			GinkgoLogr.Info("Skipping Rancher Manager installation; SKIP_RANCHER_INSTALL=\"true\"")
 		}
 
 		if nightlyChart == "enabled" {

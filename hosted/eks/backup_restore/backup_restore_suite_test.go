@@ -143,7 +143,7 @@ func BackupRestoreChecks(k *kubectl.Kubectl) {
 	})
 
 	By("Performing post migration installations: Installing Rancher Manager", func() {
-		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherVersion)
+		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherFullVersion)
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
 	})
 
