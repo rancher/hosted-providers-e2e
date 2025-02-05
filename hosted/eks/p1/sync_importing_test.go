@@ -32,7 +32,7 @@ var _ = Describe("SyncImport", func() {
 		var upgradeToVersion string
 		BeforeEach(func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 			var err error
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)

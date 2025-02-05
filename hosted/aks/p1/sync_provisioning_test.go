@@ -5,14 +5,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/aks/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var _ = Describe("SyncProvisioning", func() {
-	var cluster *management.Cluster
 	var k8sVersion string
 	BeforeEach(func() {
 		var err error
@@ -49,7 +47,7 @@ var _ = Describe("SyncProvisioning", func() {
 
 		BeforeEach(func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 
 			var err error

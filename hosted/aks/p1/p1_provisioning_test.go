@@ -45,7 +45,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	It("should successfully Create a cluster in Region without AZ", func() {
 		if helpers.SkipUpgradeTests {
-			Skip("Skipping test for v2.8 ...")
+			Skip(helpers.SkipUpgradeTestsLog)
 		}
 		location = "ukwest"
 		testCaseID = 275
@@ -437,7 +437,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		It("should be able to update cluster monitoring", func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 			testCaseID = 200
 			updateMonitoringCheck(cluster, ctx.RancherAdminClient)
@@ -520,7 +520,7 @@ var _ = Describe("P1Provisioning", func() {
 		var upgradeK8sVersion string
 		BeforeEach(func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 
 			var err error
@@ -539,7 +539,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		It("NP cannot be upgraded to k8s version greater than CP k8s version", func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 			testCaseID = 183
 			npUpgradeToVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
@@ -596,7 +596,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	It("should not be able to select NP K8s version; CP K8s version should take precedence", func() {
 		if helpers.SkipUpgradeTests {
-			Skip("Skipping test for v2.8 ...")
+			Skip(helpers.SkipUpgradeTestsLog)
 		}
 
 		testCaseID = 182

@@ -129,7 +129,7 @@ var _ = Describe("P1Provisioning", func() {
 
 	It("should be able to create a cluster with CP K8s version v-XX-1 and NP K8s version v-XX should use v-XX-1 for both CP and NP", func() {
 		if helpers.SkipUpgradeTests {
-			Skip("Skipping test for v2.8 ...")
+			Skip(helpers.SkipUpgradeTestsLog)
 		}
 		testCaseID = 33
 
@@ -234,7 +234,7 @@ var _ = Describe("P1Provisioning", func() {
 			testCaseID = 30
 			var err error
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 
 			_, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "WINDOWS_LTSC_CONTAINERD", true, true)
@@ -316,7 +316,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		BeforeEach(func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 
 			var err error

@@ -441,6 +441,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Add summary
+        shell: bash
         if: ${{ always() && steps.prepare-rancher.outcome == 'success' }}
         run: |
           # Add summary
@@ -450,7 +451,7 @@ jobs:
           echo "Tests run: ${{ inputs.tests_to_run }}" >> ${GITHUB_STEP_SUMMARY}
           OPERATOR_HELM_VERSION=$(helm get metadata rancher-${{ inputs.hosted_provider }}-operator -n cattle-system -o json | jq -r .version)
           echo "Installed rancher-${{ inputs.hosted_provider }}-operator chart version: $OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
-          if [ ${{ inputs.tests_to_run }} =~ "backup_restore" ]; then
+          if [[ ${{ inputs.tests_to_run }} =~ "backup_restore" ]]; then
             BR_OPERATOR_HELM_VERSION=$(helm get metadata rancher-backup -n cattle-resources-system -o json | jq -r .version)
             echo "Installed backup-restore operator chart version: $BR_OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
           fi

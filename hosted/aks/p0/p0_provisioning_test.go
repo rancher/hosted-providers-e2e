@@ -63,9 +63,12 @@ var _ = Describe("P0Provisioning", func() {
 				Expect(err).To(BeNil())
 			})
 			AfterEach(func() {
-				if ctx.ClusterCleanup && cluster != nil {
-					err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
-					Expect(err).To(BeNil())
+				if ctx.ClusterCleanup {
+					if cluster != nil && cluster.ID != "" {
+						GinkgoLogr.Info(fmt.Sprintf("Cleaning up resource cluster: %s %s", cluster.Name, cluster.ID))
+						err := helper.DeleteAKSHostCluster(cluster, ctx.RancherAdminClient)
+						Expect(err).To(BeNil())
+					}
 				} else {
 					fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 				}

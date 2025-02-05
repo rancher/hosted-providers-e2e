@@ -34,11 +34,9 @@ var _ = Describe("SyncProvisioning", func() {
 	} {
 		testData := testData
 		When("a cluster is created", func() {
-			var cluster *management.Cluster
-
 			BeforeEach(func() {
 				if testData.isUpgrade && helpers.SkipUpgradeTests {
-					Skip("Skipping test for v2.8 ...")
+					Skip(helpers.SkipUpgradeTestsLog)
 				}
 				k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", testData.isUpgrade)
 				Expect(err).NotTo(HaveOccurred())

@@ -28,11 +28,14 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	AfterEach(func() {
-		if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
-			err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
-			Expect(err).To(BeNil())
+		if ctx.ClusterCleanup {
+			if cluster != nil && cluster.ID != "" {
+				GinkgoLogr.Info(fmt.Sprintf("Cleaning up resource cluster: %s %s", cluster.Name, cluster.ID))
+				err := helper.DeleteEKSHostCluster(cluster, ctx.RancherAdminClient)
+				Expect(err).To(BeNil())
+			}
 		} else {
-			GinkgoLogr.Info(fmt.Sprintf("Skipping downstream cluster deletion: %s", clusterName))
+			fmt.Println("Skipping downstream cluster deletion: ", clusterName)
 		}
 	})
 
@@ -208,7 +211,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		BeforeEach(func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 
 			var err error

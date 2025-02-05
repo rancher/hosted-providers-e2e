@@ -174,7 +174,7 @@ var _ = Describe("P1Import", func() {
 
 		BeforeEach(func() {
 			if helpers.SkipUpgradeTests {
-				Skip("Skipping test for v2.8 ...")
+				Skip(helpers.SkipUpgradeTestsLog)
 			}
 
 			var err error

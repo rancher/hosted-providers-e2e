@@ -247,7 +247,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 // updateClusterInUpdatingState runs checks to ensure cluster in an updating state can be updated
 func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.Client) {
 	if helpers.SkipUpgradeTests {
-		Skip("Skipping test for v2.8 ...")
+		Skip(helpers.SkipUpgradeTestsLog)
 	}
 	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
