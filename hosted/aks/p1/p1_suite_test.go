@@ -435,7 +435,7 @@ func syncAddNodePoolFromAzureAndRancher(cluster *management.Cluster, client *ran
 
 		if !helpers.IsImport {
 			// skip this check if the cluster is imported since the AKSConfig value will not be updated
-			Expect(cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + 1))
+			Expect(*cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + 1))
 		}
 	})
 
@@ -661,7 +661,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 
 		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
-			Expect(cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount + 1))
+			Expect(*cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount + 1))
 		}
 	})
 
@@ -710,7 +710,7 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 
 		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
-			Expect(cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount))
+			Expect(*cluster.AKSConfig.NodePools).To(HaveLen(currentNPCount))
 		}
 	})
 

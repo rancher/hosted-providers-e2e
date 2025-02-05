@@ -187,7 +187,7 @@ var _ = Describe("P1Provisioning", func() {
 		initialNPCount := len(*cluster.AKSConfig.NodePools)
 		cluster, err = helper.AddNodePool(cluster, 3, ctx.RancherAdminClient, false, false)
 		Expect(err).To(BeNil())
-		Expect(cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + 3))
+		Expect(*cluster.AKSConfig.NodePools).To(HaveLen(initialNPCount + 3))
 
 		var upgradeK8sVersion string
 		upgradeK8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
@@ -208,7 +208,7 @@ var _ = Describe("P1Provisioning", func() {
 
 		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cluster.AKSStatus.UpstreamSpec.NodePools).To(HaveLen(initialNPCount + 3))
+		Expect(*cluster.AKSStatus.UpstreamSpec.NodePools).To(HaveLen(initialNPCount + 3))
 		Expect(cluster.AKSStatus.UpstreamSpec.KubernetesVersion).To(Equal(upgradeK8sVersion))
 	})
 
