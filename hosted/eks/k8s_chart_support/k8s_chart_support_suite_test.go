@@ -94,23 +94,14 @@ func commonchecks(client *rancher.Client, cluster *management.Cluster) {
 	By("downgrading the chart version", func() {
 		helpers.DowngradeProviderChart(downgradedVersion)
 	})
+
 	configNodeGroups := *cluster.EKSConfig.NodeGroups
 	initialNodeCount := *configNodeGroups[0].DesiredSize
-	var upgradeSuccessful bool
 
 	By("making a change(scaling nodegroup up) to the cluster to validate functionality after chart downgrade", func() {
 		var err error
-		cluster, err = helper.ScaleNodeGroup(cluster, client, initialNodeCount+increaseBy, false, true)
+		cluster, err = helper.ScaleNodeGroup(cluster, client, initialNodeCount+increaseBy, true, true)
 		Expect(err).To(BeNil())
-
-		// We do not use WaitClusterToBeUpgraded because it has been flaky here and times out
-		Eventually(func() bool {
-			configNodeGroups = *cluster.EKSConfig.NodeGroups
-			for i := range configNodeGroups {
-				upgradeSuccessful = *configNodeGroups[i].DesiredSize == initialNodeCount+increaseBy
-			}
-			return upgradeSuccessful
-		}, tools.SetTimeout(15*time.Minute), 10*time.Second).Should(BeTrue())
 	})
 
 	By("uninstalling the operator chart", func() {
@@ -134,11 +125,14 @@ func commonchecks(client *rancher.Client, cluster *management.Cluster) {
 		Eventually(func() bool {
 			GinkgoLogr.Info("Waiting for the node count change to appear in EKSStatus.UpstreamSpec ...")
 			Expect(err).To(BeNil())
-			upstreamNodeGroups := *cluster.EKSStatus.UpstreamSpec.NodeGroups
-			for i := range upstreamNodeGroups {
-				upgradeSuccessful = *upstreamNodeGroups[i].DesiredSize == initialNodeCount
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			for _, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
+				if *ng.DesiredSize != initialNodeCount {
+					return false
+				}
 			}
-			return upgradeSuccessful
+			return true
 		}, tools.SetTimeout(15*time.Minute), 10*time.Second).Should(BeTrue())
 
 	})
