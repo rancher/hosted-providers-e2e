@@ -1,0 +1,23 @@
+name: Checking for focused runs
+
+run-name: Focused spec lint on ${{ github.ref_name }}
+on:
+  pull_request:
+    branches: [ main ]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    paths:
+      - '**.go'
+
+jobs:
+  check-focus-target:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Running the focus check script
+        run: |
+          grep -ErnI --include="*.go" 'FIt|FDescribe|FContext|FWhen|FEntry|FDescribeTable' ./hosted && exit 1 || echo "No focused specs found." && exit 0
