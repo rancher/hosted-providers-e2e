@@ -322,6 +322,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).NotTo(HaveOccurred())
+				GinkgoLogr.Info(fmt.Sprintf("cluster.Transitioning=%s cluster.TransitioningMessage=%s", cluster.Transitioning, cluster.TransitioningMessage))
 				return cluster.Transitioning == "error" && cluster.TransitioningMessage == "at least one NodePool with mode System is required"
 			}, "1m", "2s").Should(BeTrue())
 		})
@@ -476,6 +477,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
+				GinkgoLogr.Info(fmt.Sprintf("cluster.State=%s cluster.Transitioning=%s cluster.TransitioningMessage=%s", cluster.State, cluster.Transitioning, cluster.TransitioningMessage))
 				return cluster.State == "provisioning" && cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "an AKSClusterConfig exists with the same name")
 			}, "30s", "2s").Should(BeTrue())
 

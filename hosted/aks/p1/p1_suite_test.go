@@ -294,9 +294,9 @@ func updateMonitoringCheck(cluster *management.Cluster, client *rancher.Client) 
 func updateSystemNodePoolCountToZeroCheck(cluster *management.Cluster, client *rancher.Client) {
 	updateFunc := func(cluster *management.Cluster) {
 		nodepools := *cluster.AKSConfig.NodePools
-		for i, nodepool := range nodepools {
-			if nodepool.Mode == "System" {
-				nodepools[i].Count = pointer.Int64(0)
+		for i := range nodepools {
+			if nodepools[i].Mode == "System" {
+				*nodepools[i].Count = 0
 			}
 		}
 		cluster.AKSConfig.NodePools = &nodepools
@@ -307,6 +307,7 @@ func updateSystemNodePoolCountToZeroCheck(cluster *management.Cluster, client *r
 	Eventually(func() bool {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
+		GinkgoLogr.Info(fmt.Sprintf("cluster.Transitioning=%s cluster.TransitioningMessage=%s", cluster.Transitioning, cluster.TransitioningMessage))
 		return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "It must be greater or equal to minCount:1 and less than or equal to maxCount:1000")
 	}, "1m", "2s").Should(BeTrue())
 }
@@ -345,18 +346,21 @@ func updateSystemNodePoolCheck(cluster *management.Cluster, client *rancher.Clie
 		}
 	}
 
+	err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+	Expect(err).To(BeNil())
+
 	Eventually(func() bool {
 		cluster, err = client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
 		for _, np := range *cluster.AKSStatus.UpstreamSpec.NodePools {
 			if np.Mode == systemMode {
-				if !((np.EnableAutoScaling != nil && *np.EnableAutoScaling == true) && (*np.MaxCount == maxCount) && (*np.MinCount == minCount) && (*np.Count == count)) {
+				if !((np.EnableAutoScaling != nil && *np.EnableAutoScaling) && (*np.MaxCount == maxCount) && (*np.MinCount == minCount) && (*np.Count == count)) {
 					return false
 				}
 			}
 		}
 		return true
-	}, "15m", "15s").Should(BeTrue(), "Failed while upstream nodepool update")
+	}, "7m", "5s").Should(BeTrue(), "Failed while upstream nodepool update")
 }
 
 // Qase ID: 230 and 291
