@@ -1,14 +1,8 @@
-name: Checking for focused runs
+name: Checking for focused specs
 
-run-name: Focused spec lint on ${{ github.ref_name }}
 on:
   pull_request:
     branches: [ main ]
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
     paths:
       - '**.go'
 
