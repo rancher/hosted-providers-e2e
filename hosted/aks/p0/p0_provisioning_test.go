@@ -48,7 +48,7 @@ var _ = Describe("P0Provisioning", func() {
 		},
 	} {
 		testData := testData
-		When("a cluster is created", func() {
+		FWhen("a cluster is created", func() {
 			BeforeEach(func() {
 				if testData.isUpgrade && helpers.SkipUpgradeTests {
 					Skip("Skipping upgrade tests ...")

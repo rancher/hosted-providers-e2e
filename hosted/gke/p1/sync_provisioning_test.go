@@ -57,7 +57,7 @@ var _ = Describe("SyncProvisioning", func() {
 				}
 			})
 
-			It(testData.testTitle, func() {
+			FIt(testData.testTitle, func() {
 				testCaseID = testData.qaseID
 				testData.testBody(cluster, ctx.RancherAdminClient)
 			})

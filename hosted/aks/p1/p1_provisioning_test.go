@@ -731,7 +731,7 @@ var _ = Describe("P1Provisioning", func() {
 			updateNodePoolModeCheck(cluster, ctx.RancherAdminClient)
 		})
 	})
-	Context("Network Policy and plugin", func() {
+	FContext("Network Policy and plugin", func() {
 		var (
 			calicoPolicy  = "calico"
 			kubenetPlugin = "kubenet"

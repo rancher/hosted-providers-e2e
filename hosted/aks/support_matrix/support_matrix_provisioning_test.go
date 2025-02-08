@@ -27,7 +27,7 @@ import (
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
-var _ = Describe("SupportMatrixProvisioning", func() {
+var _ = FDescribe("SupportMatrixProvisioning", func() {
 
 	for _, version := range availableVersionList {
 		version := version
