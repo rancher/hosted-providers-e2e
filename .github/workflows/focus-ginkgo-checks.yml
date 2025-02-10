@@ -14,4 +14,4 @@ jobs:
         uses: actions/checkout@v4
       - name: Running the focus check script
         run: |
-          grep -ErnI --include="*.go" 'FIt|FDescribe|FContext|FWhen|FEntry|FDescribeTable' ./hosted && exit 1 || echo "No focused specs found." && exit 0
+          grep -ErnI --include="*.go" 'FIt|FDescribe|FContext|FWhen|FEntry|FDescribeTable' ./hosted && { echo "There are focused specs, please remove them.";  exit 1; } || { echo "No focused specs found."; exit 0; }
