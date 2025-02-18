@@ -1,3 +1,7 @@
+For release testing, we test against development Rancher builds. These builds are similar to RC builds, as both utilize the `dev-v2.x` branch of the Rancher chart repository, where application charts for operators are prepared for upcoming release.
+
+Before validation, always sync with developers to ensure the desired versions have been merged into the charts and Rancher projects.
+
 With every rancher release, a new operator version may or may not be released. This document provides a reference to what tests should be run for both the cases.
 
 `P0` suite must be run to test every new rancher release. This suite tests provisioning and importing clusters, k8s upgrade of the control plane and nodes, and CRUD operations of the nodegroup/nodepool.
