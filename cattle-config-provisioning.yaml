@@ -55,7 +55,7 @@ eksClusterConfig:
   privateAccess: false
   publicAccess: true
   publicAccessSources: []
-  region: ap-south-1
+  region: ap-south-2
   secretsEncryption: false
   securityGroups: []
   serviceRole: ""
