@@ -259,7 +259,7 @@ func GetEKSRegion() string {
 		config.LoadConfig("eksClusterConfig", eksClusterConfig)
 		region = eksClusterConfig.Region
 		if region == "" {
-			region = "ap-south-1"
+			region = "ap-south-2"
 		}
 	}
 	return region
