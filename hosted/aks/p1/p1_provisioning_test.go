@@ -806,10 +806,15 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	XContext("Private Cluster", func() {
-		// Blocked on: https://github.com/rancher/rancher/issues/43772
+	Context("Private Cluster", func() {
+		// Previously blocked on: https://github.com/rancher/rancher/issues/43772
 		BeforeEach(func() {
 			var err error
+			serverVersion, err := helpers.GetRancherServerVersion(ctx.RancherAdminClient)
+			Expect(err).NotTo(HaveOccurred())
+			if !strings.Contains(serverVersion, "2.12") {
+				Skip("Not supported on version < 2.12")
+			}
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())
 			GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
