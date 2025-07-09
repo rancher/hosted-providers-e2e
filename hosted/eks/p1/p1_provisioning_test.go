@@ -201,7 +201,7 @@ var _ = Describe("P1Provisioning", func() {
 		Expect(amiID).To(Or(Equal("AL2_x86_64_GPU"), Equal("AL2023_x86_64_NVIDIA")))
 	})
 
-	XIt("Deploy a cluster with Public/Priv access then disable Public access", func() {
+	FIt("Deploy a cluster with Public/Priv access then disable Public access", func() {
 		// https://github.com/rancher/eks-operator/issues/752#issuecomment-2609144199
 		testCaseID = 151
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
@@ -257,7 +257,7 @@ var _ = Describe("P1Provisioning", func() {
 			})
 
 			// eks-operator/issues/752
-			XIt("should successfully update a cluster while it is still in updating state", func() {
+			FIt("should successfully update a cluster while it is still in updating state", func() {
 				testCaseID = 148
 				updateClusterInUpdatingState(cluster, ctx.RancherAdminClient, upgradeToVersion)
 			})

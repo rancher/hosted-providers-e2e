@@ -155,7 +155,7 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	// TODO: Discuss why only one nodepool is taken into account
-	XIt("updating a cluster while it is still provisioning", func() {
+	FIt("updating a cluster while it is still provisioning", func() {
 		// Blocked by: https://github.com/rancher/aks-operator/issues/667
 		testCaseID = 222
 		var err error
@@ -557,7 +557,7 @@ var _ = Describe("P1Provisioning", func() {
 			npUpgradeToVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
 		})
 
-		XIt("should Update a cluster when a cluster is in Updating State", func() {
+		FIt("should Update a cluster when a cluster is in Updating State", func() {
 			// Ref: https://github.com/rancher/aks-operator/issues/826
 			testCaseID = 223
 			updateClusterWhenUpdating(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
@@ -718,7 +718,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(len(*cluster.AKSStatus.UpstreamSpec.NodePools)).To(Equal(2))
 		})
 
-		XIt("should to able to delete a nodepool and add a new one with different availability zone", func() {
+		FIt("should to able to delete a nodepool and add a new one with different availability zone", func() {
 			// Blocked by: https://github.com/rancher/aks-operator/issues/667#issuecomment-2370798904
 			testCaseID = 190
 			// also covers testCaseID = 194
