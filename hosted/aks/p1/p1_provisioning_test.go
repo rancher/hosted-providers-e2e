@@ -155,7 +155,7 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	// TODO: Discuss why only one nodepool is taken into account
-	FIt("updating a cluster while it is still provisioning", func() {
+	XIt("updating a cluster while it is still provisioning", func() {
 		// Blocked by: https://github.com/rancher/aks-operator/issues/667
 		testCaseID = 222
 		var err error
@@ -718,7 +718,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(len(*cluster.AKSStatus.UpstreamSpec.NodePools)).To(Equal(2))
 		})
 
-		FIt("should to able to delete a nodepool and add a new one with different availability zone", func() {
+		It("should to able to delete a nodepool and add a new one with different availability zone", func() {
 			// Blocked by: https://github.com/rancher/aks-operator/issues/667#issuecomment-2370798904
 			testCaseID = 190
 			// also covers testCaseID = 194
