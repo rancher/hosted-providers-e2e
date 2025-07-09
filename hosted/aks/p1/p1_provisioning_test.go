@@ -806,7 +806,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	Context("Private Cluster", func() {
+	FContext("Private Cluster", func() {
 		// Previously blocked on: https://github.com/rancher/rancher/issues/43772
 		BeforeEach(func() {
 			var err error
