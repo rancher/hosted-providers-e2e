@@ -155,7 +155,7 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	// TODO: Discuss why only one nodepool is taken into account
-	FIt("updating a cluster while it is still provisioning", func() {
+	It("updating a cluster while it is still provisioning", func() {
 		// Blocked by: https://github.com/rancher/aks-operator/issues/667
 		testCaseID = 222
 		var err error
@@ -557,7 +557,7 @@ var _ = Describe("P1Provisioning", func() {
 			npUpgradeToVersionGTCPCheck(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
 		})
 
-		FIt("should Update a cluster when a cluster is in Updating State", func() {
+		It("should Update a cluster when a cluster is in Updating State", func() {
 			// Ref: https://github.com/rancher/aks-operator/issues/826
 			testCaseID = 223
 			updateClusterWhenUpdating(cluster, ctx.RancherAdminClient, upgradeK8sVersion)
