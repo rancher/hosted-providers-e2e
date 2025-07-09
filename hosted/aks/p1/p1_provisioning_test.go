@@ -155,7 +155,7 @@ var _ = Describe("P1Provisioning", func() {
 	})
 
 	// TODO: Discuss why only one nodepool is taken into account
-	It("updating a cluster while it is still provisioning", func() {
+	FIt("updating a cluster while it is still provisioning", func() {
 		// Blocked by: https://github.com/rancher/aks-operator/issues/667
 		testCaseID = 222
 		var err error
@@ -806,7 +806,7 @@ var _ = Describe("P1Provisioning", func() {
 		}
 	})
 
-	FContext("Private Cluster", func() {
+	Context("Private Cluster", func() {
 		// Previously blocked on: https://github.com/rancher/rancher/issues/43772
 		BeforeEach(func() {
 			var err error
