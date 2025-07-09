@@ -257,7 +257,7 @@ var _ = Describe("P1Provisioning", func() {
 			})
 
 			// eks-operator/issues/752
-			FIt("should successfully update a cluster while it is still in updating state", func() {
+			XIt("should successfully update a cluster while it is still in updating state", func() {
 				testCaseID = 148
 				updateClusterInUpdatingState(cluster, ctx.RancherAdminClient, upgradeToVersion)
 			})

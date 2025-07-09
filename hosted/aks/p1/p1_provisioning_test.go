@@ -209,7 +209,7 @@ var _ = Describe("P1Provisioning", func() {
 		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(*cluster.AKSStatus.UpstreamSpec.NodePools).To(HaveLen(initialNPCount + 3))
-		Expect(cluster.AKSStatus.UpstreamSpec.KubernetesVersion).To(Equal(upgradeK8sVersion))
+		Expect(*cluster.AKSStatus.UpstreamSpec.KubernetesVersion).To(Equal(upgradeK8sVersion))
 	})
 
 	It("create cluster with network policy: calico and plugin: kubenet", func() {
