@@ -85,7 +85,7 @@ jobs:
     steps:
       # actions/checkout MUST come before auth
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Generate UUID and Runner hostname
         id: generator
         run: |
@@ -135,7 +135,7 @@ jobs:
           echo 'Defaults secure_path="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin"' | sudo tee /etc/sudoers.d/0-custom_secure_path
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -463,7 +463,7 @@ jobs:
     steps:
       # actions/checkout MUST come before auth
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
