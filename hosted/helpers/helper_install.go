@@ -242,24 +242,27 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Rancher-webhook pod is not running")
 	})
 
-	By("Waiting for capi-controller-manager", func() {
-		// Wait unit the kubectl command returns exit code 0
-		count := 1
-		Eventually(func() error {
-			out, err := kubectl.Run("rollout", "status",
-				"--namespace", "cattle-provisioning-capi-system",
-				"deployment", "capi-controller-manager",
-			)
-			GinkgoWriter.Printf("Waiting for capi-controller-manager deployment, loop %d:\n%s\n", count, out)
-			count++
-			return err
-		}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Capi-controller-manager deployment failed")
+	// Do not run this check on Rancher 2.13
+	if !strings.Contains(RancherFullVersion, "2.13") {
+		By("Waiting for capi-controller-manager", func() {
+			// Wait unit the kubectl command returns exit code 0
+			count := 1
+			Eventually(func() error {
+				out, err := kubectl.Run("rollout", "status",
+					"--namespace", "cattle-provisioning-capi-system",
+					"deployment", "capi-controller-manager",
+				)
+				GinkgoWriter.Printf("Waiting for capi-controller-manager deployment, loop %d:\n%s\n", count, out)
+				count++
+				return err
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Capi-controller-manager deployment failed")
 
-		checkList := [][]string{
-			{"cattle-provisioning-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
-		}
-		Eventually(func() error {
-			return rancher.CheckPod(k, checkList)
-		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Capi-controller-manager pod is not running")
-	})
+			checkList := [][]string{
+				{"cattle-provisioning-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
+			}
+			Eventually(func() error {
+				return rancher.CheckPod(k, checkList)
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Capi-controller-manager pod is not running")
+		})
+	}
 }
