@@ -46,7 +46,7 @@ Note: These are E2E tests, so rancher (version=`RANCHER_VERSION`) will be instal
 1. AKS_CLIENT_ID - Azure Client ID [Check Microsoft Entra ID to create or fetch value from an existing one](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal)
 2. AKS_CLIENT_SECRET - Azure Client Secret [Check Microsoft Entra ID to create or fetch value from an existing one](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal)
 3. AKS_SUBSCRIPTION_ID - Azure Subscription ID (In this case it is similar to a Google Cloud Project, but the value is an ID). [Check Azure Subscriptions](https://learn.microsoft.com/en-us/microsoft-365/enterprise/subscriptions-licenses-accounts-and-tenants-for-microsoft-cloud-offerings?view=o365-worldwide#subscriptions)
-4. AKS_REGION - Region in which AKS must be provisioned (default: 'centralindia'). This environment variable takes precedence over the config file variable.
+4. AKS_REGION - Region in which AKS must be provisioned (default: 'eastus'). This environment variable takes precedence over the config file variable.
 
 **Note:** It is advisable that all the Hosted Provider cluster be provisioned in APAC region, this is because we want to geolocalize all the resources created by hosted provider.
 

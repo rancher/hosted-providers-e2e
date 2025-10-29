@@ -243,7 +243,7 @@ func GetAKSLocation() string {
 		config.LoadConfig("aksClusterConfig", aksClusterConfig)
 		region = aksClusterConfig.ResourceLocation
 		if region == "" {
-			region = "centralindia"
+			region = "eastus"
 		}
 	}
 	return region
