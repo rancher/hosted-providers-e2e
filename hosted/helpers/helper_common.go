@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
@@ -425,4 +427,18 @@ func GetRancherServerVersion(client *rancher.Client) (string, error) {
 		return "", err
 	}
 	return serverVersion.Value, nil
+}
+
+// IsRancherVersionGreaterThanOrEqualTo checks if the rancher version is >= given version
+func IsRancherVersionGreaterThanOrEqualTo(rancherVersion, version string) (bool, error) {
+	rancherSemver, err := semver.NewVersion(rancherVersion)
+	if err != nil {
+		return false, err
+	}
+	versionSemver, err := semver.NewVersion(version)
+	if err != nil {
+		return false, err
+	}
+
+	return rancherSemver.GreaterThan(versionSemver) || rancherSemver.Equal(versionSemver), nil
 }
