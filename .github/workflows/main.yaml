@@ -259,6 +259,7 @@ jobs:
 
       - name: Provisioning cluster tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'p0_provisioning') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'p0_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -269,6 +270,7 @@ jobs:
 
       - name: Import cluster tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'p0_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'p0_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -279,6 +281,7 @@ jobs:
 
       - name: Provisioning cluster P1 tests
         if:  ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'p1_provisioning') }}
+        if:  ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'p1_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -289,6 +292,7 @@ jobs:
 
       - name: Import cluster P1 tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'p1_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'p1_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -299,6 +303,7 @@ jobs:
 
       - name: Support matrix provisioning tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'support_matrix_provisioning') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'support_matrix_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -309,6 +314,7 @@ jobs:
 
       - name: Support matrix import tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'support_matrix_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'support_matrix_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -319,6 +325,7 @@ jobs:
 
       - name: K8s Chart Support provisioning tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'k8s_chart_support_provisioning') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'k8s_chart_support_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -329,6 +336,7 @@ jobs:
 
       - name: K8s Chart Support import tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'k8s_chart_support_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'k8s_chart_support_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -339,6 +347,7 @@ jobs:
 
       - name: Sync provisioning tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'sync_provisioning') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'sync_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -349,6 +358,7 @@ jobs:
 
       - name: Sync import tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'sync_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'sync_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -359,6 +369,7 @@ jobs:
 
       - name: Backup/Restore provisioning tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'backup_restore_provisioning') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'backup_restore_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -370,6 +381,7 @@ jobs:
 
       - name: Backup/Restore import tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'backup_restore_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'backup_restore_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -381,6 +393,7 @@ jobs:
 
       - name: K8s Chart Support Upgrade provisioning tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'k8s_chart_support_upgrade_provisioning') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'k8s_chart_support_upgrade_provisioning') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -393,6 +406,7 @@ jobs:
 
       - name: K8s Chart Support Upgrade import tests
         if: ${{ !cancelled() && steps.prepare-rancher.outcome == 'success' && contains(inputs.tests_to_run, 'k8s_chart_support_upgrade_import') }}
+        if: ${{ !cancelled() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') && contains(inputs.tests_to_run, 'k8s_chart_support_upgrade_import') }}
         env:
           RANCHER_HOSTNAME: ${{ env.RANCHER_HOSTNAME }}
           RANCHER_PASSWORD: ${{ env.RANCHER_PASSWORD }}
@@ -430,12 +444,14 @@ jobs:
           KUBECONFIG: /etc/rancher/k3s/k3s.yaml
           RANCHER_BEHIND_PROXY: ${{ inputs.proxy == true }}
         if: ${{ always() && steps.prepare-rancher.outcome == 'success' }}
+        if: ${{ always() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') }}
         run: |
           chmod +x ${{ env.RANCHER_LOG_COLLECTOR }}
           bash ${{ env.RANCHER_LOG_COLLECTOR }}
 
       - name: Upload cluster logs
         if: ${{ always() && steps.prepare-rancher.outcome == 'success' }}
+        if: ${{ always() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') }}
         uses: actions/upload-artifact@v4
         with:
           name: support-logs-${{ inputs.hosted_provider }}
@@ -445,6 +461,7 @@ jobs:
       - name: Add summary
         shell: bash
         if: ${{ always() && steps.prepare-rancher.outcome == 'success' }}
+        if: ${{ always() && (inputs.RANCHER_HOSTNAME != 'hostname' || steps.prepare-rancher.outcome == 'success') }}
         run: |
           # Add summary
           echo "## General information" >> ${GITHUB_STEP_SUMMARY}
