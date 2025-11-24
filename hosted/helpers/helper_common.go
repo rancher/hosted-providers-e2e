@@ -7,15 +7,17 @@ import (
 	"strings"
 	"time"
 
+	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
+	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
-	"github.com/rancher/rancher/tests/v2/actions/clusters"
-	"github.com/rancher/rancher/tests/v2/actions/pipeline"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	v1 "github.com/rancher/shepherd/clients/rancher/v1"
 	"github.com/rancher/shepherd/extensions/cloudcredentials"
+	"github.com/rancher/shepherd/extensions/cloudcredentials/alibaba"
 	"github.com/rancher/shepherd/extensions/cloudcredentials/aws"
 	"github.com/rancher/shepherd/extensions/cloudcredentials/azure"
 	"github.com/rancher/shepherd/extensions/cloudcredentials/google"
@@ -29,6 +31,8 @@ import (
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 	"github.com/rancher/shepherd/pkg/session"
 	"github.com/rancher/shepherd/pkg/wait"
+	"github.com/rancher/tests/actions/clusters"
+	"github.com/rancher/tests/actions/pipeline"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 )
@@ -71,8 +75,15 @@ func CommonSynchronizedBeforeSuite() {
 		config.LoadAndUpdateConfig("googleCredentials", credentialConfig, func() {
 			credentialConfig.AuthEncodedJSON = os.Getenv("GCP_CREDENTIALS")
 		})
-	}
 
+	case "ali":
+		credentialConfig := new(cloudcredentials.AlibabaCredentialConfig)
+		config.LoadAndUpdateConfig("alibabaCredentials", credentialConfig, func() {
+			credentialConfig.AccessKeyId = os.Getenv("ALIBABA_ACCESS_KEY_ID")
+			credentialConfig.SecretAccessKey = os.Getenv("ALIBABA_ACCESS_KEY_SECRET")
+			//credentialConfig.RegionId = os.Getenv("ALIBABA_CLOUD_REGION_ID")
+		})
+	}
 }
 
 func CommonBeforeSuite() RancherContext {
@@ -104,6 +115,18 @@ func CommonBeforeSuite() RancherContext {
 		ClusterCleanup:     clusterCleanup,
 		CloudCredID:        cloudCredID,
 	}
+}
+
+func GetCSClient() *cs.Client {
+	aliCloudCreds := cloudcredentials.LoadCloudCredential("alibaba")
+	cfg := &openapi.Config{
+		AccessKeyId:     tea.String(aliCloudCreds.AlibabaCredentialConfig.AccessKeyId),
+		AccessKeySecret: tea.String(aliCloudCreds.AlibabaCredentialConfig.SecretAccessKey),
+		RegionId:        tea.String(GetALIRegion()),
+	}
+	csClient, err := cs.NewClient(cfg)
+	Expect(err).To(BeNil())
+	return csClient
 }
 
 func CreateStdUserClient(ctx *RancherContext) {
@@ -166,10 +189,11 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 			updatedCluster.GKEConfig = updatedCluster.GKEStatus.UpstreamSpec
 		case "eks":
 			updatedCluster.EKSConfig = updatedCluster.EKSStatus.UpstreamSpec
+		case "ali":
+			updatedCluster.AliConfig = updatedCluster.AliStatus.UpstreamSpec
 		}
 	}
 	return updatedCluster, nil
-
 }
 
 // ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
@@ -244,6 +268,22 @@ func GetAKSLocation() string {
 		region = aksClusterConfig.ResourceLocation
 		if region == "" {
 			region = "centralindia"
+		}
+	}
+	return region
+}
+
+// GetALIRegion fetches the value of ALI Region;
+// it first obtains the value from env var ACK_REGION, if the value is empty, it fetches the information from config file(cattle_config-import.yaml/cattle_config-provisioning.yaml)
+// if none of the sources can provide a value, it returns the default value
+func GetALIRegion() string {
+	region := os.Getenv("ALIBABA_REGION_ID")
+	if region == "" {
+		aliClusterConfig := new(management.AliClusterConfigSpec)
+		config.LoadConfig("aliClusterConfig", aliClusterConfig)
+		region = aliClusterConfig.RegionID
+		if region == "" {
+			region = "eu-central-1"
 		}
 	}
 	return region
@@ -380,6 +420,10 @@ func CreateCloudCredentials(client *rancher.Client) (string, error) {
 	case "gke":
 		cloudCredentialConfig = cloudcredentials.LoadCloudCredential("google")
 		cloudCredential, err = google.CreateGoogleCloudCredentials(client, cloudCredentialConfig)
+		Expect(err).To(BeNil())
+	case "ali":
+		cloudCredentialConfig = cloudcredentials.LoadCloudCredential("alibaba")
+		cloudCredential, err = alibaba.CreateAlibabaCloudCredentials(client, cloudCredentialConfig)
 		Expect(err).To(BeNil())
 	}
 	return fmt.Sprintf("%s:%s", cloudCredential.Namespace, cloudCredential.Name), nil
