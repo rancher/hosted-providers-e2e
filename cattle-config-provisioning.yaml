@@ -27,6 +27,40 @@ aksClusterConfig:
   resourceGroup: ""
   resourceLocation: centralindia
 tags: {}
+aliClusterConfig:
+  addons:
+  - name: terway-eniip
+  alibabaCredentialSecret: null
+  clusterName: hosted-test-cluster
+  clusterType: ManagedKubernetes
+  endpointPublicAccess: true
+  imported: false
+  kubernetesVersion: 1.33.3-aliyun.1
+  name: hosted-test-cluster
+  nodePools:
+  - dataDisks:
+    - category: cloud_essd
+      encrypted: "false"
+      size: 40
+    desiredSize: 2
+    imageId: aliyun_3_x64_20G_alibase_20241218.vhd
+    imageType: AliyunLinux3
+    instanceTypes:
+    - ecs.c7.xlarge
+    - ecs.c7a.xlarge
+    name: hosted-np1
+    runtime: containerd
+    runtimeVersion: 1.6.38
+    systemDiskCategory: cloud_essd
+    systemDiskSize: 20
+  proxyMode: ipvs
+  regionID: eu-central-1
+  resourceGroupID: rg-aek3voaz6odbj6y
+  serviceCIDR: 192.168.0.0/16
+  snatEntry: true
+  zoneIDs:
+  - eu-central-1a
+  - eu-central-1b
 awsCredentials:
 azureCredentials:
   environment: AzurePublicCloud
