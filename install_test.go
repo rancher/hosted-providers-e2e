@@ -60,6 +60,16 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 					"oci://ghcr.io/rancher/rancher-"+providerOperator+"-operator-chart/rancher-"+providerOperator+"-operator",
 					"--version", buildDate, "--namespace", "cattle-system")
 			})
+		} else if providerOperator == "alibaba" {
+			// The Alibaba operator is not part of the nightly builds, so we install it separately.
+			// This is a temporary solution until the Alibaba operator is included in the nightly builds.
+			By("Install alibaba operator charts", func() {
+				RunHelmCmdWithRetry("install", "rancher-ali-operator-crd", "-n", "cattle-system",
+					"oci://stgregistry.suse.com/rancher/charts/rancher-ali-operator-crd")
+
+				RunHelmCmdWithRetry("install", "rancher-ali-operator", "-n", "cattle-system",
+					"oci://stgregistry.suse.com/rancher/charts/rancher-ali-operator")
+			})
 		}
 	})
 })

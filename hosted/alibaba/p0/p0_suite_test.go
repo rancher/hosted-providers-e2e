@@ -51,6 +51,15 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return nil
 }, func() {
 	ctx = helpers.CommonBeforeSuite()
+	By("Adding the Alibaba UI extension repo", func() {
+		err := helpers.AddClusterRepo(ctx.RancherAdminClient, "ali-ui", "https://github.com/rancher/ali-ui", "gh-pages")
+		Expect(err).To(BeNil())
+	})
+
+	By("Enabling the Alibaba provider", func() {
+		err := helpers.EnableProvider(ctx.RancherAdminClient, "alibaba")
+		Expect(err).To(BeNil())
+	})
 })
 
 var _ = BeforeEach(func() {

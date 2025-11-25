@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -178,6 +179,44 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 		extraFlags = []string{
 			"--set", fmt.Sprintf("extraEnv[%d].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION", extraEnvIndex),
 			"--set-string", fmt.Sprintf("extraEnv[%d].value=true", extraEnvIndex),
+		}
+	}
+
+	// Inject Alibaba specific RANCHER_VERSION_TYPE=prime without creating gaps in extraEnv indices.
+	if Provider == "alibaba" {
+		alreadyPresent := false
+		for _, f := range extraFlags {
+			if strings.Contains(f, "RANCHER_VERSION_TYPE") {
+				alreadyPresent = true
+				break
+			}
+		}
+		if !alreadyPresent {
+			// Determine highest extraEnv index we are already setting in extraFlags
+			maxIdx := -1
+			for _, f := range extraFlags {
+				if strings.Contains(f, "extraEnv[") {
+					start := strings.Index(f, "extraEnv[") + len("extraEnv[")
+					end := strings.Index(f[start:], "]")
+					if start > -1 && end > 0 {
+						idxStr := f[start : start+end]
+						if idx, err := strconv.Atoi(idxStr); err == nil {
+							if idx > maxIdx {
+								maxIdx = idx
+							}
+						}
+					}
+				}
+			}
+			// Choose next contiguous index, with a minimum of 1 (installer typically occupies 0)
+			alibabaIndex := maxIdx + 1
+			if alibabaIndex < 1 {
+				alibabaIndex = 1
+			}
+			extraFlags = append(extraFlags,
+				"--set", fmt.Sprintf("extraEnv[%d].name=RANCHER_VERSION_TYPE", alibabaIndex),
+				"--set", fmt.Sprintf("extraEnv[%d].value=prime", alibabaIndex),
+			)
 		}
 	}
 
