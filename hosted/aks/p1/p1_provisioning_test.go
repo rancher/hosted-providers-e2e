@@ -812,8 +812,11 @@ var _ = Describe("P1Provisioning", func() {
 			var err error
 			serverVersion, err := helpers.GetRancherServerVersion(ctx.RancherAdminClient)
 			Expect(err).NotTo(HaveOccurred())
-			if !strings.Contains(serverVersion, "2.12") {
-				Skip("Not supported on version < 2.12")
+			// The feature is supported from v2.12+
+			isSupported, err := helpers.IsRancherVersionGreaterThanOrEqualTo(serverVersion, "2.12.0")
+			Expect(err).NotTo(HaveOccurred())
+			if !isSupported {
+				Skip("Private cluster tests are not supported on Rancher versions older than v2.12")
 			}
 			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, true)
 			Expect(err).NotTo(HaveOccurred())
