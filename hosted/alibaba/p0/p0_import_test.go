@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/rancher/hosted-providers-e2e/hosted/ali/helper"
+	"github.com/rancher/hosted-providers-e2e/hosted/alibaba/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
