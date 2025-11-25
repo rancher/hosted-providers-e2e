@@ -189,7 +189,7 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 			updatedCluster.GKEConfig = updatedCluster.GKEStatus.UpstreamSpec
 		case "eks":
 			updatedCluster.EKSConfig = updatedCluster.EKSStatus.UpstreamSpec
-		case "ali":
+		case "alibaba":
 			updatedCluster.AliConfig = updatedCluster.AliStatus.UpstreamSpec
 		}
 	}
