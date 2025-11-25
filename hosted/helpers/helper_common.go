@@ -76,7 +76,7 @@ func CommonSynchronizedBeforeSuite() {
 			credentialConfig.AuthEncodedJSON = os.Getenv("GCP_CREDENTIALS")
 		})
 
-	case "ali":
+	case "alibaba":
 		credentialConfig := new(cloudcredentials.AlibabaCredentialConfig)
 		config.LoadAndUpdateConfig("alibabaCredentials", credentialConfig, func() {
 			credentialConfig.AccessKeyId = os.Getenv("ALIBABA_ACCESS_KEY_ID")
@@ -421,7 +421,7 @@ func CreateCloudCredentials(client *rancher.Client) (string, error) {
 		cloudCredentialConfig = cloudcredentials.LoadCloudCredential("google")
 		cloudCredential, err = google.CreateGoogleCloudCredentials(client, cloudCredentialConfig)
 		Expect(err).To(BeNil())
-	case "ali":
+	case "alibaba":
 		cloudCredentialConfig = cloudcredentials.LoadCloudCredential("alibaba")
 		cloudCredential, err = alibaba.CreateAlibabaCloudCredentials(client, cloudCredentialConfig)
 		Expect(err).To(BeNil())
