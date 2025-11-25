@@ -10,8 +10,6 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
-	"github.com/rancher/rancher/tests/v2/actions/clusters"
-	"github.com/rancher/rancher/tests/v2/actions/pipeline"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	v1 "github.com/rancher/shepherd/clients/rancher/v1"
@@ -30,6 +28,8 @@ import (
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 	"github.com/rancher/shepherd/pkg/session"
 	"github.com/rancher/shepherd/pkg/wait"
+	"github.com/rancher/tests/actions/clusters"
+	"github.com/rancher/tests/actions/pipeline"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 )
@@ -75,7 +75,7 @@ func CommonSynchronizedBeforeSuite() {
 
 	case "alibaba":
 		credentialConfig := new(cloudcredentials.AlibabaCredentialConfig)
-		config.LoadAndUpdateConfig("alibabacredential", credentialConfig, func() {
+		config.LoadAndUpdateConfig("alibabaCredentials", credentialConfig, func() {
 			credentialConfig.AccessKeyId = os.Getenv("ALIBABA_ACCESS_KEY_ID")
 			credentialConfig.SecretAccessKey = os.Getenv("ALIBABA_ACCESS_KEY_SECRET")
 		})
