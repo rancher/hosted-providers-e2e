@@ -189,11 +189,32 @@ func WaitForAlibabaProviderActivation(k *kubectl.Kubectl) error {
 	if Provider != "alibaba" {
 		return nil
 	}
+	// Step 1: Wait for UI extension pod (simulates Rancher UI refresh after repo add)
+	By("Waiting for Alibaba UI extension pod to be ready (refresh Rancher)", func() {
+		checkList := [][]string{{"cattle-ui-plugin-system", "app.kubernetes.io/instance=AlibabaCloud"}}
+		Eventually(func() error { return testhelpersRancher.CheckPod(k, checkList) }, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Alibaba UI extension pod not ready")
+	})
+	// Step 2: Wait for operator pod
 	By("Waiting for Alibaba operator pods to be ready", func() {
 		checkList := [][]string{{"cattle-system", "app=rancher-ali-operator"}}
 		Eventually(func() error { return testhelpersRancher.CheckPod(k, checkList) }, tools.SetTimeout(6*time.Minute), 30*time.Second).Should(BeNil(), "Alibaba operator pod not ready")
 	})
-	GinkgoLogr.Info("Alibaba provider activation checks passed")
+
+	// Step 3: Wait for kontainerdriver AlibabaCloud to be Active in Rancher
+	By("Waiting for AlibabaCloud kontainerdriver to be Active in Rancher", func() {
+		Eventually(func() (string, error) {
+			out, err := kubectl.RunWithoutErr(
+				"get", "kontainerdrivers.management.cattle.io", "alibabacloud",
+				"-o", "jsonpath={.status.conditions[?(@.type=='Active')].status}",
+			)
+			if err != nil {
+				return "", err
+			}
+			return strings.TrimSpace(out), nil
+		}, tools.SetTimeout(3*time.Minute), 15*time.Second).Should(Equal("True"), "AlibabaCloud kontainerdriver not Active")
+	})
+
+	GinkgoLogr.Info("Alibaba provider activation checks passed (pods ready, kontainerdriver Active)")
 	return nil
 }
 
@@ -202,7 +223,20 @@ func ActivateAlibabaProvider(k *kubectl.Kubectl) error { return WaitForAlibabaPr
 
 // VerifyAlibabaClusterRepo ensures ali-ui ClusterRepo exists and is ready.
 func VerifyAlibabaClusterRepo(client *rancher.Client) error {
-	return AddClusterRepo(client, "ali-ui", "https://github.com/rancher/ali-ui", "gh-pages")
+	err := AddClusterRepo(client, "ali-ui", "https://github.com/rancher/ali-ui", "gh-pages")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// VerifyUiPluginRepo ensures ali-ui ClusterRepo exists and is ready.
+func VerifyUiPluginRepo(client *rancher.Client) error {
+	err := AddClusterRepo(client, "ui-plugin-charts", "https://github.com/rancher/ui-plugin-charts", "main")
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // LogAlibabaActivationSummary writes a simple activation summary.
