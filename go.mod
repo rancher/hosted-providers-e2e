@@ -146,10 +146,8 @@ require (
 
 replace (
 	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20241119163817-d801b4924311 // rancher/rancher main commit
-	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
-	k8s.io/client-go => k8s.io/client-go v0.33.1
-	k8s.io/api => k8s.io/api v0.33.1
 	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20250916092401-b59287aff640
+	go.qase.io/client => github.com/rancher/qase-go/client v0.0.0-20240308221502-c3b2635212be
+	k8s.io/api => k8s.io/api v0.33.1
+	k8s.io/client-go => k8s.io/client-go v0.33.1
 )
-
-
