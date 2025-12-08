@@ -8,12 +8,12 @@ on:
         description: Rancher version channel/version/head_version
         required: true
         type: string
-        default: head/2.12
+        default: head/2.13
       k3s_version:
         description: k3s version of local cluster
         required: true
         type: string
-        default: v1.32.1+k3s1
+        default: v1.34.1+k3s1
       operator_nightly_chart:
         description: Install hosted-provider nightly chart
         default: false
@@ -46,7 +46,7 @@ on:
         description: Providers to the run the test on
         required: true
         type: string
-        default: '["eks", "gke", "aks"]'
+        default: '["eks", "gke", "aks", "alibaba"]'
 
 jobs:
   e2e-tests:
