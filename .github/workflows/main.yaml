@@ -102,7 +102,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
       - name: Create runner
         run: |
           REGION=$(echo ${{ env.GCP_RUNNER_ZONE }} | sed 's/-[abcdef]$//')
@@ -145,7 +145,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Get Runner IP
         id: runner-ip
@@ -471,7 +471,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
       - name: Delete GCP secrets
         run: |
           gcloud --quiet secrets delete PAT_TOKEN_${{ needs.create-runner.outputs.uuid }}
