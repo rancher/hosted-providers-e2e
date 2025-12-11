@@ -10,12 +10,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
-	"github.com/rancher-sandbox/ele-testhelpers/rancher"
+	rancherEle "github.com/rancher-sandbox/ele-testhelpers/rancher"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 )
 
 /**
- * Execute RunHelmBinaryWithCustomErr within a loop with timeout
+ * Execute RunHelmBinaryWithOutput within a loop with timeout
  * @param s options to pass to RunHelmBinaryWithCustomErr command
  * @returns Nothing, the function will fail through Ginkgo in case of issue
  */
@@ -91,9 +91,9 @@ NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.
 			{"kube-system", "app.kubernetes.io/name=traefik"},
 			{"kube-system", "svccontroller.k3s.cattle.io/svcname=traefik"},
 		}
-		Eventually(func() error {
-			return rancher.CheckPod(k, checkList)
-		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "K3s pods are not running")
+		Eventually(func() error { // k3s pods are not running
+			return rancherEle.CheckPod(k, checkList)
+		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 	})
 }
 
@@ -132,9 +132,9 @@ func InstallCertManager(k *kubectl.Kubectl, proxy, proxyHost string) {
 			{"cert-manager", "app.kubernetes.io/component=webhook"},
 			{"cert-manager", "app.kubernetes.io/component=cainjector"},
 		}
-		Eventually(func() error {
-			return rancher.CheckPod(k, checkList)
-		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "CertManager pods are not running")
+		Eventually(func() error { // CertManager pods are not running
+			return rancherEle.CheckPod(k, checkList)
+		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 	})
 }
 
@@ -167,30 +167,39 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 	}
 
 	var extraFlags []string
+	// Ensure proper extraEnv index sequence for helm rendering
+	// All head versions and releases from prime-optimus[-alpha] channel require an extraEnv index of 2
+	// See https://github.com/rancher-sandbox/ele-testhelpers/blob/main/rancher/install.go
+	extraEnvIndex := 1
+	if rancherHeadVersion != "" || strings.Contains(rancherChannel, "prime") {
+		extraEnvIndex = 2
+	}
+
 	if nightlyChart == "enabled" {
-		// Ensure proper extraEnv index sequence for helm rendering
-		// All head versions and releases from prime-optimus[-alpha] channel require an extraEnv index of 2
-		// See https://github.com/rancher-sandbox/ele-testhelpers/blob/main/rancher/install.go
-		extraEnvIndex := 1
-		if rancherHeadVersion != "" || strings.Contains(rancherChannel, "prime-optimus") {
-			extraEnvIndex = 2
-		}
-		extraFlags = []string{
+		nightlyFlags := []string{
 			"--set", fmt.Sprintf("extraEnv[%d].name=CATTLE_SKIP_HOSTED_CLUSTER_CHART_INSTALLATION", extraEnvIndex),
 			"--set-string", fmt.Sprintf("extraEnv[%d].value=true", extraEnvIndex),
 		}
+		extraFlags = append(extraFlags, nightlyFlags...)
+		extraEnvIndex++
 	}
 
-	err := rancher.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", proxyEnabled, extraFlags)
+	if Provider == "alibaba" {
+		alibabaFlags := []string{"--set", fmt.Sprintf("extraEnv[%d].name=RANCHER_VERSION_TYPE", extraEnvIndex), "--set", fmt.Sprintf("extraEnv[%d].value=prime", extraEnvIndex)}
+		extraFlags = append(extraFlags, alibabaFlags...)
+		extraEnvIndex++
+	}
+	err := rancherEle.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", proxyEnabled, extraFlags)
 	Expect(err).To(Not(HaveOccurred()))
 
 	// Wait for all pods to be started
 	checkList := [][]string{
 		{"cattle-system", "app=rancher"},
 	}
-	Eventually(func() error {
-		return rancher.CheckPod(k, checkList)
-	}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Rancher pod is not running")
+	Eventually(func() error { // Rancher pod is not running
+		return rancherEle.CheckPod(k, checkList)
+	}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+
 }
 
 /*
@@ -216,9 +225,9 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 		checkList := [][]string{
 			{"cattle-fleet-system", "app=fleet-controller"},
 		}
-		Eventually(func() error {
-			return rancher.CheckPod(k, checkList)
-		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Fleet-controller pod is not running")
+		Eventually(func() error { // Fleet-controller pod is not running
+			return rancherEle.CheckPod(k, checkList)
+		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 	})
 
 	By("Waiting for rancher-webhook", func() {
@@ -237,9 +246,9 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 		checkList := [][]string{
 			{"cattle-system", "app=rancher-webhook"},
 		}
-		Eventually(func() error {
-			return rancher.CheckPod(k, checkList)
-		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Rancher-webhook pod is not running")
+		Eventually(func() error { // Rancher-webhook pod is not running
+			return rancherEle.CheckPod(k, checkList)
+		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 	})
 
 	// Do not run this check on Rancher 2.13
@@ -260,9 +269,33 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 			checkList := [][]string{
 				{"cattle-provisioning-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
 			}
-			Eventually(func() error {
-				return rancher.CheckPod(k, checkList)
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil(), "Capi-controller-manager pod is not running")
+			Eventually(func() error { // Capi-controller-manager pod is not running
+				return rancherEle.CheckPod(k, checkList)
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
 	}
+}
+
+/*
+*
+Restart Rancher pods
+  - @param k kubectl structure.
+  - @returns Nothing, the function will fail through Ginkgo in case of issue.
+*/
+func RestartRancher(k *kubectl.Kubectl) {
+	By("Restarting Rancher pods", func() {
+		_, err := kubectl.Run("rollout", "restart", "deployment/rancher", "-n", "cattle-system")
+		Expect(err).To(Not(HaveOccurred()))
+
+		By("Waiting for Rancher to be ready after restart", func() {
+			// Wait for rancher deployment to be available
+			Eventually(func() error {
+				out, err := kubectl.Run("rollout", "status", "deployment", "rancher", "-n", "cattle-system")
+				GinkgoWriter.Printf("Waiting for rancher deployment, loop:\n%s\n", out)
+				return err
+			}, tools.SetTimeout(5*time.Minute), 10*time.Second).Should(Not(HaveOccurred()))
+
+			CheckRancherDeployments(k)
+		})
+	})
 }
