@@ -171,7 +171,7 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 	// All head versions and releases from prime-optimus[-alpha] channel require an extraEnv index of 2
 	// See https://github.com/rancher-sandbox/ele-testhelpers/blob/main/rancher/install.go
 	extraEnvIndex := 1
-	if rancherHeadVersion != "" || strings.Contains(rancherChannel, "prime-optimus") {
+	if rancherHeadVersion != "" || strings.Contains(rancherChannel, "prime") {
 		extraEnvIndex = 2
 	}
 
