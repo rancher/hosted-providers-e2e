@@ -26,6 +26,7 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
+	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
 	"github.com/rancher/hosted-providers-e2e/hosted/alibaba/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
@@ -35,10 +36,13 @@ const (
 )
 
 var (
-	ctx         helpers.RancherContext
-	cluster     *management.Cluster
-	clusterName string
-	testCaseID  int64
+	ctx             helpers.RancherContext
+	cluster         *management.Cluster
+	clusterName     string
+	testCaseID      int64
+	region          = helpers.GetACKRegion()
+	resourceGroupId = helpers.GetACKResourceGroupID()
+	csClient        *cs.Client
 )
 
 func TestP0(t *testing.T) {
@@ -51,6 +55,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return nil
 }, func() {
 	ctx = helpers.CommonBeforeSuite()
+	csClient = helpers.GetCSClient()
 })
 
 var _ = BeforeEach(func() {
@@ -60,12 +65,12 @@ var _ = BeforeEach(func() {
 })
 
 var _ = ReportBeforeEach(func(report SpecReport) {
-	// Reset case ID
+	//Reset case ID
 	testCaseID = -1
 })
 
 var _ = ReportAfterEach(func(report SpecReport) {
-	// Add result in Qase if asked
+	//Add result in Qase if asked
 	Qase(testCaseID, report)
 })
 

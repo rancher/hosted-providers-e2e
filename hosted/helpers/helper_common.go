@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
+	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	"github.com/alibabacloud-go/tea/tea"
 
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -82,7 +85,6 @@ func CommonSynchronizedBeforeSuite() {
 			credentialConfig.SecretAccessKey = os.Getenv("ALIBABA_ACCESS_KEY_SECRET")
 		})
 	}
-
 }
 
 func CommonBeforeSuite() RancherContext {
@@ -114,6 +116,18 @@ func CommonBeforeSuite() RancherContext {
 		ClusterCleanup:     clusterCleanup,
 		CloudCredID:        cloudCredID,
 	}
+}
+
+func GetCSClient() *cs.Client {
+	aliCloudCreds := cloudcredentials.LoadCloudCredential("alibaba")
+	cfg := &openapi.Config{
+		AccessKeyId:     tea.String(aliCloudCreds.AlibabaCredentialConfig.AccessKeyId),
+		AccessKeySecret: tea.String(aliCloudCreds.AlibabaCredentialConfig.SecretAccessKey),
+		RegionId:        tea.String(GetACKRegion()),
+	}
+	csClient, err := cs.NewClient(cfg)
+	Expect(err).To(BeNil())
+	return csClient
 }
 
 func CreateStdUserClient(ctx *RancherContext) {
@@ -176,10 +190,11 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 			updatedCluster.GKEConfig = updatedCluster.GKEStatus.UpstreamSpec
 		case "eks":
 			updatedCluster.EKSConfig = updatedCluster.EKSStatus.UpstreamSpec
+		case "alibaba":
+			updatedCluster.AliConfig = updatedCluster.AliStatus.UpstreamSpec
 		}
 	}
 	return updatedCluster, nil
-
 }
 
 // ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
@@ -257,6 +272,26 @@ func GetAKSLocation() string {
 		}
 	}
 	return region
+}
+
+// GetALIRegion fetches the value of ALI Region;
+// it first obtains the value from env var ACK_REGION, if the value is empty, it fetches the information from config file(cattle_config-import.yaml/cattle_config-provisioning.yaml)
+// if none of the sources can provide a value, it returns the default value
+func GetACKRegion() string {
+	region := os.Getenv("ALIBABA_REGION_ID")
+	if region == "" {
+		aliClusterConfig := new(management.AliClusterConfigSpec)
+		config.LoadConfig("aliClusterConfig", aliClusterConfig)
+		region = aliClusterConfig.RegionID
+		if region == "" {
+			region = "eu-central-1"
+		}
+	}
+	return region
+}
+
+func GetACKResourceGroupID() string {
+	return os.Getenv("ALIBABA_RESOURCE_GROUP_ID")
 }
 
 // GetEKSRegion fetches the value of EKS Region;

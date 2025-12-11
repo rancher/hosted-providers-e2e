@@ -1,3 +1,40 @@
+aliClusterConfig:
+  addons:
+  - name: terway-eniip
+  alibabaCredentialSecret: null
+  clusterName: ""
+  ClusterSpec: ack.pro.small
+  clusterType: ManagedKubernetes
+  endpointPublicAccess: true
+  imported: true
+  kubernetesVersion: ""
+  nodePools:
+  - dataDisks:
+    - category: cloud_essd
+      encrypted: "false"
+      size: 40
+    desiredSize: 2
+    imageId: aliyun_3_x64_20G_alibase_20241218.vhd
+    imageType: AliyunLinux3
+    instanceTypes:
+    - ecs.c7.xlarge
+    - ecs.c7a.xlarge
+    name: hosted-np1
+    runtime: containerd
+    runtimeVersion: 1.6.38
+    systemDiskCategory: cloud_essd
+    systemDiskSize: 20
+  podVswitchIds:
+  - vsw-gw8u79meukfaoe3ij9fkq
+  - vsw-gw8tfbam298wsyqwdrj5a
+  proxyMode: ipvs
+  regionID: eu-central-1
+  serviceCIDR: 192.168.0.0/16
+  snatEntry: true
+  vpcId: vpc-gw8bisrux1tekmkohy4wz
+  vswitchIds:
+  - vsw-gw8u79meukfaoe3ij9fkq
+  - vsw-gw8tfbam298wsyqwdrj5a
 aksClusterConfig:
   imported: true
   nodePools:
