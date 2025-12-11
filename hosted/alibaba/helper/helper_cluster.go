@@ -594,3 +594,29 @@ func GetK8sVersion(client *rancher.Client, forUpgrade bool) (string, error) {
 
 	return helpers.DefaultK8sVersion(allVariants, forUpgrade)
 }
+
+// UpgradeACKOnAlibaba upgrade the ACK cluster using alibaba sdk client
+func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion string, additionalArgs ...string) error {
+	upgradeClusterRequest := &cs.UpgradeClusterRequest{
+		NextVersion: tea.String(upgradeToVersion),
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	tryErr := func() (_e error) {
+		defer func() {
+			if r := tea.Recover(recover()); r != nil {
+				_e = r
+			}
+		}()
+		_, _err := csClient.UpgradeClusterWithOptions(tea.String(clusterId), upgradeClusterRequest, headers, runtime)
+		if _err != nil {
+			return _err
+		}
+		return nil
+	}()
+
+	if tryErr != nil {
+		return fmt.Errorf("cluster upgrade failed: %w", tryErr)
+	}
+	return nil
+}
