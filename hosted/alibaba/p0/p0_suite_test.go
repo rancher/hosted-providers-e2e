@@ -26,6 +26,7 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
+	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
 	"github.com/rancher/hosted-providers-e2e/hosted/alibaba/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
@@ -39,6 +40,8 @@ var (
 	cluster     *management.Cluster
 	clusterName string
 	testCaseID  int64
+	region      = helpers.GetALIRegion()
+	csClient    *cs.Client
 )
 
 func TestP0(t *testing.T) {
@@ -51,6 +54,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return nil
 }, func() {
 	ctx = helpers.CommonBeforeSuite()
+	csClient = helpers.GetCSClient()
 })
 
 var _ = BeforeEach(func() {
@@ -60,12 +64,12 @@ var _ = BeforeEach(func() {
 })
 
 var _ = ReportBeforeEach(func(report SpecReport) {
-	// Reset case ID
+	//Reset case ID
 	testCaseID = -1
 })
 
 var _ = ReportAfterEach(func(report SpecReport) {
-	// Add result in Qase if asked
+	//Add result in Qase if asked
 	Qase(testCaseID, report)
 })
 
@@ -76,30 +80,35 @@ func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterN
 		initialNodeCount = *cluster.AliConfig.NodePools[0].DesiredSize
 	} else {
 		Fail("initialNodeCount could not be determined from cluster's spec")
+		if cluster.AliStatus != nil && cluster.AliStatus.UpstreamSpec != nil && len(cluster.AliStatus.UpstreamSpec.NodePools) > 0 && cluster.AliStatus.UpstreamSpec.NodePools[0].DesiredSize != nil {
+			initialNodeCount = *cluster.AliStatus.UpstreamSpec.NodePools[0].DesiredSize
+		} else {
+			Fail("initialNodeCount could not be determined from cluster's upstream spec")
+		}
+
+		By("scaling up the NodePool", func() {
+			var err error
+			cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount+increaseBy, true, true)
+			Expect(err).To(BeNil())
+		})
+
+		By("scaling down the NodePool", func() {
+			var err error
+			cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount, true, true)
+			Expect(err).To(BeNil())
+		})
+
+		By("adding a NodePool", func() {
+			var err error
+			cluster, err = helper.AddNodePool(cluster, client, increaseBy, "", true, true)
+			Expect(err).To(BeNil())
+		})
+		By("deleting the NodePool", func() {
+			var err error
+			cluster, err = helper.DeleteNodePool(cluster, client, true, true)
+			Expect(err).To(BeNil())
+		})
 	}
-
-	By("scaling up the NodePool", func() {
-		var err error
-		cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount+increaseBy, true, true)
-		Expect(err).To(BeNil())
-	})
-
-	By("scaling down the NodePool", func() {
-		var err error
-		cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount, true, true)
-		Expect(err).To(BeNil())
-	})
-
-	By("adding a NodePool", func() {
-		var err error
-		cluster, err = helper.AddNodePool(cluster, client, increaseBy, "", true, true)
-		Expect(err).To(BeNil())
-	})
-	By("deleting the NodePool", func() {
-		var err error
-		cluster, err = helper.DeleteNodePool(cluster, client, true, true)
-		Expect(err).To(BeNil())
-	})
 }
 
 func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Client, clusterName string) {
