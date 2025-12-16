@@ -80,35 +80,30 @@ func p0NodesChecks(cluster *management.Cluster, client *rancher.Client, clusterN
 		initialNodeCount = *cluster.AliConfig.NodePools[0].DesiredSize
 	} else {
 		Fail("initialNodeCount could not be determined from cluster's spec")
-		if cluster.AliStatus != nil && cluster.AliStatus.UpstreamSpec != nil && len(cluster.AliStatus.UpstreamSpec.NodePools) > 0 && cluster.AliStatus.UpstreamSpec.NodePools[0].DesiredSize != nil {
-			initialNodeCount = *cluster.AliStatus.UpstreamSpec.NodePools[0].DesiredSize
-		} else {
-			Fail("initialNodeCount could not be determined from cluster's upstream spec")
-		}
-
-		By("scaling up the NodePool", func() {
-			var err error
-			cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount+increaseBy, true, true)
-			Expect(err).To(BeNil())
-		})
-
-		By("scaling down the NodePool", func() {
-			var err error
-			cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount, true, true)
-			Expect(err).To(BeNil())
-		})
-
-		By("adding a NodePool", func() {
-			var err error
-			cluster, err = helper.AddNodePool(cluster, client, increaseBy, "", true, true)
-			Expect(err).To(BeNil())
-		})
-		By("deleting the NodePool", func() {
-			var err error
-			cluster, err = helper.DeleteNodePool(cluster, client, true, true)
-			Expect(err).To(BeNil())
-		})
 	}
+
+	By("scaling up the NodePool", func() {
+		var err error
+		cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount+increaseBy, true, true)
+		Expect(err).To(BeNil())
+	})
+
+	By("scaling down the NodePool", func() {
+		var err error
+		cluster, err = helper.ScaleNodePool(cluster, client, initialNodeCount, true, true)
+		Expect(err).To(BeNil())
+	})
+
+	By("adding a NodePool", func() {
+		var err error
+		cluster, err = helper.AddNodePool(cluster, client, increaseBy, "", true, true)
+		Expect(err).To(BeNil())
+	})
+	By("deleting the NodePool", func() {
+		var err error
+		cluster, err = helper.DeleteNodePool(cluster, client, true, true)
+		Expect(err).To(BeNil())
+	})
 
 	//var initialNodeCount int64
 	//if cluster.AliConfig != nil && len(cluster.AliConfig.NodePools) > 0 && cluster.AliConfig.NodePools[0].DesiredSize != nil {

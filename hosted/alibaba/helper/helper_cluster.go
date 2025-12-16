@@ -436,7 +436,7 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 	updatePayload = newClusterUpdatePayload(cluster)
 
 	// Ensure ImageID is populated for all node pools in the update payload
-	populateNodePoolImageIDs(updatePayload)
+	//populateNodePoolImageIDs(updatePayload)
 
 	for i := range updatePayload.AliConfig.NodePools {
 		updatePayload.AliConfig.NodePools[i].DesiredSize = pointer.Int64(nodeCount)
