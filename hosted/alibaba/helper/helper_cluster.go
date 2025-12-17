@@ -80,6 +80,7 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 		DockerRootDir: "/var/lib/docker",
 		AliConfig:     aliSpec,
 		Name:          displayName,
+		// Add more top-level fields if needed (labels, annotations, etc.)
 	}
 
 	clusterResp, err := client.Management.Cluster.Create(cluster)
@@ -89,7 +90,6 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 	return clusterResp, nil
 }
 
-// Add more top-level fields if needed (labels, annotations, etc.)
 func CreateALIClusterOnAlibaba(csClient *cs.Client, region string, clusterName string, k8sVersion string, nodes string, tags map[string]string, extraArgs ...string) (string, error) {
 
 	// Load aliClusterConfig from YAML config
