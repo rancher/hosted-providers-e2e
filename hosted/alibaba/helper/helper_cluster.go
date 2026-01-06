@@ -594,3 +594,186 @@ func GetK8sVersion(client *rancher.Client, forUpgrade bool) (string, error) {
 
 	return helpers.DefaultK8sVersion(allVariants, forUpgrade)
 }
+
+// UpgradeACKOnAlibaba upgrade the ACK cluster using alibaba sdk client
+func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion string, additionalArgs ...string) error {
+	upgradeClusterRequest := &cs.UpgradeClusterRequest{
+		NextVersion: tea.String(upgradeToVersion),
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	tryErr := func() (_e error) {
+		defer func() {
+			if r := tea.Recover(recover()); r != nil {
+				_e = r
+			}
+		}()
+		_, _err := csClient.UpgradeClusterWithOptions(tea.String(clusterId), upgradeClusterRequest, headers, runtime)
+		if _err != nil {
+			return _err
+		}
+		return nil
+	}()
+
+	if tryErr != nil {
+		return fmt.Errorf("cluster upgrade failed: %w", tryErr)
+	}
+	return nil
+}
+
+// CheckClusterK8sVersionOnAlibaba checks the ACK cluster version using alibaba sdk client
+func CheckClusterK8sVersionOnAlibaba(csClient *cs.Client, clusterId string) (*cs.DescribeClusterDetailResponse, error) {
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	var resp *cs.DescribeClusterDetailResponse
+
+	tryErr := func() (_e error) {
+		defer func() {
+			if r := tea.Recover(recover()); r != nil {
+				_e = r
+			}
+		}()
+
+		var err error
+		resp, err = csClient.DescribeClusterDetailWithOptions(
+			tea.String(clusterId),
+			headers,
+			runtime,
+		)
+		return err
+	}()
+
+	if tryErr != nil {
+		return nil, fmt.Errorf("cluster k8s version check failed: %w", tryErr)
+	}
+
+	return resp, nil
+}
+
+// AddNodePoolOnAlibaba adds nodepool to an ACK cluster via SDK; helpful when creating a cluster with multiple nodepools
+func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCount int64, resourceGroupId string) (error, *cs.CreateClusterNodePoolResponse) {
+	// Load aliClusterConfig from YAML config
+	var aliClusterConfig ali.ClusterConfig
+	config.LoadConfig(ali.ALIClusterConfigConfigurationFileKey, &aliClusterConfig)
+	req := &cs.CreateClusterNodePoolRequest{
+		NodepoolInfo: &cs.CreateClusterNodePoolRequestNodepoolInfo{
+			Name:            tea.String(npName),
+			ResourceGroupId: tea.String(resourceGroupId),
+		},
+		ScalingGroup: &cs.CreateClusterNodePoolRequestScalingGroup{
+			VswitchIds:         tea.StringSlice(aliClusterConfig.VSwitchIDs),
+			DesiredSize:        tea.Int64(nodeCount),
+			InstanceTypes:      tea.StringSlice([]string{aliClusterConfig.NodePools[0].InstanceTypes[0]}),
+			SystemDiskCategory: tea.String(aliClusterConfig.NodePools[0].SystemDiskCategory),
+			SystemDiskSize:     tea.Int64(aliClusterConfig.NodePools[0].SystemDiskSize),
+			DataDisks: []*cs.DataDisk{
+				{
+					Category:  tea.String(aliClusterConfig.NodePools[0].DataDisks[0].Category),
+					Size:      tea.Int64(int64(aliClusterConfig.NodePools[0].DataDisks[0].Size)),
+					Encrypted: tea.String("false"),
+				},
+			},
+		},
+		KubernetesConfig: &cs.CreateClusterNodePoolRequestKubernetesConfig{
+			Runtime:        tea.String(aliClusterConfig.NodePools[0].Runtime),
+			RuntimeVersion: tea.String(aliClusterConfig.NodePools[0].RuntimeVersion),
+		},
+	}
+	headers := make(map[string]*string)
+	runtime := &util.RuntimeOptions{}
+
+	resp, err := csClient.CreateClusterNodePoolWithOptions(
+		tea.String(clusterId),
+		req,
+		headers,
+		runtime,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create node pool: %w", err), nil
+	}
+
+	fmt.Println("Node pool created:", resp.Body)
+	return nil, resp
+}
+
+// ScaleNodePoolOnAlibaba scales nodepool of an ACK cluster via SDK
+func ScaleNodePoolOnAlibaba(csClient *cs.Client, clusterId string, scaleCount int64, nodePoolResp *cs.CreateClusterNodePoolResponse) error {
+	scaleClusterNodePoolRequest := &cs.ScaleClusterNodePoolRequest{
+		Count: tea.Int64(scaleCount),
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	_, err := csClient.ScaleClusterNodePoolWithOptions(
+		tea.String(clusterId),
+		tea.String(*nodePoolResp.Body.NodepoolId),
+		scaleClusterNodePoolRequest,
+		headers,
+		runtime,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to scale node pool: %w", err)
+	}
+
+	fmt.Println("Node pool scaled successfully")
+	return nil
+}
+
+// DeleteNodePoolOnAlibaba deletes nodepool from an ACK cluster via SDK
+func DeleteNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodePoolResp *cs.CreateClusterNodePoolResponse) error {
+	fmt.Println("Deleting node pool ...")
+
+	scalingGroup := &cs.ModifyClusterNodePoolRequestScalingGroup{
+		DesiredSize: tea.Int64(0),
+	}
+	modifyClusterNodePoolRequest := &cs.ModifyClusterNodePoolRequest{
+		ScalingGroup: scalingGroup,
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+
+	_, err := csClient.ModifyClusterNodePoolWithOptions(tea.String(clusterId), tea.String(*nodePoolResp.Body.NodepoolId), modifyClusterNodePoolRequest, headers, runtime)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("nodes deletion request initiated")
+
+	// Step 2: Wait until node pool is empty using Eventually
+	Eventually(func() bool {
+		resp, err := csClient.DescribeClusterNodePoolDetailWithOptions(tea.String(clusterId), tea.String(*nodePoolResp.Body.NodepoolId), headers, runtime)
+		if err != nil {
+			fmt.Println("Error describing node pool:", err)
+			return false
+		}
+
+		totalNodes := tea.Int64Value(resp.Body.Status.TotalNodes)
+		state := tea.StringValue(resp.Body.Status.State)
+
+		fmt.Printf("NodePool state=%s totalNodes=%d\n", state, totalNodes)
+
+		if state == "removing_nodes" || state == "scaling" {
+			return false
+		}
+
+		if totalNodes == 0 {
+			return true
+		}
+		return false
+	}, 20*time.Minute, 10*time.Second).Should(BeTrue(), "Timed out waiting for node pool to scale down to 0")
+
+	// Step 3: Delete the node pool
+	deleteRequest := &cs.DeleteClusterNodepoolRequest{}
+	_, err = csClient.DeleteClusterNodepoolWithOptions(
+		tea.String(clusterId),
+		tea.String(*nodePoolResp.Body.NodepoolId),
+		deleteRequest,
+		headers,
+		runtime,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delete node pool: %w", err)
+	}
+
+	fmt.Println("Node pool deleted successfully")
+	return nil
+}
