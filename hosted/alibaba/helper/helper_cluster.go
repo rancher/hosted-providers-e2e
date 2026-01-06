@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -14,6 +15,10 @@ import (
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
+
+	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
+	util "github.com/alibabacloud-go/tea-utils/v2/service"
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/rancher/shepherd/pkg/config"
 	"k8s.io/utils/pointer"
 )
@@ -85,6 +90,221 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 	return clusterResp, nil
 }
 
+func CreateACKClusterOnAlibaba(csClient *cs.Client, region string, clusterName string, k8sVersion string, nodes string, resourceGroupId string, tags map[string]string, extraArgs ...string) (string, error) {
+
+	// Load aliClusterConfig from YAML config
+	var aliClusterConfig ali.ClusterConfig
+	config.LoadConfig(ali.ALIClusterConfigConfigurationFileKey, &aliClusterConfig)
+
+	if k8sVersion != "" {
+		aliClusterConfig.KubernetesVersion = k8sVersion
+	}
+
+	nodepool := &cs.Nodepool{
+		KubernetesConfig: &cs.NodepoolKubernetesConfig{
+			Runtime:        tea.String(aliClusterConfig.NodePools[0].Runtime),
+			RuntimeVersion: tea.String(aliClusterConfig.NodePools[0].RuntimeVersion),
+		},
+		NodepoolInfo: &cs.NodepoolNodepoolInfo{
+			Name:            tea.String(aliClusterConfig.NodePools[0].Name),
+			ResourceGroupId: tea.String(resourceGroupId),
+		},
+		ScalingGroup: &cs.NodepoolScalingGroup{
+			VswitchIds:         tea.StringSlice(aliClusterConfig.VSwitchIDs),
+			DesiredSize:        tea.Int64(aliClusterConfig.NodePools[0].DesiredSize),
+			InstanceTypes:      tea.StringSlice([]string{aliClusterConfig.NodePools[0].InstanceTypes[0]}),
+			SystemDiskCategory: tea.String(aliClusterConfig.NodePools[0].SystemDiskCategory),
+			SystemDiskSize:     tea.Int64(aliClusterConfig.NodePools[0].SystemDiskSize),
+			DataDisks: []*cs.DataDisk{
+				{
+					Category:  tea.String(aliClusterConfig.NodePools[0].DataDisks[0].Category),
+					Size:      tea.Int64(int64(aliClusterConfig.NodePools[0].DataDisks[0].Size)),
+					Encrypted: tea.String("false"),
+				},
+			},
+		},
+	}
+	req := &cs.CreateClusterRequest{
+		Name:                 tea.String(clusterName),
+		ClusterType:          tea.String(aliClusterConfig.ClusterType),
+		ClusterSpec:          tea.String(aliClusterConfig.ClusterSpec),
+		KubernetesVersion:    tea.String(k8sVersion),
+		ServiceCidr:          tea.String(aliClusterConfig.ServiceCIDR),
+		Vpcid:                tea.String(aliClusterConfig.VpcID),
+		VswitchIds:           tea.StringSlice(aliClusterConfig.VSwitchIDs),
+		PodVswitchIds:        tea.StringSlice(aliClusterConfig.PodVswitchIDs),
+		Nodepools:            []*cs.Nodepool{nodepool},
+		SnatEntry:            tea.Bool(true),
+		RegionId:             tea.String(region),
+		ResourceGroupId:      tea.String(resourceGroupId),
+		EndpointPublicAccess: tea.Bool(true),
+		Addons: []*cs.Addon{
+			{
+				Name: tea.String(aliClusterConfig.Addons[0].Name),
+			},
+		},
+	}
+
+	// Optional: set additional parameters using setters
+	req.SetTimeoutMins(20)
+
+	resp, err := csClient.CreateCluster(req)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Printf("Cluster creation started. ClusterID: %s, TaskID: %s\n",
+		tea.StringValue(resp.Body.ClusterId),
+		tea.StringValue(resp.Body.TaskId),
+	)
+
+	err = waitForClusterReady(csClient, tea.StringValue(resp.Body.ClusterId), 15)
+	if err != nil {
+		return "", err
+	}
+	return tea.StringValue(resp.Body.ClusterId), err
+}
+
+func waitForClusterReady(csClient *cs.Client, clusterID string, timeoutMinutes int) error {
+	timeout := time.After(time.Duration(timeoutMinutes) * time.Minute)
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout reached waiting for cluster %s to be ready", clusterID)
+
+		case <-ticker.C:
+			req := &cs.DescribeClustersV1Request{
+				ClusterId: tea.String(clusterID),
+			}
+
+			resp, err := csClient.DescribeClustersV1(req)
+			if err != nil {
+				log.Printf("Error describing cluster: %v", err)
+				continue
+			}
+
+			if resp.Body == nil || len(resp.Body.Clusters) == 0 {
+				log.Printf("No cluster info found for %s", clusterID)
+				continue
+			}
+
+			clusterStatus := tea.StringValue(resp.Body.Clusters[0].State)
+			fmt.Printf("Cluster %s status: %s\n", clusterID, clusterStatus)
+
+			switch clusterStatus {
+			case "running":
+				fmt.Println("Waiting for nodepools...")
+			case "failed":
+				return fmt.Errorf("cluster creation failed")
+			case "deleted":
+				return fmt.Errorf("cluster is deleted")
+			default:
+				continue // wait for cluster to be in running state
+			}
+
+			// Once cluster is running, check nodepools
+			nodePoolsResp, err := csClient.DescribeClusterNodePools(tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{})
+			if err != nil {
+				log.Printf("Error describing node pools: %v", err)
+				continue
+			}
+
+			if nodePoolsResp.Body == nil || len(nodePoolsResp.Body.Nodepools) == 0 {
+				continue
+			}
+
+			allActive := true
+			for _, np := range nodePoolsResp.Body.Nodepools {
+				if np == nil {
+					continue
+				}
+
+				name := tea.StringValue(np.NodepoolInfo.Name)
+				status := tea.StringValue(np.Status.State)
+
+				fmt.Printf("Nodepool %s status: %s\n", name, status)
+
+				switch status {
+				case "active":
+					fmt.Printf("Nodepool %s is active\n", name)
+				case "scaling", "removing", "deleting", "updating":
+					allActive = false
+				default:
+					allActive = false
+				}
+			}
+			if allActive {
+				fmt.Println("Cluster and all nodepools are active!")
+				return nil
+			}
+		}
+	}
+}
+
+func waitForClusterDeletion(csClient *cs.Client, clusterID string, timeoutMinutes int) error {
+	timeout := time.After(time.Duration(timeoutMinutes) * time.Minute)
+	ticker := time.NewTicker(15 * time.Second) // check every 15 seconds
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout reached waiting for cluster %s to be deleted", clusterID)
+		case <-ticker.C:
+			req := &cs.DescribeClustersV1Request{
+				ClusterId: tea.String(clusterID),
+			}
+
+			resp, err := csClient.DescribeClustersV1(req)
+			if err != nil {
+				log.Printf("Error describing cluster: %v", err)
+				continue
+			}
+
+			// Check if the Clusters slice is empty. If it is, the cluster is likely deleted.
+			if resp.Body == nil || resp.Body.Clusters == nil || len(resp.Body.Clusters) == 0 {
+				fmt.Printf("Cluster %s no longer found, it's deleted.\n", clusterID)
+				return nil
+			}
+
+			status := tea.StringValue(resp.Body.Clusters[0].State)
+			fmt.Printf("Cluster %s status: %s\n", clusterID, status)
+
+			switch status {
+			case "deleted":
+				fmt.Println("cluster deleted")
+				return nil
+			case "delete_failed":
+				return fmt.Errorf("cluster deletion failed")
+			}
+		}
+	}
+}
+
+func ImportACKHostedCluster(client *rancher.Client, clusterName, cloudCredentialID, region string, clusterId string) (*management.Cluster, error) {
+	cluster := &management.Cluster{
+		DockerRootDir: "/var/lib/docker",
+
+		AliConfig: &management.AliClusterConfigSpec{
+			ClusterID:               clusterId,
+			AlibabaCredentialSecret: cloudCredentialID,
+			ClusterName:             clusterName,
+			Imported:                true,
+			RegionID:                region,
+		},
+		Name: clusterName,
+	}
+
+	clusterResp, err := client.Management.Cluster.Create(cluster)
+	if err != nil {
+		return nil, err
+	}
+	return clusterResp, nil
+}
+
 // Helper to map []Addon to []management.AliAddon
 func mapAliAddons(addons []ali.Addon) []management.AliAddon {
 	out := make([]management.AliAddon, len(addons))
@@ -92,6 +312,22 @@ func mapAliAddons(addons []ali.Addon) []management.AliAddon {
 		out[i] = management.AliAddon{Name: a.Name}
 	}
 	return out
+}
+
+func DeleteACKClusteronAlibaba(csClient *cs.Client, clusterId string) error {
+	_, err := csClient.DeleteClusterWithOptions(
+		tea.String(clusterId),
+		&cs.DeleteClusterRequest{},
+		map[string]*string{},
+		&util.RuntimeOptions{},
+	)
+	if err != nil {
+		return (fmt.Errorf("failed to delete cluster: %w", err))
+	}
+	fmt.Println("Cluster deletion initiated successfully.")
+
+	err = waitForClusterDeletion(csClient, clusterId, 15)
+	return err
 }
 
 // newClusterUpdatePayload creates a new management.Cluster object prepared for an update operation.
@@ -117,7 +353,7 @@ func populateNodePoolImageIDs(cluster *management.Cluster) {
 }
 
 // DeleteALIHostCluster deletes the ALI cluster
-func DeleteALIHostCluster(cluster *management.Cluster, client *rancher.Client) error {
+func DeleteACKHostCluster(cluster *management.Cluster, client *rancher.Client) error {
 	return client.Management.Cluster.Delete(cluster)
 }
 
