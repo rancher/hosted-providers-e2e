@@ -3,6 +3,8 @@ package helper
 import (
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -48,13 +50,15 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 		updateFunc(&aliClusterConfig)
 	}
 
-	// // Debug logging for region
-	// ginkgo.GinkgoLogr.Info(fmt.Sprintf("Alibaba provisioning: region argument='%s', aliClusterConfig.RegionID='%s'", region, aliClusterConfig.RegionID))
+	if debug, _ := strconv.ParseBool(os.Getenv("E2E_DEBUG")); debug {
+		// Debug logging for region
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Alibaba provisioning: region argument='%s', aliClusterConfig.RegionID='%s'", region, aliClusterConfig.RegionID))
 
-	// // Debug logging for node pools
-	// for i, np := range aliClusterConfig.NodePools {
-	// 	ginkgo.GinkgoLogr.Info(fmt.Sprintf("NodePool[%d]: Name='%s', ImageId='%s', ImageType='%s', InstanceTypes=%v", i, np.Name, np.ImageId, np.ImageType, np.InstanceTypes))
-	// }
+		// Debug logging for node pools
+		for i, np := range aliClusterConfig.NodePools {
+			ginkgo.GinkgoLogr.Info(fmt.Sprintf("NodePool[%d]: Name='%s', ImageId='%s', ImageType='%s', InstanceTypes=%v", i, np.Name, np.ImageId, np.ImageType, np.InstanceTypes))
+		}
+	}
 
 	// Map all fields from aliClusterConfig to AliClusterConfigSpec
 	aliSpec := &management.AliClusterConfigSpec{
@@ -70,7 +74,7 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 		Addons:                  mapAliAddons(aliClusterConfig.Addons),
 		SNATEntry:               aliClusterConfig.SNATEntry,
 		ServiceCIDR:             aliClusterConfig.ServiceCIDR,
-		ResourceGroupID:         aliClusterConfig.ResourceGroupID,
+		ResourceGroupID:         os.Getenv("ALIBABA_RESOURCE_GROUP_ID"),
 		ProxyMode:               aliClusterConfig.ProxyMode,
 		NodePools:               ali.MapAliNodePoolsFromAliNodePool(aliClusterConfig.NodePools),
 		// Add more fields as needed (podVswitchIds, vswitchIds, vpcId, securityGroupId, etc.)
