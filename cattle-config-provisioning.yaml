@@ -35,7 +35,7 @@ aliClusterConfig:
   clusterType: ManagedKubernetes
   endpointPublicAccess: true
   imported: false
-  kubernetesVersion: 1.33.3-aliyun.1
+  kubernetesVersion:
   name: hosted-test-cluster
   nodePools:
   - dataDisks:
@@ -55,7 +55,6 @@ aliClusterConfig:
     systemDiskSize: 20
   proxyMode: ipvs
   regionID: eu-central-1
-  resourceGroupID: rg-aek3voaz6odbj6y
   serviceCIDR: 192.168.0.0/16
   snatEntry: true
   zoneIDs:

@@ -22,7 +22,11 @@ require (
 
 )
 
-require github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
+require (
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
+	github.com/alibabacloud-go/endpoint-util v1.1.0 // indirect
+	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
+)
 
 require (
 	github.com/alibabacloud-go/cs-20151215/v5 v5.9.8
@@ -33,6 +37,7 @@ require (
 
 require (
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
+	github.com/alibabacloud-go/cs-20151215/v3 v3.0.42
 	github.com/alibabacloud-go/debug v1.0.1 // indirect
 	github.com/alibabacloud-go/tea-utils v1.3.9 // indirect
 	github.com/aliyun/credentials-go v1.4.7 // indirect
