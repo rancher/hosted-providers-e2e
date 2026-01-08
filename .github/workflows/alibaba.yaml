@@ -43,7 +43,7 @@ on:
         default: 'hostname/password'
         type: string
       tests_to_run:
-        description: Tests to run (p0_provisioning)
+        description: Tests to run (p0_provisioning/sync_import)
         type: string
         required: true
         default: p0_provisioning
