@@ -3,12 +3,10 @@ aksClusterConfig:
   dnsPrefix: ""
   dnsServiceIp: 10.0.0.10
   dockerBridgeCidr: 172.17.0.1/16
-  serviceCidr: 10.0.0.0/16
   kubernetesVersion: 1.29.7
   linuxAdminUsername: azureuser
   loadBalancerSku: Standard
   networkPlugin: kubenet
-  outboundType: LoadBalancer
   nodePools:
   - availabilityZones:
     - "1"
@@ -26,7 +24,7 @@ aksClusterConfig:
   privateCluster: false
   resourceGroup: ""
   resourceLocation: centralindia
-tags: {}
+  serviceCidr: 10.0.0.0/16
 aliClusterConfig:
   addons:
   - name: terway-eniip
@@ -35,7 +33,7 @@ aliClusterConfig:
   clusterType: ManagedKubernetes
   endpointPublicAccess: true
   imported: false
-  kubernetesVersion: 1.33.3-aliyun.1
+  kubernetesVersion: 
   name: hosted-test-cluster
   nodePools:
   - dataDisks:
@@ -54,14 +52,13 @@ aliClusterConfig:
     systemDiskCategory: cloud_essd
     systemDiskSize: 20
   proxyMode: ipvs
-  regionID: eu-central-1
-  resourceGroupID: rg-aek3voaz6odbj6y
+  regionID: us-east-1
   serviceCIDR: 192.168.0.0/16
   snatEntry: true
   zoneIDs:
-  - eu-central-1a
-  - eu-central-1b
-awsCredentials:
+  - us-east-1a
+  - us-east-1b
+awsCredentials: null
 azureCredentials:
   environment: AzurePublicCloud
 eksClusterConfig:
@@ -160,7 +157,6 @@ gkeClusterConfig:
   region: ""
   subnetwork: hosted-providers-ci
   zone: asia-south2-c
-  projectID: <project>
 googleCredentials:
 rancher:
   cleanup: false
