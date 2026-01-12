@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Running the focus check script
         run: |
           grep -ErnI --include="*.go" 'FIt|FDescribe|FContext|FWhen|FEntry|FDescribeTable' ./hosted && { echo "There are focused specs, please remove them.";  exit 1; } || { echo "No focused specs found."; exit 0; }
