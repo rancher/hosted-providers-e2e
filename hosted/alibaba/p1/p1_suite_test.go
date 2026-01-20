@@ -69,6 +69,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string, csClient *cs.Client, clusterId string) {
+	GinkgoLogr.Info(fmt.Sprintf("Syncing k8s version upgrade from Rancher to Alibaba for cluster %s", cluster.Name))
 	By("upgrading cluster k8s version from Rancher", func() {
 		if helpers.IsImport {
 			cluster.AliConfig = cluster.AliStatus.UpstreamSpec
@@ -88,6 +89,7 @@ func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, client *ranch
 }
 
 func syncK8sVersionUpgradeCheck(csClient *cs.Client, clusterId string, client *rancher.Client, upgradeToVersion string) {
+	GinkgoLogr.Info(fmt.Sprintf("Syncing k8s version upgrade from Alibaba to Rancher for cluster %s", clusterId))
 	By("upgrading cluster k8s version from Alibaba", func() {
 		currentCluster, err := client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
@@ -101,7 +103,9 @@ func syncK8sVersionUpgradeCheck(csClient *cs.Client, clusterId string, client *r
 
 		Eventually(func() bool {
 			cluster, err := client.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
+			if err != nil {
+				return false
+			}
 			GinkgoLogr.Info("waiting for upgraded k8s version to sync on rancher...")
 			return cluster.AliStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
 		}, "30m", "5s").Should(BeTrue(), "Timed out while waiting for upgrade to appear in UpstreamSpec")
@@ -109,28 +113,44 @@ func syncK8sVersionUpgradeCheck(csClient *cs.Client, clusterId string, client *r
 }
 
 func aliNodePoolSyncCheck(cluster *management.Cluster, rancherClient *rancher.Client, csClient *cs.Client, clusterID string, upgradeToVersion, region string) {
-	csClient, err := helper.CreateAliClient(cluster.AliStatus.UpstreamSpec.RegionID)
+	GinkgoLogr.Info(fmt.Sprintf("Syncing nodepool changes from Alibaba to Rancher for cluster %s", cluster.Name))
+	// Wait for UpstreamSpec to be fully populated and refresh cluster
+	Eventually(func() string {
+		c, err := rancherClient.Management.Cluster.ByID(cluster.ID)
+		if err != nil || len(c.AliStatus.UpstreamSpec.VSwitchIDs) == 0 {
+			return ""
+		}
+		cluster = c
+		return c.AliStatus.UpstreamSpec.VSwitchIDs[0]
+	}, "5m", "5s").ShouldNot(BeEmpty())
+
+	var err error
+	csClient, err = helper.CreateAliClient(cluster.AliStatus.UpstreamSpec.RegionID)
 	Expect(err).To(BeNil())
 	clusterID = cluster.AliStatus.UpstreamSpec.ClusterID
 
-	By("upgrading the control plane k8s version", func() {
-		// Verify if the cluster is already at the target version (idempotency check)
-		currentCluster, err := rancherClient.Management.Cluster.ByID(cluster.ID)
-		Expect(err).To(BeNil())
-		if currentCluster.AliStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion {
-			GinkgoLogr.Info("Cluster already at target version " + upgradeToVersion + ", skipping upgrade")
-			return
-		}
+	if upgradeToVersion != "" {
+		By("upgrading the control plane k8s version", func() {
+			// Verify if the cluster is already at the target version (idempotency check)
+			currentCluster, err := rancherClient.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			if currentCluster.AliStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion {
+				GinkgoLogr.Info("Cluster already at target version " + upgradeToVersion + ", skipping upgrade")
+				return
+			}
 
-		err = helper.UpgradeACKOnAlibaba(csClient, clusterID, upgradeToVersion)
-		Expect(err).To(BeNil())
+			err = helper.UpgradeACKOnAlibaba(csClient, clusterID, upgradeToVersion)
+			Expect(err).To(BeNil())
 
-		Eventually(func() bool {
-			cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
-			return cluster.AliStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
-		}, "30m", "30s").Should(BeTrue(), "Timed out waiting for cluster upgrade to sync")
-	})
+			Eventually(func() bool {
+				cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
+				if err != nil {
+					return false
+				}
+				return cluster.AliStatus.UpstreamSpec.KubernetesVersion == upgradeToVersion
+			}, "30m", "30s").Should(BeTrue(), "Timed out waiting for cluster upgrade to sync")
+		})
+	}
 
 	const (
 		npName          = "syncnodepool"
@@ -139,12 +159,14 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, rancherClient *rancher.Cl
 	currentNPCount := len(cluster.AliStatus.UpstreamSpec.NodePools)
 
 	By("Adding a nodepool", func() {
-		_, err := helper.AddNodePoolOnAlibaba(csClient, npName, clusterID, nodeCount, region)
+		_, err := helper.AddNodePoolOnAlibaba(csClient, npName, clusterID, nodeCount, cluster.AliStatus.UpstreamSpec.ResourceGroupID, cluster.AliStatus.UpstreamSpec.VSwitchIDs)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
 			cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
+			if err != nil {
+				return false
+			}
 			if len(cluster.AliStatus.UpstreamSpec.NodePools) == currentNPCount {
 				return false
 			}
@@ -169,7 +191,9 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, rancherClient *rancher.Cl
 
 		Eventually(func() bool {
 			cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
+			if err != nil {
+				return false
+			}
 			for _, nodepool := range cluster.AliStatus.UpstreamSpec.NodePools {
 				if nodepool.Name == npName {
 					return *nodepool.DesiredSize == scaleCount
@@ -190,7 +214,9 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, rancherClient *rancher.Cl
 
 		Eventually(func() bool {
 			cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
-			Expect(err).NotTo(HaveOccurred())
+			if err != nil {
+				return false
+			}
 			if len(cluster.AliStatus.UpstreamSpec.NodePools) != currentNPCount {
 				return false
 			}

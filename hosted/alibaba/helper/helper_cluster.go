@@ -133,7 +133,7 @@ func CreateACKClusterOnAlibaba(csClient *cs.Client, region string, clusterName s
 	req := &cs.CreateClusterRequest{
 		Name:                 tea.String(clusterName),
 		ClusterType:          tea.String(aliClusterConfig.ClusterType),
-		ClusterSpec:          tea.String(aliClusterConfig.ClusterSpec),
+		ClusterSpec:          tea.String("ack.pro.small"),
 		KubernetesVersion:    tea.String(k8sVersion),
 		ServiceCidr:          tea.String(aliClusterConfig.ServiceCIDR),
 		Vpcid:                tea.String(aliClusterConfig.VpcID),
@@ -687,7 +687,7 @@ func DescribeClusterOnAlibaba(csClient *cs.Client, clusterId string) (k8sVersion
 }
 
 // AddNodePoolOnAlibaba adds nodepool to an ACK cluster via SDK; helpful when creating a cluster with multiple nodepools
-func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCount int64, resourceGroupId string) (*cs.CreateClusterNodePoolResponse, error) {
+func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCount int64, resourceGroupId string, vswitchIds []string) (*cs.CreateClusterNodePoolResponse, error) {
 	// Load aliClusterConfig from YAML config
 	var aliClusterConfig ali.ClusterConfig
 	config.LoadConfig(ali.ALIClusterConfigConfigurationFileKey, &aliClusterConfig)
@@ -697,7 +697,7 @@ func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCou
 			ResourceGroupId: tea.String(resourceGroupId),
 		},
 		ScalingGroup: &cs.CreateClusterNodePoolRequestScalingGroup{
-			VswitchIds:         tea.StringSlice(aliClusterConfig.VSwitchIDs),
+			VswitchIds:         tea.StringSlice(vswitchIds),
 			DesiredSize:        tea.Int64(nodeCount),
 			InstanceTypes:      tea.StringSlice([]string{aliClusterConfig.NodePools[0].InstanceTypes[0]}),
 			SystemDiskCategory: tea.String(aliClusterConfig.NodePools[0].SystemDiskCategory),
@@ -733,14 +733,17 @@ func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCou
 }
 
 // ScaleNodePoolOnAlibaba scales nodepool of an ACK cluster via SDK
-func ScaleNodePoolOnAlibaba(csClient *cs.Client, clusterId string, scaleCount int64, nodepoolId string) error {
-	scaleClusterNodePoolRequest := &cs.ScaleClusterNodePoolRequest{
-		Count: tea.Int64(scaleCount),
+// ScaleNodePoolOnAlibaba scales nodepool of an ACK cluster via SDK by setting the desired size
+func ScaleNodePoolOnAlibaba(csClient *cs.Client, clusterId string, desiredSize int64, nodepoolId string) error {
+	modifyClusterNodePoolRequest := &cs.ModifyClusterNodePoolRequest{
+		ScalingGroup: &cs.ModifyClusterNodePoolRequestScalingGroup{
+			DesiredSize: tea.Int64(desiredSize),
+		},
 	}
 	runtime := &util.RuntimeOptions{}
 	headers := make(map[string]*string)
-	_, err := csClient.ScaleClusterNodePoolWithOptions(tea.String(clusterId), tea.String(nodepoolId),
-		scaleClusterNodePoolRequest,
+	_, err := csClient.ModifyClusterNodePoolWithOptions(tea.String(clusterId), tea.String(nodepoolId),
+		modifyClusterNodePoolRequest,
 		headers,
 		runtime,
 	)

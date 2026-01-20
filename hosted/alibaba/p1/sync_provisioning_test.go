@@ -38,6 +38,7 @@ var _ = Describe("SyncProvisioning", func() {
 
 	AfterEach(func() {
 		if ctx.ClusterCleanup && (cluster != nil && cluster.ID != "") {
+			GinkgoLogr.Info(fmt.Sprintf("Deleting cluster %s", clusterName))
 			err := helper.DeleteACKHostCluster(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
 		} else {
@@ -57,6 +58,6 @@ var _ = Describe("SyncProvisioning", func() {
 
 	It("Should successfully sync nodepool changes from Alibaba to Rancher", func() {
 		testCaseID = -1 // Qase TestCase ID
-		aliNodePoolSyncCheck(cluster, ctx.RancherAdminClient, csClient, clusterId, "", region)
+		aliNodePoolSyncCheck(cluster, ctx.RancherAdminClient, csClient, clusterId, k8sVersion, region)
 	})
 })
