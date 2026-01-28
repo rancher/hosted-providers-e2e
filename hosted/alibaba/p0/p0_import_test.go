@@ -55,7 +55,7 @@ var _ = Describe("P0Import", func() {
 						err := helper.DeleteACKHostCluster(cluster, ctx.RancherAdminClient)
 						Expect(err).To(BeNil())
 					}
-					err := helper.DeleteACKClusteronAlibaba(csClient, clusterId)
+					err := helper.DeleteACKClusterOnAlibaba(csClient, clusterId)
 					Expect(err).To(BeNil())
 				} else {
 					fmt.Println("Skipping downstream cluster deletion: ", clusterName)

@@ -17,8 +17,10 @@ import (
 	"github.com/rancher/shepherd/extensions/clusters"
 
 	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
+	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	util "github.com/alibabacloud-go/tea-utils/v2/service"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/rancher/shepherd/extensions/cloudcredentials"
 	"github.com/rancher/shepherd/pkg/config"
 	"k8s.io/utils/pointer"
 )
@@ -48,13 +50,12 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 		updateFunc(&aliClusterConfig)
 	}
 
-	// // Debug logging for region
-	// ginkgo.GinkgoLogr.Info(fmt.Sprintf("Alibaba provisioning: region argument='%s', aliClusterConfig.RegionID='%s'", region, aliClusterConfig.RegionID))
-
-	// // Debug logging for node pools
-	// for i, np := range aliClusterConfig.NodePools {
-	// 	ginkgo.GinkgoLogr.Info(fmt.Sprintf("NodePool[%d]: Name='%s', ImageId='%s', ImageType='%s', InstanceTypes=%v", i, np.Name, np.ImageId, np.ImageType, np.InstanceTypes))
-	// }
+	// Debug logging for region
+	ginkgo.GinkgoLogr.V(2).Info(fmt.Sprintf("Alibaba provisioning: region argument='%s', aliClusterConfig.RegionID='%s'", region, aliClusterConfig.RegionID))
+	// Debug logging for node pools
+	for i, np := range aliClusterConfig.NodePools {
+		ginkgo.GinkgoLogr.V(2).Info(fmt.Sprintf("NodePool[%d]: Name='%s', ImageId='%s', ImageType='%s', InstanceTypes=%v", i, np.Name, np.ImageId, np.ImageType, np.InstanceTypes))
+	}
 
 	// Map all fields from aliClusterConfig to AliClusterConfigSpec
 	aliSpec := &management.AliClusterConfigSpec{
@@ -70,7 +71,7 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 		Addons:                  mapAliAddons(aliClusterConfig.Addons),
 		SNATEntry:               aliClusterConfig.SNATEntry,
 		ServiceCIDR:             aliClusterConfig.ServiceCIDR,
-		ResourceGroupID:         aliClusterConfig.ResourceGroupID,
+		ResourceGroupID:         helpers.GetACKResourceGroupID(),
 		ProxyMode:               aliClusterConfig.ProxyMode,
 		NodePools:               ali.MapAliNodePoolsFromAliNodePool(aliClusterConfig.NodePools),
 		// Add more fields as needed (podVswitchIds, vswitchIds, vpcId, securityGroupId, etc.)
@@ -127,7 +128,7 @@ func CreateACKClusterOnAlibaba(csClient *cs.Client, region string, clusterName s
 	req := &cs.CreateClusterRequest{
 		Name:                 tea.String(clusterName),
 		ClusterType:          tea.String(aliClusterConfig.ClusterType),
-		ClusterSpec:          tea.String(aliClusterConfig.ClusterSpec),
+		ClusterSpec:          tea.String("ack.pro.small"),
 		KubernetesVersion:    tea.String(k8sVersion),
 		ServiceCidr:          tea.String(aliClusterConfig.ServiceCIDR),
 		Vpcid:                tea.String(aliClusterConfig.VpcID),
@@ -302,6 +303,16 @@ func ImportACKHostedCluster(client *rancher.Client, clusterName, cloudCredential
 	if err != nil {
 		return nil, err
 	}
+
+	Eventually(func() string {
+		c, err := client.Management.Cluster.ByID(clusterResp.ID)
+		if err != nil || c.AliStatus.UpstreamSpec == nil || len(c.AliStatus.UpstreamSpec.VSwitchIDs) == 0 {
+			return ""
+		}
+		clusterResp = c
+		return c.AliStatus.UpstreamSpec.VSwitchIDs[0]
+	}, "5m", "5s").ShouldNot(BeEmpty(), "Timed out waiting for VSwitchIDs to be populated")
+
 	return clusterResp, nil
 }
 
@@ -314,7 +325,7 @@ func mapAliAddons(addons []ali.Addon) []management.AliAddon {
 	return out
 }
 
-func DeleteACKClusteronAlibaba(csClient *cs.Client, clusterId string) error {
+func DeleteACKClusterOnAlibaba(csClient *cs.Client, clusterId string) error {
 	_, err := csClient.DeleteClusterWithOptions(
 		tea.String(clusterId),
 		&cs.DeleteClusterRequest{},
@@ -593,4 +604,228 @@ func GetK8sVersion(client *rancher.Client, forUpgrade bool) (string, error) {
 	}
 
 	return helpers.DefaultK8sVersion(allVariants, forUpgrade)
+}
+
+// GetNodePoolIDByName retrieves the ID of a nodepool by its name within a given cluster.
+func GetNodePoolIDByName(csClient *cs.Client, clusterID, nodepoolName string) (string, error) {
+	resp, err := csClient.DescribeClusterNodePools(tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{})
+	if err != nil {
+		return "", fmt.Errorf("failed to describe cluster nodepools: %w", err)
+	}
+
+	if resp.Body == nil || len(resp.Body.Nodepools) == 0 {
+		return "", fmt.Errorf("no nodepools found for cluster %s", clusterID)
+	}
+
+	for _, np := range resp.Body.Nodepools {
+		if np != nil && np.NodepoolInfo != nil && tea.StringValue(np.NodepoolInfo.Name) == nodepoolName {
+			return tea.StringValue(np.NodepoolInfo.NodepoolId), nil
+		}
+	}
+
+	return "", fmt.Errorf("nodepool with name %s not found in cluster %s", nodepoolName, clusterID)
+}
+
+// IsNodePoolActive checks if a specific nodepool is in an "active" state.
+func IsNodePoolActive(csClient *cs.Client, clusterID, nodepoolID string) bool {
+	resp, err := csClient.DescribeClusterNodePoolDetail(tea.String(clusterID), tea.String(nodepoolID))
+	if err != nil {
+		ginkgo.GinkgoLogr.Error(err, fmt.Sprintf("Error describing nodepool %s in cluster %s", nodepoolID, clusterID))
+		return false
+	}
+	return tea.StringValue(resp.Body.Status.State) == "active"
+}
+
+// UpgradeACKOnAlibaba upgrade the ACK cluster using alibaba sdk client
+func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion string) error {
+	upgradeClusterRequest := &cs.UpgradeClusterRequest{
+		NextVersion: tea.String(upgradeToVersion),
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	tryErr := func() (_e error) {
+		defer func() {
+			if r := tea.Recover(recover()); r != nil {
+				_e = r
+			}
+		}()
+		_, _err := csClient.UpgradeClusterWithOptions(tea.String(clusterId), upgradeClusterRequest, headers, runtime)
+		if _err != nil {
+			return _err
+		}
+		return nil
+	}()
+
+	if tryErr != nil {
+		return fmt.Errorf("cluster upgrade failed: %w", tryErr)
+	}
+	return nil
+}
+
+// CheckClusterK8sVersionOnAlibaba checks the ACK cluster version using alibaba sdk client
+func CheckClusterK8sVersionOnAlibaba(csClient *cs.Client, clusterId string) (k8sVersion string, err error) {
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	var resp *cs.DescribeClusterDetailResponse
+
+	tryErr := func() (_e error) {
+		defer func() {
+			if r := tea.Recover(recover()); r != nil {
+				_e = r
+			}
+		}()
+
+		var err error
+		resp, err = csClient.DescribeClusterDetailWithOptions(
+			tea.String(clusterId),
+			headers,
+			runtime,
+		)
+		return err
+	}()
+
+	if tryErr != nil {
+		return "", fmt.Errorf("cluster k8s version check failed: %w", tryErr)
+	}
+
+	return tea.StringValue(resp.Body.CurrentVersion), nil
+}
+
+// AddNodePoolOnAlibaba adds nodepool to an ACK cluster via SDK; helpful when creating a cluster with multiple nodepools
+func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCount int64, resourceGroupId string, vswitchIds []string) (*cs.CreateClusterNodePoolResponse, error) {
+	// Load aliClusterConfig from YAML config
+	var aliClusterConfig ali.ClusterConfig
+	config.LoadConfig(ali.ALIClusterConfigConfigurationFileKey, &aliClusterConfig)
+	req := &cs.CreateClusterNodePoolRequest{
+		NodepoolInfo: &cs.CreateClusterNodePoolRequestNodepoolInfo{
+			Name:            tea.String(npName),
+			ResourceGroupId: tea.String(resourceGroupId),
+		},
+		ScalingGroup: &cs.CreateClusterNodePoolRequestScalingGroup{
+			VswitchIds:         tea.StringSlice(vswitchIds),
+			DesiredSize:        tea.Int64(nodeCount),
+			InstanceTypes:      tea.StringSlice([]string{aliClusterConfig.NodePools[0].InstanceTypes[0]}),
+			SystemDiskCategory: tea.String(aliClusterConfig.NodePools[0].SystemDiskCategory),
+			SystemDiskSize:     tea.Int64(aliClusterConfig.NodePools[0].SystemDiskSize),
+			DataDisks: []*cs.DataDisk{
+				{
+					Category:  tea.String(aliClusterConfig.NodePools[0].DataDisks[0].Category),
+					Size:      tea.Int64(int64(aliClusterConfig.NodePools[0].DataDisks[0].Size)),
+					Encrypted: tea.String("false"),
+				},
+			},
+		},
+		KubernetesConfig: &cs.CreateClusterNodePoolRequestKubernetesConfig{
+			Runtime:        tea.String(aliClusterConfig.NodePools[0].Runtime),
+			RuntimeVersion: tea.String(aliClusterConfig.NodePools[0].RuntimeVersion),
+		},
+	}
+	headers := make(map[string]*string)
+	runtime := &util.RuntimeOptions{}
+
+	resp, err := csClient.CreateClusterNodePoolWithOptions(
+		tea.String(clusterId),
+		req,
+		headers,
+		runtime,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create node pool: %w", err)
+	}
+
+	fmt.Println("Node pool created:", resp.Body)
+	return resp, nil
+}
+
+// ScaleNodePoolOnAlibaba scales nodepool of an ACK cluster via SDK
+// ScaleNodePoolOnAlibaba scales nodepool of an ACK cluster via SDK by setting the desired size
+func ScaleNodePoolOnAlibaba(csClient *cs.Client, clusterId string, desiredSize int64, nodepoolId string) error {
+	modifyClusterNodePoolRequest := &cs.ModifyClusterNodePoolRequest{
+		ScalingGroup: &cs.ModifyClusterNodePoolRequestScalingGroup{
+			DesiredSize: tea.Int64(desiredSize),
+		},
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+	_, err := csClient.ModifyClusterNodePoolWithOptions(tea.String(clusterId), tea.String(nodepoolId),
+		modifyClusterNodePoolRequest,
+		headers,
+		runtime,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to scale node pool: %w", err)
+	}
+
+	fmt.Println("Node pool scaled successfully")
+	return nil
+}
+
+// DeleteNodePoolOnAlibaba deletes nodepool from an ACK cluster via SDK
+func DeleteNodePoolOnAlibaba(csClient *cs.Client, clusterId, nodepoolId string) error {
+	fmt.Println("Deleting node pool ...")
+
+	scalingGroup := &cs.ModifyClusterNodePoolRequestScalingGroup{
+		DesiredSize: tea.Int64(0),
+	}
+	modifyClusterNodePoolRequest := &cs.ModifyClusterNodePoolRequest{
+		ScalingGroup: scalingGroup,
+	}
+	runtime := &util.RuntimeOptions{}
+	headers := make(map[string]*string)
+
+	_, err := csClient.ModifyClusterNodePoolWithOptions(tea.String(clusterId), tea.String(nodepoolId), modifyClusterNodePoolRequest, headers, runtime)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("nodes deletion request initiated")
+
+	// Step 2: Wait until node pool is empty using Eventually
+	Eventually(func() bool {
+		resp, err := csClient.DescribeClusterNodePoolDetailWithOptions(tea.String(clusterId), tea.String(nodepoolId), headers, runtime)
+		if err != nil {
+			fmt.Println("Error describing node pool:", err)
+			return false
+		}
+
+		totalNodes := tea.Int64Value(resp.Body.Status.TotalNodes)
+		state := tea.StringValue(resp.Body.Status.State)
+
+		fmt.Printf("NodePool state=%s totalNodes=%d\n", state, totalNodes)
+
+		if state == "removing_nodes" || state == "scaling" {
+			return false
+		}
+
+		if totalNodes == 0 {
+			return true
+		}
+		return false
+	}, 20*time.Minute, 10*time.Second).Should(BeTrue(), "Timed out waiting for node pool to scale down to 0")
+
+	// Step 3: Delete the node pool
+	deleteRequest := &cs.DeleteClusterNodepoolRequest{}
+	_, err = csClient.DeleteClusterNodepoolWithOptions(
+		tea.String(clusterId),
+		tea.String(nodepoolId),
+		deleteRequest,
+		headers,
+		runtime,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delete node pool: %w", err)
+	}
+
+	fmt.Println("Node pool deleted successfully")
+	return nil
+}
+
+func CreateAliClient(region string) (*cs.Client, error) {
+	aliCloudCreds := cloudcredentials.LoadCloudCredential("alibaba")
+	cfg := &openapi.Config{
+		AccessKeyId:     tea.String(aliCloudCreds.AlibabaCredentialConfig.AccessKeyId),
+		AccessKeySecret: tea.String(aliCloudCreds.AlibabaCredentialConfig.SecretAccessKey),
+		RegionId:        tea.String(region),
+	}
+	return cs.NewClient(cfg)
 }
