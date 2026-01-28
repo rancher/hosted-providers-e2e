@@ -68,8 +68,9 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string, csClient *cs.Client, clusterId string) {
+func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, csClient *cs.Client, client *rancher.Client, upgradeToVersion string) {
 	GinkgoLogr.Info(fmt.Sprintf("Syncing k8s version upgrade from Rancher to Alibaba for cluster %s", cluster.Name))
+	upstreamClusterID := cluster.AliStatus.UpstreamSpec.ClusterID
 	By("upgrading cluster k8s version from Rancher", func() {
 		if helpers.IsImport {
 			cluster.AliConfig = cluster.AliStatus.UpstreamSpec
@@ -79,7 +80,7 @@ func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, client *ranch
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
-			clusterResp, err := helper.DescribeClusterOnAlibaba(csClient, clusterId)
+			clusterResp, err := helper.CheckClusterK8sVersionOnAlibaba(csClient, upstreamClusterID)
 			Expect(err).NotTo(HaveOccurred())
 			current := clusterResp
 			GinkgoLogr.Info("Waiting for upgraded k8s version to sync on alibaba...")
@@ -88,8 +89,8 @@ func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, client *ranch
 	})
 }
 
-func syncK8sVersionUpgradeCheck(csClient *cs.Client, clusterId string, client *rancher.Client, upgradeToVersion string) {
-	GinkgoLogr.Info(fmt.Sprintf("Syncing k8s version upgrade from Alibaba to Rancher for cluster %s", clusterId))
+func syncK8sVersionUpgradeCheck(cluster *management.Cluster, csClient *cs.Client, client *rancher.Client, upgradeToVersion string) {
+	GinkgoLogr.Info(fmt.Sprintf("Syncing k8s version upgrade from Alibaba to Rancher for cluster %s", cluster.ID))
 	By("upgrading cluster k8s version from Alibaba", func() {
 		currentCluster, err := client.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
@@ -98,7 +99,7 @@ func syncK8sVersionUpgradeCheck(csClient *cs.Client, clusterId string, client *r
 			return
 		}
 		GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster on alibaba console to K8s version %s", upgradeToVersion))
-		err = helper.UpgradeACKOnAlibaba(csClient, clusterId, upgradeToVersion)
+		err = helper.UpgradeACKOnAlibaba(csClient, cluster.AliStatus.UpstreamSpec.ClusterID, upgradeToVersion)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
@@ -112,22 +113,10 @@ func syncK8sVersionUpgradeCheck(csClient *cs.Client, clusterId string, client *r
 	})
 }
 
-func aliNodePoolSyncCheck(cluster *management.Cluster, rancherClient *rancher.Client, csClient *cs.Client, clusterID string, upgradeToVersion, region string) {
+func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, rancherClient *rancher.Client, upgradeToVersion string) {
 	GinkgoLogr.Info(fmt.Sprintf("Syncing nodepool changes from Alibaba to Rancher for cluster %s", cluster.Name))
-	// Wait for UpstreamSpec to be fully populated and refresh cluster
-	Eventually(func() string {
-		c, err := rancherClient.Management.Cluster.ByID(cluster.ID)
-		if err != nil || len(c.AliStatus.UpstreamSpec.VSwitchIDs) == 0 {
-			return ""
-		}
-		cluster = c
-		return c.AliStatus.UpstreamSpec.VSwitchIDs[0]
-	}, "5m", "5s").ShouldNot(BeEmpty())
-
+	clusterID := cluster.AliStatus.UpstreamSpec.ClusterID
 	var err error
-	csClient, err = helper.CreateAliClient(cluster.AliStatus.UpstreamSpec.RegionID)
-	Expect(err).To(BeNil())
-	clusterID = cluster.AliStatus.UpstreamSpec.ClusterID
 
 	if upgradeToVersion != "" {
 		By("upgrading the control plane k8s version", func() {
@@ -138,7 +127,6 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, rancherClient *rancher.Cl
 				GinkgoLogr.Info("Cluster already at target version " + upgradeToVersion + ", skipping upgrade")
 				return
 			}
-
 			err = helper.UpgradeACKOnAlibaba(csClient, clusterID, upgradeToVersion)
 			Expect(err).To(BeNil())
 

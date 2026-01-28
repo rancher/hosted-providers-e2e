@@ -57,16 +57,16 @@ var _ = Describe("SyncImport", func() {
 
 	It("should successfully upgrade k8s version from Alibaba and sync back to rancher", func() {
 		testCaseID = -1
-		syncK8sVersionUpgradeCheck(csClient, clusterId, ctx.RancherAdminClient, upgradeToVersion)
+		syncK8sVersionUpgradeCheck(cluster, csClient, ctx.RancherAdminClient, upgradeToVersion)
 	})
 
 	It("should successfully upgrade k8s version from rancher and sync back to alibaba", func() {
 		testCaseID = -1
-		syncK8sVersionUpgradeFromRancher(cluster, ctx.RancherAdminClient, upgradeToVersion, csClient, clusterId)
+		syncK8sVersionUpgradeFromRancher(cluster, csClient, ctx.RancherAdminClient, upgradeToVersion)
 	})
 
 	It("should successfully sync changes from alibaba to rancher", func() {
 		testCaseID = -1
-		aliNodePoolSyncCheck(cluster, ctx.RancherAdminClient, csClient, clusterId, "", region)
+		aliNodePoolSyncCheck(cluster, csClient, ctx.RancherAdminClient, "")
 	})
 })

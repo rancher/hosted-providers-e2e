@@ -3,8 +3,6 @@ package helper
 import (
 	"fmt"
 	"log"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -52,14 +50,11 @@ func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCreden
 		updateFunc(&aliClusterConfig)
 	}
 
-	if debug, _ := strconv.ParseBool(os.Getenv("E2E_DEBUG")); debug {
-		// Debug logging for region
-		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Alibaba provisioning: region argument='%s', aliClusterConfig.RegionID='%s'", region, aliClusterConfig.RegionID))
-
-		// Debug logging for node pools
-		for i, np := range aliClusterConfig.NodePools {
-			ginkgo.GinkgoLogr.Info(fmt.Sprintf("NodePool[%d]: Name='%s', ImageId='%s', ImageType='%s', InstanceTypes=%v", i, np.Name, np.ImageId, np.ImageType, np.InstanceTypes))
-		}
+	// Debug logging for region
+	ginkgo.GinkgoLogr.V(2).Info(fmt.Sprintf("Alibaba provisioning: region argument='%s', aliClusterConfig.RegionID='%s'", region, aliClusterConfig.RegionID))
+	// Debug logging for node pools
+	for i, np := range aliClusterConfig.NodePools {
+		ginkgo.GinkgoLogr.V(2).Info(fmt.Sprintf("NodePool[%d]: Name='%s', ImageId='%s', ImageType='%s', InstanceTypes=%v", i, np.Name, np.ImageId, np.ImageType, np.InstanceTypes))
 	}
 
 	// Map all fields from aliClusterConfig to AliClusterConfigSpec
@@ -308,6 +303,16 @@ func ImportACKHostedCluster(client *rancher.Client, clusterName, cloudCredential
 	if err != nil {
 		return nil, err
 	}
+
+	Eventually(func() string {
+		c, err := client.Management.Cluster.ByID(clusterResp.ID)
+		if err != nil || c.AliStatus.UpstreamSpec == nil || len(c.AliStatus.UpstreamSpec.VSwitchIDs) == 0 {
+			return ""
+		}
+		clusterResp = c
+		return c.AliStatus.UpstreamSpec.VSwitchIDs[0]
+	}, "5m", "5s").ShouldNot(BeEmpty(), "Timed out waiting for VSwitchIDs to be populated")
+
 	return clusterResp, nil
 }
 
@@ -658,7 +663,7 @@ func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion
 }
 
 // CheckClusterK8sVersionOnAlibaba checks the ACK cluster version using alibaba sdk client
-func DescribeClusterOnAlibaba(csClient *cs.Client, clusterId string) (k8sVersion string, err error) {
+func CheckClusterK8sVersionOnAlibaba(csClient *cs.Client, clusterId string) (k8sVersion string, err error) {
 	runtime := &util.RuntimeOptions{}
 	headers := make(map[string]*string)
 	var resp *cs.DescribeClusterDetailResponse

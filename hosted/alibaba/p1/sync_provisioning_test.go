@@ -13,7 +13,6 @@ import (
 var _ = Describe("SyncProvisioning", func() {
 	var k8sVersion string
 	var upgradeToVersion string
-	var clusterId string
 
 	BeforeEach(func() {
 		var err error
@@ -31,7 +30,6 @@ var _ = Describe("SyncProvisioning", func() {
 		cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 
-		clusterId = cluster.AliStatus.UpstreamSpec.ClusterID
 		csClient, err = helper.CreateAliClient(region)
 		Expect(err).To(BeNil())
 	})
@@ -48,16 +46,16 @@ var _ = Describe("SyncProvisioning", func() {
 
 	It("Should successfully sync k8s version upgrade of cluster from Alibaba to Rancher", func() {
 		testCaseID = -1 // Qase TestCase ID
-		syncK8sVersionUpgradeCheck(csClient, clusterId, ctx.RancherAdminClient, upgradeToVersion)
+		syncK8sVersionUpgradeCheck(cluster, csClient, ctx.RancherAdminClient, upgradeToVersion)
 	})
 
 	It("Should successfully sync k8s version upgrade of cluster from Rancher to Alibaba", func() {
 		testCaseID = -1 // Qase TestCase ID
-		syncK8sVersionUpgradeFromRancher(cluster, ctx.RancherAdminClient, upgradeToVersion, csClient, clusterId)
+		syncK8sVersionUpgradeFromRancher(cluster, csClient, ctx.RancherAdminClient, upgradeToVersion)
 	})
 
 	It("Should successfully sync nodepool changes from Alibaba to Rancher", func() {
 		testCaseID = -1 // Qase TestCase ID
-		aliNodePoolSyncCheck(cluster, ctx.RancherAdminClient, csClient, clusterId, k8sVersion, region)
+		aliNodePoolSyncCheck(cluster, csClient, ctx.RancherAdminClient, k8sVersion)
 	})
 })
