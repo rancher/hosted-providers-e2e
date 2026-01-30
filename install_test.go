@@ -25,6 +25,7 @@ import (
 	"github.com/rancher/shepherd/clients/rancher"
 	"github.com/rancher/shepherd/pkg/config"
 	"github.com/rancher/shepherd/pkg/session"
+	"github.com/rancher/tests/actions/pipeline"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
@@ -72,10 +73,16 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 		// Setup Alibaba provider if running Alibaba tests
 		if providerOperator == "alibaba" && skipInstallRancher != "true" {
 			By("Making Rancher ready for Alibaba cluster creation", func() {
-				// Initialize Rancher client for Alibaba setup
+				// Initialize Rancher config and create admin token
 				rancherConfig := new(rancher.Config)
 				config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+				rancherConfig.Host = rancherHostname
 
+				// Create admin token
+				time.Sleep(2 * time.Second)
+				token, err := pipeline.CreateAdminToken(helpers.RancherPassword, rancherConfig)
+
+				// Create Rancher client
 				testSession := session.NewSession()
 				rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, testSession)
 				Expect(err).To(BeNil(), "Failed to create Rancher client for Alibaba setup")
