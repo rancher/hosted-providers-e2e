@@ -462,7 +462,7 @@ func MakeRancherReadyForAlibabaClusterCreation(client *rancher.Client, k *kubect
 	By("Step 3: Verifying cloud credentials are accessible", func() {
 		// Verify the credential exists in Rancher
 		Eventually(func() error {
-			_, err := client.Steve.SteveType("provisioning.cattle.io.cluster").ByID(credID)
+			_, err := client.Steve.SteveType("provisioning.cattle.io.cloudcredential").ByID(credID)
 			return err
 		}, tools.SetTimeout(30*time.Second), 5*time.Second).Should(BeNil(), "Cloud credentials not found")
 
