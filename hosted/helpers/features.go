@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -326,6 +327,184 @@ func VerifyUiPluginRepo(client *rancher.Client) error {
 		return err
 	}
 	return nil
+}
+
+// InstallAlibabaUIExtension installs the AlibabaCloud (ACK Provisioning) UI extension chart.
+// This function adds the necessary repos and installs the AlibabaCloud chart.
+func InstallAlibabaUIExtension(client *rancher.Client) error {
+	if Provider != "alibaba" {
+		return nil
+	}
+
+	GinkgoLogr.Info("Installing Alibaba UI extension")
+
+	// Step 1: Add ui-plugin-charts ClusterRepo
+	By("Adding ui-plugin-charts ClusterRepo", func() {
+		err := VerifyUiPluginRepo(client)
+		Expect(err).To(BeNil(), "Failed to add ui-plugin-charts ClusterRepo")
+	})
+
+	// Step 2: Add ali-ui ClusterRepo
+	By("Adding ali-ui ClusterRepo", func() {
+		err := VerifyAlibabaClusterRepo(client)
+		Expect(err).To(BeNil(), "Failed to add ali-ui ClusterRepo")
+	})
+
+	// Step 3: Install AlibabaCloud chart from ali-ui repo
+	// This simulates installing the extension from Extensions page
+	By("Installing AlibabaCloud UI extension chart", func() {
+		// Use kubectl to install the chart via Helm
+		err := kubectl.RunHelmBinaryWithCustomErr(
+			"install", "alibabacloud-ack",
+			"ali-ui/AlibabaCloud",
+			"--namespace", "cattle-ui-plugin-system",
+			"--create-namespace",
+			"--wait",
+		)
+		if err != nil {
+			// Chart might already be installed, check if it exists
+			GinkgoLogr.Info(fmt.Sprintf("Chart installation returned error (might already exist): %v", err))
+		}
+	})
+
+	GinkgoLogr.Info("Alibaba UI extension installation initiated")
+	return nil
+}
+
+// SetupAlibabaProvider is the main function that orchestrates all steps to enable Alibaba provider.
+// This automates:
+// 1. Installing ali-operator-crd and ali-operator charts
+// 2. Adding ClusterRepos (ui-plugin-charts and ali-ui)
+// 3. Installing AlibabaCloud UI extension
+// 4. Waiting for all pods to be ready
+// 5. Enabling the provider in Rancher
+func SetupAlibabaProvider(client *rancher.Client, k *kubectl.Kubectl, chartVersion, chartRegistry string) error {
+	if Provider != "alibaba" {
+		GinkgoLogr.Info("Skipping Alibaba provider setup; not running Alibaba tests")
+		return nil
+	}
+
+	GinkgoLogr.Info("=== Starting Alibaba Provider Setup ===")
+
+	// Step 1: Install operator charts via Helm
+	By("Step 1: Installing Alibaba operator charts", func() {
+		InstallAlibabaOperatorCharts(k, chartVersion, chartRegistry)
+	})
+
+	// Step 2: Install UI extension
+	By("Step 2: Installing Alibaba UI extension", func() {
+		err := InstallAlibabaUIExtension(client)
+		Expect(err).To(BeNil(), "Failed to install Alibaba UI extension")
+	})
+
+	// Step 3: Wait for all components to be ready (simulates Rancher UI reload)
+	By("Step 3: Waiting for Alibaba provider activation", func() {
+		err := WaitForAlibabaProviderActivation(k)
+		Expect(err).To(BeNil(), "Alibaba provider activation failed")
+	})
+
+	// Step 4: Enable provider via kev2-operators setting or feature flag
+	By("Step 4: Enabling Alibaba Cloud provider in Rancher", func() {
+		err := EnableProvider(client, "alibabacloud")
+		Expect(err).To(BeNil(), "Failed to enable Alibaba provider")
+	})
+
+	GinkgoLogr.Info("=== Alibaba Provider Setup Complete ===")
+	GinkgoLogr.Info("Alibaba Cloud clusters can now be created and imported")
+
+	return nil
+}
+
+// MakeRancherReadyForAlibabaClusterCreation prepares Rancher completely for creating Alibaba clusters.
+// This is the complete end-to-end setup that includes:
+// 1. Setting up the Alibaba provider (operator, UI extension, activation)
+// 2. Creating cloud credentials in Rancher
+// 3. Verifying all prerequisites are met
+// Returns the cloud credential ID that can be used for cluster creation.
+func MakeRancherReadyForAlibabaClusterCreation(client *rancher.Client, k *kubectl.Kubectl, chartVersion, chartRegistry string) (cloudCredID string, err error) {
+	if Provider != "alibaba" {
+		GinkgoLogr.Info("Skipping Alibaba cluster creation setup; not running Alibaba tests")
+		return "", nil
+	}
+
+	GinkgoLogr.Info("=== Making Rancher Ready for Alibaba Cluster Creation ===")
+
+	// Step 1: Setup Alibaba provider (charts, UI, activation)
+	By("Step 1: Setting up Alibaba provider infrastructure", func() {
+		err := SetupAlibabaProvider(client, k, chartVersion, chartRegistry)
+		Expect(err).To(BeNil(), "Failed to setup Alibaba provider")
+	})
+
+	// Step 2: Create Alibaba cloud credentials
+	var credID string
+	By("Step 2: Creating Alibaba Cloud credentials in Rancher", func() {
+		GinkgoLogr.Info("Creating Alibaba cloud credentials from environment variables")
+
+		// Verify environment variables are set
+		accessKeyID := os.Getenv("ALIBABA_ACCESS_KEY_ID")
+		accessKeySecret := os.Getenv("ALIBABA_ACCESS_KEY_SECRET")
+
+		if accessKeyID == "" || accessKeySecret == "" {
+			Expect(fmt.Errorf("ALIBABA_ACCESS_KEY_ID and ALIBABA_ACCESS_KEY_SECRET must be set")).To(BeNil())
+		}
+
+		GinkgoLogr.Info(fmt.Sprintf("Using Alibaba Access Key ID: %s (first 10 chars)", accessKeyID[:min(10, len(accessKeyID))]))
+
+		// Create cloud credentials using the existing helper
+		var createErr error
+		credID, createErr = CreateCloudCredentials(client)
+		Expect(createErr).To(BeNil(), "Failed to create Alibaba cloud credentials")
+
+		GinkgoLogr.Info(fmt.Sprintf("Cloud credentials created successfully: %s", credID))
+	})
+
+	// Step 3: Verify credentials are accessible
+	By("Step 3: Verifying cloud credentials are accessible", func() {
+		// Verify the credential exists in Rancher
+		Eventually(func() error {
+			_, err := client.Steve.SteveType("provisioning.cattle.io.cluster").ByID(credID)
+			return err
+		}, tools.SetTimeout(30*time.Second), 5*time.Second).Should(BeNil(), "Cloud credentials not found")
+
+		GinkgoLogr.Info("Cloud credentials verified successfully")
+	})
+
+	// Step 4: Verify all prerequisites for cluster creation
+	By("Step 4: Verifying all prerequisites for cluster creation", func() {
+		// Check operator is running
+		checkList := [][]string{{"cattle-system", "app=rancher-ali-operator"}}
+		err := testhelpersRancher.CheckPod(k, checkList)
+		Expect(err).To(BeNil(), "Alibaba operator pods not running")
+
+		// Check UI extension is running
+		checkList = [][]string{{"cattle-ui-plugin-system", "app.kubernetes.io/instance=AlibabaCloud"}}
+		err = testhelpersRancher.CheckPod(k, checkList)
+		Expect(err).To(BeNil(), "Alibaba UI extension pod not running")
+
+		// Check kontainerdriver is Active
+		out, err := kubectl.RunWithoutErr(
+			"get", "kontainerdrivers.management.cattle.io", "alibabacloud",
+			"-o", "jsonpath={.status.conditions[?(@.type=='Active')].status}",
+		)
+		Expect(err).To(BeNil(), "Failed to check kontainerdriver status")
+		Expect(strings.TrimSpace(out)).To(Equal("True"), "AlibabaCloud kontainerdriver not Active")
+
+		GinkgoLogr.Info("All prerequisites verified successfully")
+	})
+
+	GinkgoLogr.Info("=== Rancher is Ready for Alibaba Cluster Creation ===")
+	GinkgoLogr.Info(fmt.Sprintf("Cloud Credential ID: %s", credID))
+	GinkgoLogr.Info("You can now create or import Alibaba ACK clusters")
+
+	return credID, nil
+}
+
+// Helper function to get minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // LogAlibabaActivationSummary writes a simple activation summary.

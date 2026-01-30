@@ -16,10 +16,15 @@ package e2e_test
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
+	"github.com/rancher/shepherd/clients/rancher"
+	"github.com/rancher/shepherd/pkg/config"
+	"github.com/rancher/shepherd/pkg/session"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
@@ -61,6 +66,29 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 						"oci://ghcr.io/rancher/rancher-"+providerOperator+"-operator-chart/rancher-"+providerOperator+"-operator",
 						"--version", buildDate, "--namespace", "cattle-system")
 				}
+			})
+		}
+
+		// Setup Alibaba provider if running Alibaba tests
+		if providerOperator == "alibaba" && skipInstallRancher != "true" {
+			By("Making Rancher ready for Alibaba cluster creation", func() {
+				// Initialize Rancher client for Alibaba setup
+				rancherConfig := new(rancher.Config)
+				config.LoadConfig(rancher.ConfigurationFileKey, rancherConfig)
+
+				testSession := session.NewSession()
+				rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, testSession)
+				Expect(err).To(BeNil(), "Failed to create Rancher client for Alibaba setup")
+
+				// Get chart version and registry from environment or use defaults
+				chartVersion := os.Getenv("ALIBABA_OPERATOR_VERSION")
+				chartRegistry := os.Getenv("ALIBABA_OPERATOR_REGISTRY")
+
+				// Run the complete Alibaba setup including credential creation
+				cloudCredID, err := helpers.MakeRancherReadyForAlibabaClusterCreation(rancherAdminClient, k, chartVersion, chartRegistry)
+				Expect(err).To(BeNil(), "Failed to make Rancher ready for Alibaba cluster creation")
+
+				GinkgoLogr.Info(fmt.Sprintf("✓ Rancher is ready for Alibaba cluster creation. Cloud Credential ID: %s", cloudCredID))
 			})
 		}
 	})

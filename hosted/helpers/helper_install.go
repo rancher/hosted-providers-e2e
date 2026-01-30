@@ -299,3 +299,65 @@ func RestartRancher(k *kubectl.Kubectl) {
 		})
 	})
 }
+
+/*
+*
+Install Alibaba Operator Charts (ali-operator-crd and ali-operator)
+  - @param k kubectl structure
+  - @param chartVersion version of the charts to install (e.g. "108.1.0+up1.13.1-rc.1")
+  - @param chartRegistry OCI registry URL (e.g. "oci://stgregistry.suse.com/rancher/charts")
+  - @returns Nothing, the function will fail through Ginkgo in case of issue
+*/
+func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistry string) {
+	By("Installing Alibaba operator charts", func() {
+		if chartVersion == "" {
+			chartVersion = os.Getenv("ALIBABA_OPERATOR_VERSION")
+			if chartVersion == "" {
+				chartVersion = "108.1.0+up1.13.1-rc.1" // default version
+				GinkgoLogr.Info("Using default Alibaba operator version: " + chartVersion)
+			}
+		}
+
+		if chartRegistry == "" {
+			chartRegistry = os.Getenv("ALIBABA_OPERATOR_REGISTRY")
+			if chartRegistry == "" {
+				chartRegistry = "oci://stgregistry.suse.com/rancher/charts" // default registry
+				GinkgoLogr.Info("Using default Alibaba operator registry: " + chartRegistry)
+			}
+		}
+
+		GinkgoLogr.Info(fmt.Sprintf("Installing Alibaba operator charts version %s from %s", chartVersion, chartRegistry))
+
+		// Install rancher-ali-operator-crd chart
+		By("Installing rancher-ali-operator-crd", func() {
+			RunHelmCmdWithRetry(
+				"install", "rancher-ali-operator-crd",
+				"-n", "cattle-system",
+				fmt.Sprintf("%s/rancher-ali-operator-crd", chartRegistry),
+				"--version", chartVersion,
+			)
+		})
+
+		// Install rancher-ali-operator chart
+		By("Installing rancher-ali-operator", func() {
+			RunHelmCmdWithRetry(
+				"install", "rancher-ali-operator",
+				"-n", "cattle-system",
+				fmt.Sprintf("%s/rancher-ali-operator", chartRegistry),
+				"--version", chartVersion,
+			)
+		})
+
+		// Wait for operator pods to be ready
+		By("Waiting for Alibaba operator pods to be ready", func() {
+			checkList := [][]string{
+				{"cattle-system", "app=rancher-ali-operator"},
+			}
+			Eventually(func() error {
+				return rancherEle.CheckPod(k, checkList)
+			}, tools.SetTimeout(6*time.Minute), 30*time.Second).Should(BeNil(), "Alibaba operator pods not ready")
+		})
+
+		GinkgoLogr.Info("Alibaba operator charts installed successfully")
+	})
+}
