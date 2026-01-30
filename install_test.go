@@ -80,9 +80,9 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 
 				// Create admin token
 				time.Sleep(2 * time.Second)
-				token, err := pipeline.CreateAdminToken(helpers.RancherPassword, rancherConfig)
-
-				// Create Rancher client
+				var err error
+				rancherConfig.AdminToken, err = pipeline.CreateAdminToken(helpers.RancherPassword, rancherConfig)
+				Expect(err).To(BeNil(), "Failed to create admin token")
 				testSession := session.NewSession()
 				rancherAdminClient, err := rancher.NewClient(rancherConfig.AdminToken, testSession)
 				Expect(err).To(BeNil(), "Failed to create Rancher client for Alibaba setup")
