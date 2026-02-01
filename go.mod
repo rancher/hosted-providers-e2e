@@ -16,10 +16,9 @@ require (
 	github.com/rancher/rancher/pkg/apis v0.0.0
 	github.com/rancher/shepherd v0.0.0-20251015044355-8c54bf0aaf31
 	github.com/rancher/tests/actions v0.0.0-20251107203208-fe374c858905
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	k8s.io/apimachinery v0.33.2
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-
 )
 
 require github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
