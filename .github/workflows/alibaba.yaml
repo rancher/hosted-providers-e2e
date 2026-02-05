@@ -26,6 +26,11 @@ on:
         default: true
         required: true
         type: boolean
+      chart_version:
+        description: Alibaba operator chart version
+        required: false
+        type: string
+        default: 108.1.0+up1.13.1-rc.1
       destroy_runner:
         description: Destroy the auto-generated self-hosted runner
         default: true
@@ -61,6 +66,7 @@ jobs:
       rancher_version: ${{ inputs.rancher_version || 'head/2.13' }}
       k3s_version: ${{ inputs.k3s_version || 'v1.34.1+k3s1' }}
       operator_nightly_chart: ${{ inputs.operator_nightly_chart == true || (github.event_name == 'schedule' && true) }}
+      chart_version: ${{ inputs.chart_version || '108.1.0+up1.13.1-rc.1' }}
       tests_to_run: ${{ inputs.tests_to_run || 'p0_provisioning' }}
       destroy_runner: ${{ inputs.destroy_runner ==true || (github.event_name == 'schedule' && true) }}
       runner_template: ${{ inputs.runner_template || 'hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v3' }}
