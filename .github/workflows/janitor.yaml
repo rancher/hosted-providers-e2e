@@ -58,3 +58,41 @@ jobs:
             echo "Deleting GKE cluster: $cl"
             gcloud container clusters delete --location asia-south2-c $cl --async --quiet
           done
+
+  alibaba-janitor:
+    name: alibaba-janitor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Alibaba Cloud CLI
+        run: |
+          curl -o aliyun-cli-linux-latest-amd64.tgz https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar -xzf aliyun-cli-linux-latest-amd64.tgz
+          sudo mv aliyun /usr/local/bin/
+          aliyun version
+
+      - name: Configure Alibaba Cloud CLI
+        run: |
+          aliyun configure set \
+            --profile default \
+            --region eu-central-1 \
+            --access-key-id ${{ secrets.ALIBABA_ACCESS_KEY_ID }} \
+            --access-key-secret ${{ secrets.ALIBABA_ACCESS_KEY_SECRET }}
+
+      - name: List clusters (dry-run)
+        continue-on-error: true
+        run: |
+          echo "Listing all ACK clusters with prefix 'auto-alibaba-gh-runner-hp-ci':"
+          aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\")) | \"Name: \(.name), ID: \(.cluster_id), Created: \(.created)\"" 2> /dev/null || echo "No clusters found or error listing clusters"
+
+      - name: Cleanup
+        continue-on-error: true
+        run: |
+          # Get the ACK clusters by prefix
+          echo "Starting cleanup of ACK clusters with prefix 'auto-alibaba-gh-runner-hp-ci'..."
+          CLUSTER_COUNT=0
+          for cl in $(aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\")) | .cluster_id" 2> /dev/null); do
+            echo "Deleting ACK cluster ID: $cl"
+            aliyun cs DELETE /clusters/$cl --header "Content-Type=application/json" && echo "Successfully deleted cluster $cl" || echo "Failed to delete cluster $cl"
+            CLUSTER_COUNT=$((CLUSTER_COUNT + 1))
+          done
+          echo "Cleanup complete. Total clusters processed: $CLUSTER_COUNT"
