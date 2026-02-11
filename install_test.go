@@ -16,6 +16,7 @@ package e2e_test
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -61,6 +62,13 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 						"oci://ghcr.io/rancher/rancher-"+providerOperator+"-operator-chart/rancher-"+providerOperator+"-operator",
 						"--version", buildDate, "--namespace", "cattle-system")
 				}
+			})
+		}
+
+		// Install Alibaba components if running Alibaba tests
+		if providerOperator == "alibaba" && skipInstallRancher != "true" {
+			By("Installing Alibaba operator charts (CRD and operator)", func() {
+				helpers.InstallAlibabaOperatorCharts(k, os.Getenv("ALIBABA_OPERATOR_VERSION"), os.Getenv("ALIBABA_OPERATOR_REGISTRY"))
 			})
 		}
 	})

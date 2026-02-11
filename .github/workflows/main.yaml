@@ -52,6 +52,10 @@ on:
       k8s_upgrade_minor_version:
         description: K8s minor version to test
         type: string
+      chart_version:
+        description: Alibaba operator chart version
+        required: false
+        type: string
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -60,6 +64,7 @@ env:
   EKS_REGION: ${{ secrets.EKS_REGION }}
   ALIBABA_ACCESS_KEY_ID: ${{ secrets.ALIBABA_ACCESS_KEY_ID }}
   ALIBABA_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_ACCESS_KEY_SECRET }}
+  ALIBABA_OPERATOR_VERSION: ${{ inputs.chart_version }}
   GCP_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
   AKS_CLIENT_ID: ${{ secrets.AKS_CLIENT_ID }}
   AKS_CLIENT_SECRET: ${{ secrets.AKS_CLIENT_SECRET }}
@@ -451,11 +456,26 @@ jobs:
           echo "Rancher Manager Version: ${{ inputs.rancher_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "K3s on Rancher Manager: ${{ inputs.k3s_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "Tests run: ${{ inputs.tests_to_run }}" >> ${GITHUB_STEP_SUMMARY}
-          OPERATOR_HELM_VERSION=$(helm get metadata rancher-${{ inputs.hosted_provider }}-operator -n cattle-system -o json | jq -r .version)
-          echo "Installed rancher-${{ inputs.hosted_provider }}-operator chart version: $OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
+          
+          # Handle Alibaba provider which uses 'ali' instead of 'alibaba' in release name
+          if [[ "${{ inputs.hosted_provider }}" == "alibaba" ]]; then
+            OPERATOR_RELEASE_NAME="rancher-ali-operator"
+          else
+            OPERATOR_RELEASE_NAME="rancher-${{ inputs.hosted_provider }}-operator"
+          fi
+          
+          OPERATOR_HELM_VERSION=$(helm get metadata ${OPERATOR_RELEASE_NAME} -n cattle-system -o json 2>/dev/null | jq -r .version)
+          if [[ -n "$OPERATOR_HELM_VERSION" && "$OPERATOR_HELM_VERSION" != "null" ]]; then
+            echo "Installed ${OPERATOR_RELEASE_NAME} chart version: $OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
+          else
+            echo "Operator chart not found or not installed" >> ${GITHUB_STEP_SUMMARY}
+          fi
+          
           if [[ ${{ inputs.tests_to_run }} =~ "backup_restore" ]]; then
-            BR_OPERATOR_HELM_VERSION=$(helm get metadata rancher-backup -n cattle-resources-system -o json | jq -r .version)
-            echo "Installed backup-restore operator chart version: $BR_OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
+            BR_OPERATOR_HELM_VERSION=$(helm get metadata rancher-backup -n cattle-resources-system -o json 2>/dev/null | jq -r .version)
+            if [[ -n "$BR_OPERATOR_HELM_VERSION" && "$BR_OPERATOR_HELM_VERSION" != "null" ]]; then
+              echo "Installed backup-restore operator chart version: $BR_OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
+            fi
           fi
 
   delete-runner:

@@ -168,10 +168,10 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 
 	var extraFlags []string
 	// Ensure proper extraEnv index sequence for helm rendering
-	// All head versions and releases from prime-optimus[-alpha] channel require an extraEnv index of 2
+	// Head versions require an extraEnv index of 2
 	// See https://github.com/rancher-sandbox/ele-testhelpers/blob/main/rancher/install.go
 	extraEnvIndex := 1
-	if rancherHeadVersion != "" || strings.Contains(rancherChannel, "prime") {
+	if rancherHeadVersion != "" {
 		extraEnvIndex = 2
 	}
 
@@ -183,11 +183,20 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 		extraFlags = append(extraFlags, nightlyFlags...)
 		extraEnvIndex++
 	}
-
+	// enables Alibaba provider in Rancher
 	if Provider == "alibaba" {
-		alibabaFlags := []string{"--set", fmt.Sprintf("extraEnv[%d].name=RANCHER_VERSION_TYPE", extraEnvIndex), "--set", fmt.Sprintf("extraEnv[%d].value=prime", extraEnvIndex)}
-		extraFlags = append(extraFlags, alibabaFlags...)
+		alibabaFlags := []string{
+			"--set", fmt.Sprintf("extraEnv[%d].name=RANCHER_VERSION_TYPE", extraEnvIndex),
+			"--set", fmt.Sprintf("extraEnv[%d].value=prime", extraEnvIndex),
+		}
 		extraEnvIndex++
+		kev2Value := `[{"name":"aks"\,"active":true}\,{"name":"eks"\,"active":true}\,{"name":"gke"\,"active":true}\,{"name":"alibaba"\,"active":true}]`
+		alibabaFlags = append(alibabaFlags,
+			"--set", fmt.Sprintf("extraEnv[%d].name=CATTLE_KEV2_OPERATORS", extraEnvIndex),
+			"--set-string", fmt.Sprintf("extraEnv[%d].value=%s", extraEnvIndex, kev2Value),
+		)
+		extraEnvIndex++
+		extraFlags = append(extraFlags, alibabaFlags...)
 	}
 	err := rancherEle.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", proxyEnabled, extraFlags)
 	Expect(err).To(Not(HaveOccurred()))
@@ -297,5 +306,48 @@ func RestartRancher(k *kubectl.Kubectl) {
 
 			CheckRancherDeployments(k)
 		})
+	})
+}
+
+/*
+*
+Install Alibaba operator charts
+  - @param k kubectl structure
+  - @param chartVersion version of the operator charts (optional, uses default if empty)
+  - @param chartRegistry OCI registry URL (optional, uses default if empty)
+  - @returns Nothing, the function will fail through Ginkgo in case of issue
+*/
+func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistry string) {
+	if chartVersion == "" {
+		chartVersion = "108.1.0+up1.13.1-rc.1"
+	}
+	if chartRegistry == "" {
+		chartRegistry = "oci://stgregistry.suse.com/rancher/charts"
+	}
+
+	GinkgoLogr.Info(fmt.Sprintf("Installing Alibaba operator charts version %s from %s", chartVersion, chartRegistry))
+
+	By("Installing rancher-ali-operator-crd chart", func() {
+		RunHelmCmdWithRetry("install", "rancher-ali-operator-crd",
+			"-n", "cattle-system",
+			chartRegistry+"/rancher-ali-operator-crd",
+			"--version", chartVersion)
+		GinkgoLogr.Info("rancher-ali-operator-crd chart installed successfully")
+	})
+
+	By("Installing rancher-ali-operator chart", func() {
+		RunHelmCmdWithRetry("install", "rancher-ali-operator",
+			"-n", "cattle-system",
+			chartRegistry+"/rancher-ali-operator",
+			"--version", chartVersion)
+		GinkgoLogr.Info("rancher-ali-operator chart installed successfully")
+	})
+
+	By("Waiting for Alibaba operator pods to be ready", func() {
+		checkList := [][]string{{"cattle-system", "app=rancher-ali-operator"}}
+		Eventually(func() error {
+			return rancherEle.CheckPod(k, checkList)
+		}, tools.SetTimeout(6*time.Minute), 30*time.Second).Should(BeNil(), "Alibaba operator pods not ready")
+		GinkgoLogr.Info("Alibaba operator pods are ready")
 	})
 }

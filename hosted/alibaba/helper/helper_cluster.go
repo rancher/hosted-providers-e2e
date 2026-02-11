@@ -306,7 +306,7 @@ func ImportACKHostedCluster(client *rancher.Client, clusterName, cloudCredential
 
 	Eventually(func() string {
 		c, err := client.Management.Cluster.ByID(clusterResp.ID)
-		if err != nil || c.AliStatus.UpstreamSpec == nil || len(c.AliStatus.UpstreamSpec.VSwitchIDs) == 0 {
+		if err != nil || c.AliStatus == nil || c.AliStatus.UpstreamSpec == nil || len(c.AliStatus.UpstreamSpec.VSwitchIDs) == 0 {
 			return ""
 		}
 		clusterResp = c
