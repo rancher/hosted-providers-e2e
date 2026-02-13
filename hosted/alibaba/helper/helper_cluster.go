@@ -829,3 +829,11 @@ func CreateAliClient(region string) (*cs.Client, error) {
 	}
 	return cs.NewClient(cfg)
 }
+
+func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFunc func(*management.Cluster)) (*management.Cluster, error) {
+	upgradedCluster := newClusterUpdatePayload(cluster)
+
+	updateFunc(upgradedCluster)
+
+	return client.Management.Cluster.Update(cluster, &upgradedCluster)
+}
