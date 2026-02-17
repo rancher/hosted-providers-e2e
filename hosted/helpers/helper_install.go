@@ -327,17 +327,13 @@ func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistr
 		chartRegistry = "oci://stgregistry.suse.com/rancher/charts"
 	}
 
-	// OCI registries don't support '+' in tags, it gets converted to '_'
-	// Convert the version format for OCI registry
-	ociVersion := strings.ReplaceAll(chartVersion, "+", "_")
-
-	GinkgoLogr.Info(fmt.Sprintf("Installing Alibaba operator charts version %s (OCI: %s) from %s", chartVersion, ociVersion, chartRegistry))
+	GinkgoLogr.Info(fmt.Sprintf("Installing Alibaba operator charts version %s from %s", chartVersion, chartRegistry))
 
 	By("Installing rancher-ali-operator-crd chart", func() {
 		RunHelmCmdWithRetry("install", "rancher-ali-operator-crd",
 			"-n", "cattle-system",
 			chartRegistry+"/rancher-ali-operator-crd",
-			"--version", ociVersion)
+			"--version", chartVersion)
 		GinkgoLogr.Info("rancher-ali-operator-crd chart installed successfully")
 	})
 
@@ -346,7 +342,7 @@ func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistr
 			"install", "rancher-ali-operator",
 			"-n", "cattle-system",
 			chartRegistry + "/rancher-ali-operator",
-			"--version", ociVersion,
+			"--version", chartVersion,
 		}
 
 		// Add proxy configuration if enabled
