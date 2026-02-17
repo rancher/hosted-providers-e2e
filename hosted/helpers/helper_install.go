@@ -59,7 +59,7 @@ func InstallK3S(k *kubectl.Kubectl, k3sVersion, proxy, proxyHost string) {
 			k3sConfigPath := "/etc/default/k3s"
 			k3sConfig := fmt.Sprintf(`HTTP_PROXY=http://%s
 HTTPS_PROXY=http://%s
-NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local`, proxyHost, proxyHost)
+NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local,100.100.100.200,*.aliyuncs.com`, proxyHost, proxyHost)
 			// Write the k3s proxy config file as root
 			out, err := exec.Command("sh", "-c", fmt.Sprintf("echo '%s' | sudo tee %s", k3sConfig, k3sConfigPath)).CombinedOutput()
 			GinkgoWriter.Println(string(out))
@@ -122,7 +122,7 @@ func InstallCertManager(k *kubectl.Kubectl, proxy, proxyHost string) {
 		if proxy == "enabled" {
 			flags = append(flags, "--set", "http_proxy=http://"+proxyHost,
 				"--set", "https_proxy=http://"+proxyHost,
-				"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local")
+				"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local\\,100.100.100.200\\,*.aliyuncs.com")
 		}
 		GinkgoWriter.Printf("Helm flags: %v\n", flags)
 		RunHelmCmdWithRetry(flags...)
