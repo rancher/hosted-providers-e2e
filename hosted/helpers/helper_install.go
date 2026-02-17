@@ -347,7 +347,7 @@ func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistr
 
 		// Add proxy configuration if enabled
 		if proxy == "enabled" {
-			noProxy := "127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local"
+			noProxy := `127.0.0.0/8\,10.0.0.0/8\,cattle-system.svc\,172.16.0.0/12\,192.168.0.0/16\,.svc\,.cluster.local`
 			flags = append(flags,
 				"--set", "additionalTrustedCAs=false",
 				"--set", fmt.Sprintf("httpProxy=http://%s", proxyHost),
