@@ -68,7 +68,7 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 		// Install Alibaba components if running Alibaba tests
 		if providerOperator == "alibaba" && skipInstallRancher != "true" {
 			By("Installing Alibaba operator charts (CRD and operator)", func() {
-				helpers.InstallAlibabaOperatorCharts(k, os.Getenv("ALIBABA_OPERATOR_VERSION"), os.Getenv("ALIBABA_OPERATOR_REGISTRY"))
+				helpers.InstallAlibabaOperatorCharts(k, os.Getenv("ALIBABA_OPERATOR_VERSION"), os.Getenv("ALIBABA_OPERATOR_REGISTRY"), proxy, proxyHost)
 			})
 		}
 	})

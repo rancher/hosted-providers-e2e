@@ -59,7 +59,7 @@ func InstallK3S(k *kubectl.Kubectl, k3sVersion, proxy, proxyHost string) {
 			k3sConfigPath := "/etc/default/k3s"
 			k3sConfig := fmt.Sprintf(`HTTP_PROXY=http://%s
 HTTPS_PROXY=http://%s
-NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local,100.100.100.200,*.aliyuncs.com`, proxyHost, proxyHost)
+NO_PROXY=127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local`, proxyHost, proxyHost)
 			// Write the k3s proxy config file as root
 			out, err := exec.Command("sh", "-c", fmt.Sprintf("echo '%s' | sudo tee %s", k3sConfig, k3sConfigPath)).CombinedOutput()
 			GinkgoWriter.Println(string(out))
@@ -122,7 +122,7 @@ func InstallCertManager(k *kubectl.Kubectl, proxy, proxyHost string) {
 		if proxy == "enabled" {
 			flags = append(flags, "--set", "http_proxy=http://"+proxyHost,
 				"--set", "https_proxy=http://"+proxyHost,
-				"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local\\,100.100.100.200\\,*.aliyuncs.com")
+				"--set", "no_proxy=127.0.0.0/8\\,10.0.0.0/8\\,cattle-system.svc\\,172.16.0.0/12\\,192.168.0.0/16\\,.svc\\,.cluster.local")
 		}
 		GinkgoWriter.Printf("Helm flags: %v\n", flags)
 		RunHelmCmdWithRetry(flags...)
@@ -315,9 +315,11 @@ Install Alibaba operator charts
   - @param k kubectl structure
   - @param chartVersion version of the operator charts (optional, uses default if empty)
   - @param chartRegistry OCI registry URL (optional, uses default if empty)
+  - @param proxy proxy setting ("enabled" or empty)
+  - @param proxyHost proxy host if proxy is enabled
   - @returns Nothing, the function will fail through Ginkgo in case of issue
 */
-func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistry string) {
+func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistry, proxy, proxyHost string) {
 	if chartVersion == "" {
 		chartVersion = "108.1.0+up1.13.1-rc.1"
 	}
@@ -336,10 +338,25 @@ func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistr
 	})
 
 	By("Installing rancher-ali-operator chart", func() {
-		RunHelmCmdWithRetry("install", "rancher-ali-operator",
+		flags := []string{
+			"install", "rancher-ali-operator",
 			"-n", "cattle-system",
-			chartRegistry+"/rancher-ali-operator",
-			"--version", chartVersion)
+			chartRegistry + "/rancher-ali-operator",
+			"--version", chartVersion,
+		}
+
+		// Add proxy configuration if enabled
+		if proxy == "enabled" {
+			noProxy := "127.0.0.0/8,10.0.0.0/8,cattle-system.svc,172.16.0.0/12,192.168.0.0/16,.svc,.cluster.local"
+			flags = append(flags,
+				"--set", "additionalTrustedCAs=false",
+				"--set", fmt.Sprintf("httpProxy=http://%s", proxyHost),
+				"--set", fmt.Sprintf("httpsProxy=http://%s", proxyHost),
+				"--set", fmt.Sprintf("noProxy=%s", noProxy),
+			)
+		}
+
+		RunHelmCmdWithRetry(flags...)
 		GinkgoLogr.Info("rancher-ali-operator chart installed successfully")
 	})
 
