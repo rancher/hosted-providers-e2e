@@ -13,10 +13,10 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20260121133442-5e31628d3dc7
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
-	github.com/rancher/rancher/pkg/apis v0.0.0
+	github.com/rancher/rancher/pkg/apis v0.0.0 // indirect
 	github.com/rancher/shepherd v0.0.0-20251015044355-8c54bf0aaf31
 	github.com/rancher/tests/actions v0.0.0-20251107203208-fe374c858905
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	k8s.io/apimachinery v0.33.2
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 )
