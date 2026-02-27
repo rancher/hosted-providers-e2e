@@ -502,18 +502,14 @@ func ListEKSAllVersions(client *rancher.Client) (allVersions []string, err error
 		return
 	}
 
-	allVersions = []string{"1.33", "1.32", "1.31"}
+	allVersions = []string{"1.35", "1.34", "1.33"}
 
-	if strings.Contains(serverVersion, "2.11") {
+	if strings.Contains(serverVersion, "2.13") {
+		allVersions = []string{"1.34", "1.33", "1.32"}
+	} else if strings.Contains(serverVersion, "2.12") {
+		allVersions = []string{"1.33", "1.32", "1.31"}
+	} else if strings.Contains(serverVersion, "2.11") {
 		allVersions = []string{"1.32", "1.31", "1.30"}
-	} else if strings.Contains(serverVersion, "2.10") {
-		allVersions = []string{"1.31", "1.30", "1.29", "1.28"}
-	} else if strings.Contains(serverVersion, "2.9") {
-		allVersions = []string{"1.30", "1.29", "1.28", "1.27"}
-	} else if strings.Contains(serverVersion, "2.8") {
-		allVersions = []string{"1.28", "1.27", "1.26", "1.25"}
-	} else if strings.Contains(serverVersion, "2.7") {
-		allVersions = []string{"1.27", "1.26", "1.25", "1.24"}
 	}
 
 	// as a safety net, we ensure all the versions are UI supported
