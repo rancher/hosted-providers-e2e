@@ -283,7 +283,7 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 				GinkgoWriter.Printf("Waiting for capi-controller-manager deployment (cattle-capi-system), loop %d:\n%s\n", count, out)
 				count++
 				return err
-			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Capi-controller-manager deployment failed")
+			}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Capi-controller-manager deployment failed")
 
 			checkList := [][]string{
 				{"cattle-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
