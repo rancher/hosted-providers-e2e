@@ -260,10 +260,60 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 		}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 	})
 
-	// Do not run this check on Rancher 2.13
-	if !strings.Contains(RancherFullVersion, "2.13") {
+	// From Rancher 2.13+, Turtles replaces embedded CAPI
+	isTurtles := func() bool {
+		s := strings.Split(RancherFullVersion, "/")
+		if len(s) >= 2 {
+			result, err := IsRancherVersionGreaterThanOrEqualTo(s[1], "2.13.0")
+			if err == nil {
+				return result
+			}
+		}
+		return strings.Contains(RancherFullVersion, "2.13")
+	}()
+
+	if isTurtles {
+		By("Waiting for capi-controller-manager (Turtles)", func() {
+			count := 1
+			Eventually(func() error {
+				out, err := kubectl.Run("rollout", "status",
+					"--namespace", "cattle-capi-system",
+					"deployment", "capi-controller-manager",
+				)
+				GinkgoWriter.Printf("Waiting for capi-controller-manager deployment (cattle-capi-system), loop %d:\n%s\n", count, out)
+				count++
+				return err
+			}, tools.SetTimeout(5*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Capi-controller-manager deployment failed")
+
+			checkList := [][]string{
+				{"cattle-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
+			}
+			Eventually(func() error {
+				return rancherEle.CheckPod(k, checkList)
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+		})
+
+		By("Waiting for rancher-turtles-controller-manager", func() {
+			count := 1
+			Eventually(func() error {
+				out, err := kubectl.Run("rollout", "status",
+					"--namespace", "cattle-turtles-system",
+					"deployment", "rancher-turtles-controller-manager",
+				)
+				GinkgoWriter.Printf("Waiting for rancher-turtles-controller-manager deployment, loop %d:\n%s\n", count, out)
+				count++
+				return err
+			}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Rancher-turtles-controller-manager deployment failed")
+
+			checkList := [][]string{
+				{"cattle-turtles-system", "control-plane=controller-manager"},
+			}
+			Eventually(func() error {
+				return rancherEle.CheckPod(k, checkList)
+			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
+		})
+	} else {
 		By("Waiting for capi-controller-manager", func() {
-			// Wait unit the kubectl command returns exit code 0
 			count := 1
 			Eventually(func() error {
 				out, err := kubectl.Run("rollout", "status",
@@ -278,7 +328,7 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 			checkList := [][]string{
 				{"cattle-provisioning-capi-system", "cluster.x-k8s.io/provider=cluster-api"},
 			}
-			Eventually(func() error { // Capi-controller-manager pod is not running
+			Eventually(func() error {
 				return rancherEle.CheckPod(k, checkList)
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
