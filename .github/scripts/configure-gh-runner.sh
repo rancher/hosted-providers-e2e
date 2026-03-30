@@ -81,7 +81,9 @@ cat > ${GH_SCRIPT} <<EOF
 #!/bin/bash
 
 # Variable(s)
+
 TAR_FILE=runner.tar.gz
+RUNNER_VERSION=2.333.0
 
 # Create a folder
 cd /home/${GH_USER}
@@ -90,7 +92,7 @@ mkdir -p actions-runner && cd actions-runner
 # Get the latest runner version
 (( SECONDS_TO_WAIT = SECONDS + 30 ))
 while (( SECONDS < SECONDS_TO_WAIT )); do
-  PKG=\$(wget -q -O - https://api.github.com/repos/actions/runner/releases/latest \\
+  PKG=\$(wget -q -O - https://api.github.com/repos/actions/runner/releases/${RUNNER_VERSION} \\
         | awk '/browser_download_url.*\/actions-runner-linux-x64-.*[0-9].tar.gz/ { print \$2 }')
 
   # PKG should contains '.tar.gz' string

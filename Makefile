@@ -1,7 +1,12 @@
 STANDARD_TEST_OPTIONS = -v -r --timeout=3h --keep-going --randomize-all --randomize-suites
-
 REQUIRED_VARS := RANCHER_HOSTNAME RANCHER_PASSWORD RANCHER_VERSION KUBECONFIG INSTALL_K3S_VERSION
 ### Optional vars used by prepare-rancher: PROVIDER NIGHTLY_CHART RANCHER_BEHIND_PROXY PROXY_HOST RANCHER_UPGRADE_VERSION K8S_UPGRADE_MINOR_VERSION (more used by e2e tests)
+
+# renovate: datasource=github-releases depName=helm/helm digestVersion=4.1.3
+HELM_VERSION=v4.1.3
+TARGETARCH=amd64
+# renovate: datasource=github-releases depName=helm/helm digestVersion=02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
+HELM_SUM=02ce9722d541238f81459938b84cf47df2fdf1187493b4bfb2346754d82a4700
 
 check-vars-rancher: ## Check whether all required environment variables for installing Rancher are set
 	@echo "Checking required environment variables are set..."
@@ -10,12 +15,15 @@ check-vars-rancher: ## Check whether all required environment variables for inst
 prepare-rancher: check-vars-rancher deps install-helm ## Install k3s and Rancher with dependencies on the local machine
 	ginkgo --label-filter install -v ./
 
-install-helm: ## Install latest Helm on the local machine
-	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+install-helm: ## Install Helm binary
+	curl --output /tmp/helm.tar.gz -sLf "https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" && \
+	echo "${HELM_SUM}  /tmp/helm.tar.gz" | sha256sum -c - && \
+	tar -xvzf /tmp/helm.tar.gz -C /tmp && \
+	sudo mv /tmp/linux-${TARGETARCH}/helm /usr/local/bin/helm
 
 deps: ## Install the Go dependencies
-	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-	go install -mod=mod github.com/onsi/gomega
+	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.28.1
+	go get github.com/onsi/gomega@v1.39.0
 	go mod tidy
 
 e2e-import-tests: deps	## Run the 'P0Import' test suite for a given ${PROVIDER}
@@ -58,7 +66,7 @@ e2e-backup-restore-provisioning-tests: deps ## Run the 'BackupRestoreProvisionin
 	ginkgo ${STANDARD_TEST_OPTIONS} --focus "BackupRestoreProvisioning" ./hosted/${PROVIDER}/backup_restore
 
 e2e-backup-restore-import-tests: deps ## Run the 'BackupRestoreImport' test suite for a given ${PROVIDER}
-	ginkgo ${STANDARD_TEST_OPTIONS} --focus "BackupRestoreImport" ./hosted/${PROVIDER}/backup_restore	
+	ginkgo ${STANDARD_TEST_OPTIONS} --focus "BackupRestoreImport" ./hosted/${PROVIDER}/backup_restore
 
 clean-k3s:	## Uninstall k3s cluster
 	/usr/local/bin/k3s-killall.sh && /usr/local/bin/k3s-uninstall.sh || true

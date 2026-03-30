@@ -1,5 +1,7 @@
 # This workflow is a reusable one called by other workflows
 name: (Template) E2E Tests workflow
+permissions:
+  contents: read
 on:
   workflow_call:
   # Variables to set when calling this reusable workflow
@@ -93,7 +95,7 @@ jobs:
     steps:
       # actions/checkout MUST come before auth
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Generate UUID and Runner hostname
         id: generator
         run: |
@@ -103,11 +105,11 @@ jobs:
           echo "uuid=${UUID//-}" >> ${GITHUB_OUTPUT}
           echo "runner=${GH_REPO//\//-}-ci-${UUID//-}" >> ${GITHUB_OUTPUT}
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
       - name: Create runner
         run: |
           REGION=$(echo ${{ env.GCP_RUNNER_ZONE }} | sed 's/-[abcdef]$//')
@@ -143,14 +145,14 @@ jobs:
           echo 'Defaults secure_path="/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin"' | sudo tee /etc/sudoers.d/0-custom_secure_path
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
 
       - name: Get Runner IP
         id: runner-ip
@@ -177,7 +179,7 @@ jobs:
 
 
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         env:
           GOTOOLCHAIN: local
         with:
@@ -235,20 +237,23 @@ jobs:
           make prepare-rancher
             
       - name: Login to Azure
-        uses: azure/login@v2.3.0
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           creds: '{"clientId":"${{ env.AKS_CLIENT_ID }}","clientSecret":"${{ env.AKS_CLIENT_SECRET }}","subscriptionId":"${{ env.AKS_SUBSCRIPTION_ID }}","tenantId":"${{ env.AKS_TENANT_ID }}"}'
 
       - name: Install EKSCTL
         run: |
+          EKSCTL_VERSION=0.224.0
           # Better to always use the latest eksctl binary to avoid API version issue
-          EKSCTL_GH=https://github.com/weaveworks/eksctl/releases/latest/download
-          curl --location ${EKSCTL_GH}/eksctl_$(uname -s)_amd64.tar.gz | tar xz -C .
+          EKSCTL_GH=https://github.com/weaveworks/eksctl/releases/download/v${EKSCTL_VERSION}
+          curl -fsSL -o eksctl.tar.gz ${EKSCTL_GH}/eksctl_$(uname -s)_amd64.tar.gz
+          tar -xzf eksctl.tar.gz
           chmod +x eksctl
           sudo mv eksctl /usr/local/bin
+          rm eksctl.tar.gz
             
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6.0.0
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
@@ -257,7 +262,8 @@ jobs:
       - name: Install AWS CLI v2 (if running sync tests)
         if: ${{!cancelled() && inputs.hosted_provider == 'eks' && contains(inputs.tests_to_run, 'sync_')}}
         run:  |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          AWS_CLI_VERSION=2.34.16
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install
           rm -rf awscliv2.zip aws/
@@ -441,7 +447,7 @@ jobs:
 
       - name: Upload cluster logs
         if: ${{ always() && (inputs.rancher_installed != 'hostname/password' || steps.prepare-rancher.outcome == 'success') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: support-logs-${{ inputs.hosted_provider }}
           path: ${{ github.workspace }}/logs/*
@@ -485,13 +491,13 @@ jobs:
     steps:
       # actions/checkout MUST come before auth
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
       - name: Delete GCP secrets
         run: |
           gcloud --quiet secrets delete PAT_TOKEN_${{ needs.create-runner.outputs.uuid }}
