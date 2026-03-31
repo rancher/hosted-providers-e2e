@@ -1,6 +1,7 @@
 name: K8s Chart Upgrade Test Matrix
 run-name: Rancher `${{ inputs.rancher_version }}` upgrade to `${{ inputs.rancher_upgrade_version }}` on `${{ inputs.k3s_version }}` running `${{ inputs.tests_to_run }}` testing kubernetes `${{ inputs.k8s_upgrade_minor_version }}`
-
+permissions:
+  contents: read
 on:
   workflow_dispatch:
     inputs:

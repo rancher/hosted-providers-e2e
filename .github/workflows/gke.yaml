@@ -1,7 +1,8 @@
 # This workflow calls the main workflow with custom variables
 name: GKE-E2E
 run-name: GKE on Rancher ${{ inputs.rancher_version || 'head/2.14' }} deployed on ${{ inputs.k3s_version || 'v1.35.1+k3s1' }}
-
+permissions:
+  contents: read
 on:
   schedule:
     - cron: "0 1 1,15 * *" # On 1st and 15th of every month

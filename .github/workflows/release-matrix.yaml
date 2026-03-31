@@ -1,6 +1,7 @@
 name: Release-matrix
 run-name: Rancher `${{ inputs.rancher_version }}` on `${{ inputs.k3s_version }}` running `${{ inputs.tests_to_run }}`
-
+permissions:
+  contents: read
 on:
   workflow_dispatch:
     inputs:

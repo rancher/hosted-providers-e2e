@@ -3,8 +3,11 @@
 set -evx
 
 # Variables
-RANCHER_LOG_COLLECTER="https://raw.githubusercontent.com/rancherlabs/support-tools/master/collection/rancher/v2.x/logs-collector/rancher2_logs_collector.sh"
-CRUST_GATHER_INSTALLER="https://github.com/crust-gather/crust-gather/raw/main/install.sh"
+CRUST_LOG_VERSION="0.13.0"
+RANCHER_SUPPORT_TOOLS_VERSION="40ce9841dcbd82697548229b31aafcfd3a6bd1fd"
+
+RANCHER_LOG_COLLECTER="https://raw.githubusercontent.com/rancherlabs/support-tools/${RANCHER_SUPPORT_TOOLS_VERSION}/collection/rancher/v2.x/logs-collector/rancher2_logs_collector.sh"
+CRUST_GATHER_INSTALLER="https://raw.githubusercontent.com/crust-gather/crust-gather/v${CRUST_LOG_VERSION}/install.sh"
 
 # Create directory to store logs
 mkdir -p -m 755 logs
@@ -25,9 +28,9 @@ cd ..
 mkdir -p -m 755 crust-gather-logs
 cd crust-gather-logs
 
-curl -L ${CRUST_GATHER_INSTALLER} -o crust-gather-installer.sh
+curl -fsSL "${CRUST_GATHER_INSTALLER}" -o crust-gather-installer.sh
 chmod +x crust-gather-installer.sh
-sudo ./crust-gather-installer.sh -y
+sudo sh ./crust-gather-installer.sh -y
 
 crust-gather collect
 
