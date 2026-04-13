@@ -84,6 +84,12 @@ func CommonSynchronizedBeforeSuite() {
 			credentialConfig.AccessKeyId = os.Getenv("ALIBABA_ACCESS_KEY_ID")
 			credentialConfig.SecretAccessKey = os.Getenv("ALIBABA_ACCESS_KEY_SECRET")
 		})
+		aliClusterConfig := new(management.AliClusterConfigSpec)
+		config.LoadAndUpdateConfig("aliClusterConfig", aliClusterConfig, func() {
+			if v := os.Getenv("ALIBABA_RESOURCE_GROUP_ID"); v != "" {
+				aliClusterConfig.ResourceGroupID = v
+			}
+		})
 	}
 }
 
@@ -171,7 +177,13 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 
 	err = wait.WatchWait(watchInterface, watchFunc)
 	if err != nil {
-		return cluster, err
+		if err.Error() == wait.WatchConnectionError {
+			ginkgo.GinkgoLogr.Info("Watch connection error, falling back to polling...")
+			err = pollUntilClusterReady(cluster.ID, client)
+		}
+		if err != nil {
+			return cluster, err
+		}
 	}
 	var updatedCluster *management.Cluster
 	updatedCluster, err = client.Management.Cluster.ByID(cluster.ID)
@@ -195,6 +207,33 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 		}
 	}
 	return updatedCluster, nil
+}
+
+// pollUntilClusterReady polls the cluster status until it is ready or times out.
+func pollUntilClusterReady(clusterID string, client *rancher.Client) error {
+	timeout := time.After(time.Duration(defaults.WatchTimeoutSeconds) * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout waiting for cluster %s to become ready", clusterID)
+		case <-ticker.C:
+			c, err := client.Management.Cluster.ByID(clusterID)
+			if err != nil {
+				ginkgo.GinkgoLogr.Info(fmt.Sprintf("Error polling cluster %s: %v", clusterID, err))
+				continue
+			}
+			for _, cond := range c.Conditions {
+				if cond.Type == "Ready" && cond.Status == "True" {
+					ginkgo.GinkgoLogr.Info(fmt.Sprintf("Cluster %s is active (via polling)", clusterID))
+					return nil
+				}
+			}
+			ginkgo.GinkgoLogr.Info(fmt.Sprintf("Cluster %s not ready yet, transitioning: %s", clusterID, c.Transitioning))
+		}
+	}
 }
 
 // ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
@@ -291,7 +330,13 @@ func GetACKRegion() string {
 }
 
 func GetACKResourceGroupID() string {
-	return os.Getenv("ALIBABA_RESOURCE_GROUP_ID")
+	v := os.Getenv("ALIBABA_RESOURCE_GROUP_ID")
+	if v == "" {
+		aliClusterConfig := new(management.AliClusterConfigSpec)
+		config.LoadConfig("aliClusterConfig", aliClusterConfig)
+		v = aliClusterConfig.ResourceGroupID
+	}
+	return v
 }
 
 // GetEKSRegion fetches the value of EKS Region;

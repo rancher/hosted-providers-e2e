@@ -3,6 +3,7 @@ package helper
 import (
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
@@ -577,17 +578,49 @@ func UpgradeClusterKubernetesVersion(cluster *management.Cluster, upgradeToVersi
 	return cluster, nil
 }
 
-// ListALIAvailableVersions lists all available ALI Kubernetes versions
-// This is a separate static list maintained by hosted-providers-e2e, similar to the UI lists.
+// ListALIAllVersions fetches all creatable ACK Kubernetes versions from the Alibaba SDK
+// and returns them sorted in descending order, filtered by UI-supported versions.
 func ListALIAllVersions(client *rancher.Client) (allVersions []string, err error) {
+	region := helpers.GetACKRegion()
+	csClient, err := CreateAliClient(region)
 	if err != nil {
-		// Log and continue with a safe default list; server-version is non-critical for ALI static list selection
-		ginkgo.GinkgoLogr.Info(fmt.Sprintf("[WARN] failed to read rancher server-version: %v; falling back to default ALI version list", err))
+		return nil, fmt.Errorf("failed to create Alibaba CS client: %w", err)
 	}
 
-	allVersions = []string{"1.33.3-aliyun.1", "1.32.7-aliyun.1", "1.32.6-aliyun.1"}
+	req := &cs.DescribeKubernetesVersionMetadataRequest{
+		Region:      tea.String(region),
+		ClusterType: tea.String("ManagedKubernetes"),
+		Mode:        tea.String("creatable"),
+	}
 
-	// as a safety net, we ensure all the versions are UI supported
+	resp, err := csClient.DescribeKubernetesVersionMetadata(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch Kubernetes version metadata: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	for _, v := range resp.Body {
+		if v.Version != nil && tea.StringValue(v.Version) != "" {
+			ver := tea.StringValue(v.Version)
+			if !seen[ver] {
+				seen[ver] = true
+				allVersions = append(allVersions, ver)
+			}
+		}
+	}
+
+	if len(allVersions) == 0 {
+		return nil, fmt.Errorf("no creatable Kubernetes versions found for region %s", region)
+	}
+
+	// Sort versions in descending order
+	sort.Slice(allVersions, func(i, j int) bool {
+		return helpers.VersionCompare(allVersions[i], allVersions[j]) > 0
+	})
+
+	ginkgo.GinkgoLogr.Info(fmt.Sprintf("Fetched ALI Kubernetes versions: %v", allVersions))
+
+	// Filter out versions not supported by the UI
 	return helpers.FilterUIUnsupportedVersions(allVersions, client), nil
 }
 

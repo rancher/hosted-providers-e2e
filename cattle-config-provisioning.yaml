@@ -43,7 +43,7 @@ aliClusterConfig:
       encrypted: "false"
       size: 40
     desiredSize: 2
-    imageId: aliyun_3_x64_20G_alibase_20241218.vhd
+    imageId: aliyun_3_x64_20G_container_optimized_alibase_20251215.vhd
     imageType: AliyunLinux3
     instanceTypes:
     - ecs.c7.xlarge
