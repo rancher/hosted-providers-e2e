@@ -17,9 +17,8 @@ var _ = Describe("P1Provisioning", func() {
 	var _ = BeforeEach(func() {
 
 		cluster = nil
-
 		var err error
-		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
+		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)
 		Expect(err).To(BeNil())
 		GinkgoLogr.Info(fmt.Sprintf("While provisioning, using kubernetes version %s for cluster %s", k8sVersion, clusterName))
 	})
@@ -40,8 +39,6 @@ var _ = Describe("P1Provisioning", func() {
 		BeforeEach(func() {
 
 			var err error
-			k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)
-			Expect(err).To(BeNil())
 			upgradeToVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 			Expect(err).To(BeNil())
 			GinkgoLogr.Info(fmt.Sprintf("While provisioning, using kubernetes version %s for cluster %s", k8sVersion, clusterName))

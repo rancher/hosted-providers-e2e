@@ -363,6 +363,10 @@ func newClusterUpdatePayload(cluster *management.Cluster) *management.Cluster {
 	payload.Name = cluster.Name
 	aliConfigCopy := *cluster.AliConfig
 	payload.AliConfig = &aliConfigCopy
+	// For imported clusters, KubernetesVersion is not set in AliConfig; fall back to UpstreamSpec.
+	if payload.AliConfig.KubernetesVersion == "" && cluster.AliStatus != nil && cluster.AliStatus.UpstreamSpec != nil {
+		payload.AliConfig.KubernetesVersion = cluster.AliStatus.UpstreamSpec.KubernetesVersion
+	}
 	return payload
 }
 
@@ -883,4 +887,92 @@ func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFu
 	updateFunc(upgradedCluster)
 
 	return client.Management.Cluster.Update(cluster, &upgradedCluster)
+}
+
+// UpdateAutoScaling updates autoscaling settings for all node pools of an ACK cluster via Rancher.
+// When enabled, MaxInstances, MinInstances, and ScalingType are set on each node pool.
+// When disabled, those fields are cleared.
+// If checkClusterConfig is true, the update is validated against both AliConfig and AliStatus.UpstreamSpec.
+func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enabled bool, maxInstances, minInstances int64, scalingType string, checkClusterConfig bool) (*management.Cluster, error) {
+	if enabled {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Enabling autoscaling for cluster %s with minInstances=%d, maxInstances=%d, scalingType=%s", cluster.Name, minInstances, maxInstances, scalingType))
+		if minInstances == 0 && maxInstances == 0 {
+			return nil, fmt.Errorf("minInstances and maxInstances cannot be zero when enabling autoscaling")
+		}
+		if maxInstances <= minInstances {
+			return nil, fmt.Errorf("maxInstances must be greater than minInstances")
+		}
+	}
+
+	upgradedCluster := newClusterUpdatePayload(cluster)
+	populateNodePoolImageIDs(upgradedCluster)
+
+	for i := range upgradedCluster.AliConfig.NodePools {
+		np := &upgradedCluster.AliConfig.NodePools[i]
+		np.EnableAutoScaling = pointer.Bool(enabled)
+		if enabled {
+			np.MaxInstances = pointer.Int64(maxInstances)
+			np.MinInstances = pointer.Int64(minInstances)
+			np.ScalingType = scalingType
+			np.DesiredSize = nil
+		} else {
+			np.MaxInstances = nil
+			np.MinInstances = nil
+			np.ScalingType = ""
+		}
+	}
+
+	var err error
+	cluster, err = client.Management.Cluster.Update(cluster, upgradedCluster)
+	if err != nil {
+		return nil, err
+	}
+
+	if checkClusterConfig {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Enabling autoscaling for cluster %s with minInstances=%d, maxInstances=%d, scalingType=%s", cluster.Name, minInstances, maxInstances, scalingType))
+		for _, np := range cluster.AliConfig.NodePools {
+			Expect(np.EnableAutoScaling).NotTo(BeNil())
+			Expect(*np.EnableAutoScaling).To(BeEquivalentTo(enabled))
+			if enabled {
+				if np.MaxInstances != nil {
+					Expect(*np.MaxInstances).To(BeEquivalentTo(maxInstances))
+				}
+				if np.MinInstances != nil {
+					Expect(*np.MinInstances).To(BeEquivalentTo(minInstances))
+				}
+				Expect(np.ScalingType).To(Equal(scalingType))
+			} else {
+				Expect(np.MaxInstances).To(BeNil())
+				Expect(np.MinInstances).To(BeNil())
+			}
+		}
+	}
+
+	if checkClusterConfig {
+		Eventually(func() bool {
+			ginkgo.GinkgoLogr.Info(fmt.Sprintf("Waiting for autoscaling update (enable: %v) to appear in AliStatus.UpstreamSpec ...", enabled))
+			cluster, err = client.Management.Cluster.ByID(cluster.ID)
+			Expect(err).To(BeNil())
+			for _, np := range cluster.AliStatus.UpstreamSpec.NodePools {
+				if enabled {
+					if np.EnableAutoScaling == nil || !*np.EnableAutoScaling {
+						return false
+					}
+					if np.MaxInstances != nil && *np.MaxInstances != maxInstances {
+						return false
+					}
+					if np.MinInstances != nil && *np.MinInstances != minInstances {
+						return false
+					}
+				} else {
+					if np.EnableAutoScaling != nil && *np.EnableAutoScaling {
+						return false
+					}
+				}
+			}
+			return true
+		}, tools.SetTimeout(helpers.Timeout), 15*time.Second).Should(BeTrue())
+	}
+
+	return cluster, nil
 }

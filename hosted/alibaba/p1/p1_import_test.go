@@ -17,8 +17,7 @@ var _ = Describe("P1Import", func() {
 	BeforeEach(func() {
 
 		cluster = nil
-		GinkgoLogr.Info(fmt.Sprintf("Running on process: %d", GinkgoParallelProcess()))
-		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
+		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, true)
 		Expect(err).NotTo(HaveOccurred())
 		GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))
 		csClient, err = helper.CreateAliClient(region)
@@ -42,7 +41,7 @@ var _ = Describe("P1Import", func() {
 		var clusterId string
 		BeforeEach(func() {
 			var err error
-			clusterId, err = helper.CreateACKClusterOnAlibaba(csClient, region, clusterName, k8sVersion, "1", resourceGroupId, helpers.GetCommonMetadataLabels())
+			clusterId, err = helper.CreateACKClusterOnAlibaba(csClient, region, clusterName, k8sVersion, "2", resourceGroupId, helpers.GetCommonMetadataLabels())
 			Expect(err).To(BeNil())
 			cluster, err = helper.ImportACKHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, region, clusterId)
 			Expect(err).To(BeNil())
@@ -62,6 +61,7 @@ var _ = Describe("P1Import", func() {
 
 		It("should be able to update autoscaling", func() {
 			testCaseID = -1
+			//deployment
 			updateAutoScaling(cluster, ctx.RancherAdminClient)
 		})
 
@@ -86,5 +86,4 @@ var _ = Describe("P1Import", func() {
 			Expect(err).To(BeNil())
 		})
 	})
-
 })
