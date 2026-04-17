@@ -25,8 +25,8 @@ require github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indir
 
 require (
 	github.com/alibabacloud-go/cs-20151215/v5 v5.9.8
-	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.11
-	github.com/alibabacloud-go/tea v1.3.11
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.16
+	github.com/alibabacloud-go/tea v1.3.13
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.7
 )
 
