@@ -119,6 +119,13 @@ func ExecuteBackup(k *kubectl.Kubectl, backupResourceName string) string {
 		InstallBackupOperator(k)
 	})
 
+	By("Waiting for rancher-resource-set to be available", func() {
+		Eventually(func() error {
+			_, err := kubectl.RunWithoutErr("get", "resourceset", "rancher-resource-set")
+			return err
+		}, tools.SetTimeout(2*time.Minute), 20*time.Second).Should(Not(HaveOccurred()))
+	})
+
 	By("Adding a backup resource", func() {
 		err = kubectl.Apply("fleet-default", "../../helpers/assets/backup.yaml")
 		Expect(err).To(Not(HaveOccurred()))
