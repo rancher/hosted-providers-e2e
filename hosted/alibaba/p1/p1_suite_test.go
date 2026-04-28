@@ -33,12 +33,13 @@ import (
 )
 
 var (
-	ctx         helpers.RancherContext
-	cluster     *management.Cluster
-	clusterName string
-	testCaseID  int64
-	csClient    *cs.Client
-	region      = helpers.GetACKRegion()
+	ctx             helpers.RancherContext
+	cluster         *management.Cluster
+	clusterName     string
+	testCaseID      int64
+	region          = helpers.GetACKRegion()
+	resourceGroupId = helpers.GetACKResourceGroupID()
+	csClient        *cs.Client
 )
 
 func TestP1(t *testing.T) {
@@ -79,11 +80,7 @@ func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, csClient *cs.
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
-			aliClusterID, err := helper.GetAlibabaClusterID(cluster)
-			if err != nil {
-				return false
-			}
-			clusterResp, err := helper.CheckClusterK8sVersionOnAlibaba(csClient, aliClusterID)
+			clusterResp, err := helper.CheckClusterK8sVersionOnAlibaba(csClient, cluster.ID)
 			Expect(err).NotTo(HaveOccurred())
 			current := clusterResp
 			GinkgoLogr.Info("Waiting for upgraded k8s version to sync on alibaba...")
@@ -102,9 +99,7 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, csClient *cs.Client
 			return
 		}
 		GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster on alibaba console to K8s version %s", upgradeToVersion))
-		aliClusterID, err := helper.GetAlibabaClusterID(cluster)
-		Expect(err).To(BeNil())
-		err = helper.UpgradeACKOnAlibaba(csClient, aliClusterID, upgradeToVersion)
+		err = helper.UpgradeACKOnAlibaba(csClient, cluster.ID, upgradeToVersion)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
@@ -120,8 +115,8 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, csClient *cs.Client
 
 func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, rancherClient *rancher.Client, upgradeToVersion string) {
 	GinkgoLogr.Info(fmt.Sprintf("Syncing nodepool changes from Alibaba to Rancher for cluster %s", cluster.Name))
-	aliClusterID, err := helper.GetAlibabaClusterID(cluster)
-	Expect(err).To(BeNil())
+	clusterID := cluster.ID
+	var err error
 
 	if upgradeToVersion != "" {
 		By("upgrading the control plane k8s version", func() {
@@ -132,7 +127,7 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 				GinkgoLogr.Info("Cluster already at target version " + upgradeToVersion + ", skipping upgrade")
 				return
 			}
-			err = helper.UpgradeACKOnAlibaba(csClient, aliClusterID, upgradeToVersion)
+			err = helper.UpgradeACKOnAlibaba(csClient, clusterID, upgradeToVersion)
 			Expect(err).To(BeNil())
 
 			Eventually(func() bool {
@@ -152,7 +147,7 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 	currentNPCount := len(cluster.AliStatus.UpstreamSpec.NodePools)
 
 	By("Adding a nodepool", func() {
-		_, err := helper.AddNodePoolOnAlibaba(csClient, npName, aliClusterID, nodeCount, cluster.AliStatus.UpstreamSpec.ResourceGroupID, cluster.AliStatus.UpstreamSpec.VSwitchIDs)
+		_, err := helper.AddNodePoolOnAlibaba(csClient, npName, clusterID, nodeCount, cluster.AliStatus.UpstreamSpec.ResourceGroupID, cluster.AliStatus.UpstreamSpec.VSwitchIDs)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
@@ -173,15 +168,13 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 	})
 
 	var npID string
-	npID, err = helper.GetNodePoolIDByName(csClient, aliClusterID, npName)
+	npID, err = helper.GetNodePoolIDByName(csClient, clusterID, npName)
 	Expect(err).To(BeNil())
 	Expect(npID).ToNot(BeEmpty(), "Could not find ID for new nodepool")
-
 	By("Scaling the nodepool", func() {
 		const scaleCount = nodeCount + 1
-		err := helper.ScaleNodePoolOnAlibaba(csClient, aliClusterID, scaleCount, npID)
+		err := helper.ScaleNodePoolOnAlibaba(csClient, clusterID, scaleCount, npID)
 		Expect(err).To(BeNil())
-
 		Eventually(func() bool {
 			cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
 			if err != nil {
@@ -197,12 +190,12 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 
 		// Wait for nodepool to be active on Alibaba before proceeding
 		Eventually(func() bool {
-			return helper.IsNodePoolActive(csClient, aliClusterID, npID)
+			return helper.IsNodePoolActive(csClient, clusterID, npID)
 		}, "10m", "10s").Should(BeTrue(), "Timed out waiting for nodepool to become active after scaling")
 	})
 
 	By("Deleting a nodepool", func() {
-		err := helper.DeleteNodePoolOnAlibaba(csClient, aliClusterID, npID)
+		err := helper.DeleteNodePoolOnAlibaba(csClient, clusterID, npID)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
@@ -220,5 +213,114 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 			}
 			return true
 		}, "10m", "10s").Should(BeTrue(), "Timed out while waiting for nodepool deletion to appear in UpstreamSpec")
+	})
+}
+
+func upgradeAlibabaClusterAndNodePool(cluster *management.Cluster, client *rancher.Client, upgradeToVersion string) {
+	var err error
+	GinkgoLogr.Info("Upgrading control plane to version:" + upgradeToVersion)
+
+	By("upgrading the ControlPlane", func() {
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, upgradeToVersion, ctx.RancherAdminClient, false, true, true)
+		Expect(err).To(BeNil())
+	})
+
+	cluster, err = helper.AddNodePool(cluster, client, 1, "", true, true)
+	Expect(err).To(BeNil())
+	newNodePoolName := cluster.AliConfig.NodePools[len(cluster.AliConfig.NodePools)-1].Name
+
+	Eventually(func() bool {
+		GinkgoLogr.Info("Waiting for the new nodepool to appear in AliStatus.UpstreamSpec ...")
+		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
+		Expect(err).To(BeNil())
+		for _, np := range cluster.AliStatus.UpstreamSpec.NodePools {
+			if np.Name == newNodePoolName {
+				return true
+			}
+		}
+		return false
+	}, "5m", "15s").Should(BeTrue())
+}
+
+func invalidCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client, cloudCredID string) {
+	currentCC, err := client.Management.CloudCredential.ByID(cloudCredID)
+	Expect(err).To(BeNil())
+	err = client.Management.CloudCredential.Delete(currentCC)
+	Expect(err).To(BeNil())
+	GinkgoLogr.Info(fmt.Sprintf("Deleting existing Cloud Credentials: %s:%s", currentCC.Name, currentCC.ID))
+	const scaleCount int64 = 2
+	cluster, err = helper.ScaleNodePool(cluster, client, scaleCount, false, false)
+	Expect(err).To(BeNil())
+	Eventually(func() string {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.Transitioning
+	}, "3m", "2s").Should(Equal("error"), "Timed out waiting for cluster to transition into error")
+
+	// Create new cloud credentials and update the cluster config with it
+	newCCID, err := helpers.CreateCloudCredentials(client)
+	Expect(err).To(BeNil())
+
+	cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, "", client, false, true, false)
+	Expect(err).To(BeNil())
+	Expect(cluster.AliConfig.AlibabaCredentialSecret).To(Equal(newCCID))
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.AliStatus.UpstreamSpec.AlibabaCredentialSecret == newCCID
+	}, "5m", "5s").Should(BeTrue())
+
+	for _, nodepool := range cluster.AliConfig.NodePools {
+		Expect(nodepool.DesiredSize).To(Equal(scaleCount))
+	}
+
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		for _, nodepool := range cluster.AliStatus.UpstreamSpec.NodePools {
+			if *nodepool.DesiredSize != scaleCount {
+				return false
+			}
+		}
+		return true
+	}, "5m", "5s").Should(BeTrue(), "Timed out waiting for upstream spec to reflect node count")
+
+	// Update the context so that any future tests are not disrupted
+	GinkgoLogr.Info(fmt.Sprintf("Updating the new Cloud Credentials %s to the context", newCCID))
+	ctx.CloudCredID = newCCID
+}
+
+func updateCloudCredentialsCheck(cluster *management.Cluster, client *rancher.Client) {
+
+	newCCID, err := helpers.CreateCloudCredentials(client)
+	GinkgoLogr.Info("Updating cloud credentials to ID:" + newCCID)
+	Expect(err).To(BeNil())
+	updateFunc := func(cluster *management.Cluster) {
+		cluster.AliConfig.AlibabaCredentialSecret = newCCID
+	}
+	cluster, err = helper.UpdateCluster(cluster, client, updateFunc)
+	Expect(err).To(BeNil())
+	Expect(cluster.AliConfig.AlibabaCredentialSecret).To(Equal(newCCID))
+	Eventually(func() bool {
+		cluster, err = client.Management.Cluster.ByID(cluster.ID)
+		Expect(err).NotTo(HaveOccurred())
+		return cluster.AliStatus.UpstreamSpec.AlibabaCredentialSecret == newCCID
+	}, "5m", "5s").Should(BeTrue(), "Failed while upstream cloud credentials update")
+
+	cluster, err = helper.AddNodePool(cluster, client, 1, "", true, true)
+	Expect(err).To(BeNil())
+}
+
+func updateAutoScaling(cluster *management.Cluster, client *rancher.Client) {
+	By("enabling autoscaling with custom minCount and maxCount", func() {
+		var err error
+		cluster, err = helper.UpdateAutoScaling(cluster, client, true, 5, 2, "", true)
+		Expect(err).To(BeNil())
+	})
+
+	By("disabling autoscaling", func() {
+		var err error
+		cluster, err = helper.UpdateAutoScaling(cluster, client, false, 0, 0, "", true)
+		Expect(err).To(BeNil())
 	})
 }
