@@ -3,6 +3,7 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -14,6 +15,8 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	"github.com/rancher/shepherd/clients/rancher/catalog"
 )
+
+const defaultAlibabaOCIRegistry = "oci://stgregistry.suse.com/rancher/charts"
 
 // AddRancherCharts adds the repo from which rancher operator charts can be installed
 func AddRancherCharts() {
@@ -82,7 +85,13 @@ func WaitUntilOperatorChartInstallation(chartVersion, comparator string, compare
 // UpdateOperatorChartsVersion updates the operator charts to a given chart version and validates that the current version is same as provided
 func UpdateOperatorChartsVersion(updateChartVersion string) {
 	for _, chart := range ListOperatorChart() {
-		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name), "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
+		var chartSource string
+		if Provider == "alibaba" {
+			chartSource = fmt.Sprintf("%s/%s", getAlibabaOCIRegistry(), chart.Name)
+		} else {
+			chartSource = fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name)
+		}
+		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, chartSource, "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
 		if err != nil {
 			Expect(err).To(BeNil(), "UpdateOperatorChartsVersion Failed")
 		}
@@ -103,7 +112,12 @@ func UninstallOperatorCharts() {
 
 // ListOperatorChart lists the installed provider charts for a provider in cattle-system; it fetches the provider value using Provider
 func ListOperatorChart() (operatorCharts []HelmChart) {
-	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
+	// The Alibaba chart is named rancher-ali-operator, not rancher-alibaba-operator
+	providerFilter := Provider
+	if Provider == "alibaba" {
+		providerFilter = "ali"
+	}
+	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", providerFilter))
 	output, err := cmd.Output()
 	Expect(err).To(BeNil(), "Failed to list chart %s", Provider)
 	ginkgo.GinkgoLogr.Info(string(output))
@@ -117,12 +131,35 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 
 // ListChartVersions lists all the available the chart version for a given chart name
 func ListChartVersions(chartName string) (charts []HelmChart) {
+	if Provider == "alibaba" {
+		return listAlibabaChartVersions(chartName)
+	}
 	cmd := exec.Command("helm", "search", "repo", chartName, "--versions", "-ojson", "--devel")
 	output, err := cmd.Output()
 	Expect(err).To(BeNil())
 	ginkgo.GinkgoLogr.Info(string(output))
 	err = json.Unmarshal(output, &charts)
 	Expect(err).To(BeNil())
+	return
+}
+
+// listAlibabaChartVersions queries the OCI registry for available versions of an Alibaba chart.
+// It probes multiple major version ranges (based on Rancher minor versions) to find available versions.
+func listAlibabaChartVersions(chartName string) (charts []HelmChart) {
+	chartRef := fmt.Sprintf("%s/%s", getAlibabaOCIRegistry(), chartName)
+
+	// Probe chart major versions 106-112 (corresponding to Rancher 2.11-2.17)
+	for major := 112; major >= 106; major-- {
+		versionConstraint := fmt.Sprintf("~%d", major)
+		version := fetchOCIChartVersion(chartRef, versionConstraint)
+		if version != "" {
+			charts = append(charts, HelmChart{
+				Name:           chartName,
+				DerivedVersion: version,
+			})
+		}
+	}
+	ginkgo.GinkgoLogr.Info(fmt.Sprintf("Alibaba chart versions found: %v", charts))
 	return
 }
 
@@ -137,4 +174,92 @@ func VersionCompare(v, o string) int {
 	oldVer, err := semver.ParseTolerant(o)
 	Expect(err).To(BeNil())
 	return latestVer.Compare(oldVer)
+}
+
+// GetAlibabaChartVersionForRancher fetches the appropriate Alibaba chart version for the current Rancher version.
+// It queries the OCI registry for the chart version matching the Rancher minor version.
+// Chart versions follow the pattern: 108.x.x+up1.13.x (for Rancher 2.13), 109.x.x+up1.14.x (for Rancher 2.14), etc.
+// The chart major version = Rancher minor version + 95 (e.g., 2.13 → 108, 2.14 → 109).
+func GetAlibabaChartVersionForRancher() string {
+	// Parse the Rancher version from RancherFullVersion (format: "channel/version" or "channel/devel/headVersion")
+	s := strings.Split(RancherFullVersion, "/")
+	if len(s) < 2 {
+		ginkgo.GinkgoLogr.Info("Unable to parse Rancher version from RancherFullVersion: " + RancherFullVersion)
+		return ""
+	}
+
+	// Try s[1] first (e.g., "2.13.1"), fall back to s[2] for head versions (e.g., "head/devel/2.14")
+	rancherVersion := s[1]
+	rancherMinorVersion := extractMinorVersion(rancherVersion)
+	if rancherMinorVersion == "" && len(s) > 2 {
+		rancherVersion = s[2]
+		rancherMinorVersion = extractMinorVersion(rancherVersion)
+	}
+	if rancherMinorVersion == "" {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Unable to extract minor version from Rancher version: %s", RancherFullVersion))
+		return ""
+	}
+
+	rancherParts := strings.Split(rancherMinorVersion, ".")
+	if len(rancherParts) < 2 {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Unexpected minor version format: %s", rancherMinorVersion))
+		return ""
+	}
+
+	// Calculate chart major version: Rancher minor + 95 (e.g., 2.13 → 108, 2.14 → 109)
+	rancherMinorNum := 0
+	if _, err := fmt.Sscanf(rancherParts[1], "%d", &rancherMinorNum); err != nil {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Unable to parse minor number from: %s", rancherParts[1]))
+		return ""
+	}
+	chartMajor := rancherMinorNum + 95
+
+	ginkgo.GinkgoLogr.Info(fmt.Sprintf("Rancher minor version: %s, chart major version: %d", rancherMinorVersion, chartMajor))
+
+	chartRef := fmt.Sprintf("%s/rancher-ali-operator", getAlibabaOCIRegistry())
+	versionConstraint := fmt.Sprintf("~%d", chartMajor)
+
+	version := fetchOCIChartVersion(chartRef, versionConstraint)
+	if version != "" {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Found matching chart version %s for Rancher %s", version, rancherMinorVersion))
+	}
+	return version
+}
+
+// getAlibabaOCIRegistry returns the Alibaba OCI registry URL from env or the default.
+func getAlibabaOCIRegistry() string {
+	if registry := os.Getenv("ALIBABA_OPERATOR_REGISTRY"); registry != "" {
+		return registry
+	}
+	return defaultAlibabaOCIRegistry
+}
+
+// fetchOCIChartVersion runs helm show chart against an OCI reference with a version constraint
+// and returns the chart version, or empty string on failure.
+func fetchOCIChartVersion(chartRef, versionConstraint string) string {
+	cmd := exec.Command("helm", "show", "chart", chartRef, "--version", versionConstraint)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "version:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "version:"))
+		}
+	}
+	return ""
+}
+
+// extractMinorVersion extracts the minor version from a version string (e.g., "2.13" from "2.13.1-rc1")
+func extractMinorVersion(version string) string {
+	// Remove any pre-release or metadata suffixes
+	version = strings.Split(version, "-")[0]
+	version = strings.Split(version, "+")[0]
+
+	parts := strings.Split(version, ".")
+	if len(parts) >= 2 {
+		return parts[0] + "." + parts[1]
+	}
+	return ""
 }

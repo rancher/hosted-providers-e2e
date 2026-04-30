@@ -26,6 +26,20 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+// GetAlibabaClusterID returns the Alibaba cluster ID from the cluster object.
+// For imported clusters, it returns AliConfig.ClusterID.
+// For provisioned clusters, after sync, AliConfig.ClusterID should be populated.
+func GetAlibabaClusterID(cluster *management.Cluster) (string, error) {
+	if cluster.AliConfig != nil && cluster.AliConfig.ClusterID != "" {
+		return cluster.AliConfig.ClusterID, nil
+	}
+	// Fallback: try to get from UpstreamSpec if available
+	if cluster.AliStatus != nil && cluster.AliStatus.UpstreamSpec != nil && cluster.AliStatus.UpstreamSpec.ClusterID != "" {
+		return cluster.AliStatus.UpstreamSpec.ClusterID, nil
+	}
+	return "", fmt.Errorf("no Alibaba cluster ID found for cluster %s (Rancher ID: %s)", cluster.Name, cluster.ID)
+}
+
 // CreateACKHostedCluster creates an ACK hosted cluster
 func CreateAlibabaHostedCluster(client *rancher.Client, displayName, cloudCredentialID, kubernetesVersion, region string, updateFunc func(clusterConfig *ali.ClusterConfig)) (*management.Cluster, error) {
 	// Load aliClusterConfig from YAML config
