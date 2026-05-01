@@ -5,7 +5,7 @@ go 1.24.2
 toolchain go1.24.10
 
 require (
-	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/epinio/epinio v1.11.0
 	github.com/onsi/ginkgo/v2 v2.28.1
