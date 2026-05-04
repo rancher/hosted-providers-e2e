@@ -98,10 +98,18 @@ func GetLocalPath() string {
 		"-o", "jsonpath={.items[*].spec.volumes[?(@.name==\"pv-storage\")].persistentVolumeClaim.claimName}")
 	Expect(err).To(Not(HaveOccurred()))
 
+	// Try spec.local.path first (static local PVs), fall back to spec.hostPath.path (local-path-provisioner)
 	localPath, err := kubectl.RunWithoutErr("get", "pv",
 		"--namespace", "cattle-resources-system",
 		"-o", "jsonpath={.items[?(@.spec.claimRef.name==\""+claimName+"\")].spec.local.path}")
 	Expect(err).To(Not(HaveOccurred()))
+
+	if localPath == "" {
+		localPath, err = kubectl.RunWithoutErr("get", "pv",
+			"--namespace", "cattle-resources-system",
+			"-o", "jsonpath={.items[?(@.spec.claimRef.name==\""+claimName+"\")].spec.hostPath.path}")
+		Expect(err).To(Not(HaveOccurred()))
+	}
 
 	return localPath
 }
@@ -117,6 +125,13 @@ func ExecuteBackup(k *kubectl.Kubectl, backupResourceName string) string {
 
 	By("Installing rancher-backup-operator", func() {
 		InstallBackupOperator(k)
+	})
+
+	By("Waiting for rancher-resource-set-full to be available", func() {
+		Eventually(func() error {
+			_, err := kubectl.RunWithoutErr("get", "resourceset", "rancher-resource-set-full")
+			return err
+		}, tools.SetTimeout(2*time.Minute), 20*time.Second).Should(Not(HaveOccurred()))
 	})
 
 	By("Adding a backup resource", func() {
