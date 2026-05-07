@@ -399,10 +399,10 @@ func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistr
 			chartRegistry + "/rancher-ali-operator",
 			"--version", chartVersion,
 		}
-		// When using the staging registry for charts, override the image registry
-		// since the images may not yet be available on the production registry
-		if strings.Contains(chartRegistry, "stgregistry.suse.com") {
-			args = append(args, "--set", "global.cattle.systemDefaultRegistry=stgregistry.suse.com")
+		// Override the image registry when SYSTEM_DEFAULT_REGISTRY is set
+		// (e.g. when using a staging registry whose images may not yet be available on the production registry).
+		if systemDefaultRegistry := os.Getenv("SYSTEM_DEFAULT_REGISTRY"); systemDefaultRegistry != "" {
+			args = append(args, "--set", "global.cattle.systemDefaultRegistry="+systemDefaultRegistry)
 		}
 		RunHelmCmdWithRetry(args...)
 		GinkgoLogr.Info("rancher-ali-operator chart installed successfully")
