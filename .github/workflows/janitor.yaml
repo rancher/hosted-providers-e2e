@@ -86,14 +86,16 @@ jobs:
         run: |
           echo "Listing all ACK clusters with prefix 'auto-alibaba-gh-runner-hp-ci':"
           aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\")) | \"Name: \(.name), ID: \(.cluster_id), Created: \(.created)\"" 2> /dev/null || echo "No clusters found or error listing clusters"
+          echo "Listing all ACK clusters with prefix 'auto-alibaba-hp-ci':"
+          aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-hp-ci\")) | \"Name: \(.name), ID: \(.cluster_id), Created: \(.created)\"" 2> /dev/null || echo "No clusters found or error listing clusters"
 
       - name: Cleanup
         continue-on-error: true
         run: |
           # Get the ACK clusters by prefix
-          echo "Starting cleanup of ACK clusters with prefix 'auto-alibaba-gh-runner-hp-ci'..."
+          echo "Starting cleanup of ACK clusters with prefixes 'auto-alibaba-gh-runner-hp-ci' and 'auto-alibaba-hp-ci'..."
           CLUSTER_COUNT=0
-          for cl in $(aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\")) | .cluster_id" 2> /dev/null); do
+          for cl in $(aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\") or startswith(\"auto-alibaba-hp-ci\")) | .cluster_id" 2> /dev/null); do
             echo "Deleting ACK cluster ID: $cl"
             aliyun cs DELETE /clusters/$cl --header "Content-Type=application/json" && echo "Successfully deleted cluster $cl" || echo "Failed to delete cluster $cl"
             CLUSTER_COUNT=$((CLUSTER_COUNT + 1))
