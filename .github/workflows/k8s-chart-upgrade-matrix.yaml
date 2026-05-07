@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       rancher_version:
-        description: Rancher version channel/version. This must be a released stable rancher version.
+        description: Rancher version channel/version. This must be a released stable rancher version (use prime for Alibaba).
         required: true
         type: string
-        default: latest/2.13.3
+        default: prime/2.13.5
       rancher_upgrade_version:
-        description: Rancher upgrade version
+        description: Rancher upgrade version (use head/<minor> for head versions)
         required: true
         type: string
         default: head/2.14
@@ -49,7 +49,7 @@ on:
         description: Providers to the run the test on
         required: true
         type: string
-        default: '["eks", "gke", "aks"]'
+        default: '["eks", "gke", "aks", "alibaba"]'
 
 jobs:
   e2e-tests:

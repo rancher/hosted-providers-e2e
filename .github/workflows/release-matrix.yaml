@@ -14,7 +14,7 @@ on:
         description: k3s version of local cluster
         required: true
         type: string
-        default: v1.35.1+k3s1
+        default: v1.35.4+k3s1
       operator_nightly_chart:
         description: Install hosted-provider nightly chart
         default: false
