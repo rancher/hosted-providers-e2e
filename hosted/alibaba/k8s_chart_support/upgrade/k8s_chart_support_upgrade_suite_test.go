@@ -2,7 +2,7 @@ package k8s_chart_support_upgrade_test
 
 import (
 	"fmt"
-	"strings"
+	"os"
 	"testing"
 	"time"
 
@@ -19,16 +19,15 @@ import (
 	"github.com/rancher/shepherd/pkg/config"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
-	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
+	"github.com/rancher/hosted-providers-e2e/hosted/alibaba/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
 )
 
 var (
 	ctx                     helpers.RancherContext
 	clusterName, k8sVersion string
+	region                  = helpers.GetACKRegion()
 	testCaseID              int64
-	zone                    = helpers.GetGKEZone()
-	project                 = helpers.GetGKEProjectID()
 	k                       = kubectl.New()
 )
 
@@ -40,7 +39,6 @@ func TestK8sChartSupportUpgrade(t *testing.T) {
 var _ = BeforeEach(func() {
 	// For upgrade tests, the rancher version should not be an unreleased version (for e.g. 2.9-head)
 	Expect(helpers.RancherFullVersion).To(SatisfyAll(Not(BeEmpty()), Not(ContainSubstring("devel"))))
-
 	Expect(helpers.RancherUpgradeFullVersion).ToNot(BeEmpty())
 	Expect(helpers.K8sUpgradedMinorVersion).ToNot(BeEmpty())
 	Expect(helpers.Kubeconfig).ToNot(BeEmpty())
@@ -53,6 +51,10 @@ var _ = BeforeEach(func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherFullVersion)
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
 		helpers.CheckRancherDeployments(k)
+	})
+
+	By("Installing Alibaba operator charts", func() {
+		helpers.InstallAlibabaOperatorCharts(k, os.Getenv("ALIBABA_OPERATOR_VERSION"), os.Getenv("ALIBABA_OPERATOR_REGISTRY"))
 	})
 
 	helpers.CommonSynchronizedBeforeSuite()
@@ -71,17 +73,18 @@ var _ = BeforeEach(func() {
 		ctx.RancherAdminClient = rancherAdminClient
 	})
 
-	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
-
 	var err error
-	// For k8s chart support upgrade we want to begin with the default k8s version; we will upgrade rancher and then upgrade k8s to the default available there.
-	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", false)
+	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, false)
 	Expect(err).To(BeNil())
-	GinkgoLogr.Info(fmt.Sprintf("Using GKE version %s for cluster %s", k8sVersion, clusterName))
+	Expect(k8sVersion).ToNot(BeEmpty())
+	GinkgoLogr.Info(fmt.Sprintf("Using ACK version %s for cluster %s", k8sVersion, clusterName))
 })
 
 var _ = AfterEach(func() {
 	// The test must restore the env to its original state, so we install rancher back to its original version and uninstall the operator charts
+	// Restoring rancher back to its original state is necessary because in case DOWNSTREAM_CLUSTER_CLEANUP is set to false; in which case clusters will be retained for the next test.
+	// Once the operator is uninstalled, it might be reinstalled since the cluster exists, and installing rancher back to its original state ensures that the version is not the one we want to test.
 	By(fmt.Sprintf("Installing Rancher back to its original version %s", helpers.RancherFullVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(helpers.RancherFullVersion)
 		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
@@ -103,8 +106,8 @@ var _ = ReportAfterEach(func(report SpecReport) {
 	Qase(testCaseID, report)
 })
 
-// commonChartSupportUpgrade runs the common checks required for testing chart support
-func commonChartSupportUpgrade(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, k8sUpgradedVersion string) {
+func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clusterName, rancherUpgradedVersion, k8sUpgradedVersion string) {
+
 	helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
 	var originalChartVersion string
@@ -114,9 +117,9 @@ func commonChartSupportUpgrade(ctx *helpers.RancherContext, cluster *management.
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
 	})
 
-	By("upgrading rancher", func() {
+	By(fmt.Sprintf("upgrading rancher to %v", rancherUpgradedVersion), func() {
 		rancherChannel, rancherVersion, rancherHeadVersion := helpers.GetRancherVersions(rancherUpgradedVersion)
-		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "", "")
+		helpers.InstallRancherManager(k, helpers.RancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", "none")
 		helpers.CheckRancherDeployments(k)
 
 		By("ensuring operator pods are also up", func() {
@@ -150,12 +153,20 @@ func commonChartSupportUpgrade(ctx *helpers.RancherContext, cluster *management.
 	})
 
 	var upgradedChartVersion string
-
-	By("checking the chart version and validating it is > the old version", func() {
-		helpers.WaitUntilOperatorChartInstallation(originalChartVersion, "==", 1)
+	By("upgrading the operator chart to match the new Rancher version", func() {
+		// Alibaba operator is installed from OCI registry and not auto-upgraded by Rancher,
+		// so we need to explicitly upgrade it after the Rancher upgrade.
+		chartVersions := helpers.ListChartVersions("rancher-ali-operator")
+		Expect(chartVersions).ToNot(BeEmpty(), "No chart versions found in the registry")
+		latestChartVersion := chartVersions[0].DerivedVersion
+		GinkgoLogr.Info(fmt.Sprintf("Upgrading operator chart from %s to %s", originalChartVersion, latestChartVersion))
+		if helpers.VersionCompare(latestChartVersion, originalChartVersion) == 1 {
+			helpers.UpdateOperatorChartsVersion(latestChartVersion)
+		}
 		upgradedChartVersion = helpers.GetCurrentOperatorChartVersion()
+		Expect(upgradedChartVersion).ToNot(BeEmpty())
+		Expect(helpers.VersionCompare(upgradedChartVersion, originalChartVersion)).To(BeNumerically(">=", 0))
 		GinkgoLogr.Info("Upgraded chart version: " + upgradedChartVersion)
-
 	})
 
 	By("making sure the downstream cluster is ready", func() {
@@ -164,45 +175,42 @@ func commonChartSupportUpgrade(ctx *helpers.RancherContext, cluster *management.
 		Expect(err).To(BeNil())
 		helpers.ClusterIsReadyChecks(cluster, ctx.RancherAdminClient, clusterName)
 
-		// since no changes have been made to the cluster so far, we need reinstantiate GKEConfig after fetching the cluster
+		// since no changes have been made to the cluster so far, we need reinstantiate AliConfig after fetching the cluster
 		if helpers.IsImport {
-			cluster.GKEConfig = cluster.GKEStatus.UpstreamSpec
+			cluster.AliConfig = cluster.AliStatus.UpstreamSpec
 		}
 	})
 
-	By(fmt.Sprintf("fetching a list of available k8s versions and ensuring v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
-		versions, err := helper.ListGKEAvailableVersions(ctx.RancherAdminClient, cluster.ID)
+	var latestVersion *string
+	By(fmt.Sprintf("fetching a list of available k8s versions and ensure the v%s is present in the list and upgrading the cluster to it", k8sUpgradedVersion), func() {
+		versions, err := helper.ListALIAllVersions(ctx.RancherAdminClient)
 		Expect(err).To(BeNil())
 		Expect(versions).ToNot(BeEmpty())
-		GinkgoLogr.Info(fmt.Sprintf("Available GKE versions: %v", versions))
+		GinkgoLogr.Info(fmt.Sprintf("Available ACK versions: %v", versions))
 
-		highestSupportedVersionByUI := helpers.HighestK8sMinorVersionSupportedByUI(ctx.RancherAdminClient)
-		var latestVersion string
-		for _, v := range versions {
-			if strings.Contains(v, highestSupportedVersionByUI) {
-				latestVersion = v
-			}
-		}
-		Expect(latestVersion).To(ContainSubstring(k8sUpgradedVersion))
-		Expect(helpers.VersionCompare(latestVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
+		latestVersion = &versions[0]
+		Expect(*latestVersion).To(ContainSubstring(k8sUpgradedVersion))
+		Expect(helpers.VersionCompare(*latestVersion, cluster.Version.GitVersion)).To(BeNumerically("==", 1))
 
-		cluster, err = helper.UpgradeKubernetesVersion(cluster, latestVersion, ctx.RancherAdminClient, true, true, true)
+		cluster, err = helper.UpgradeClusterKubernetesVersion(cluster, *latestVersion, ctx.RancherAdminClient, true, true, true)
 		Expect(err).To(BeNil())
 	})
 
 	var downgradeVersion string
 	By("fetching a value to downgrade to", func() {
 		downgradeVersion = helpers.GetDowngradeOperatorChartVersion(upgradedChartVersion)
+		Expect(downgradeVersion).ToNot(BeEmpty(), "No downgrade version found for chart version %s", upgradedChartVersion)
+		GinkgoLogr.Info("Downgrade version: " + downgradeVersion)
 	})
 
 	By("downgrading the chart version", func() {
 		helpers.DowngradeProviderChart(downgradeVersion)
 	})
 
-	By("making a change to the cluster (scaling nodepool up) to validate functionality after chart downgrade", func() {
-		configNodePools := *cluster.GKEConfig.NodePools
-		initialNodeCount := *configNodePools[0].InitialNodeCount
+	By("making a change to the cluster (scaling the node pool) to validate functionality after chart downgrade", func() {
 		var err error
+		configNodePools := cluster.AliConfig.NodePools
+		initialNodeCount := *configNodePools[0].DesiredSize
 		cluster, err = helper.ScaleNodePool(cluster, ctx.RancherAdminClient, initialNodeCount+1, true, true)
 		Expect(err).To(BeNil())
 	})
@@ -211,28 +219,31 @@ func commonChartSupportUpgrade(ctx *helpers.RancherContext, cluster *management.
 		helpers.UninstallOperatorCharts()
 	})
 
-	By("making a change(adding a nodepool) to the cluster to re-install the operator and validating it is re-installed to the latest/upgraded version", func() {
-		currentNodePoolNumber := len(*cluster.GKEConfig.NodePools)
-		var err error
-		cluster, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "", false, false)
-		Expect(err).To(BeNil())
-
-		Expect(len(*cluster.GKEConfig.NodePools)).To(BeNumerically("==", currentNodePoolNumber+1))
+	By("re-installing the operator chart and validating it is at the latest/upgraded version", func() {
+		// Alibaba operator is not auto-managed by Rancher, so we explicitly re-install it.
+		// UpdateOperatorChartsVersion won't work here because it iterates over ListOperatorChart()
+		// which returns empty after uninstall.
+		helpers.InstallAlibabaOperatorCharts(k, upgradedChartVersion, os.Getenv("ALIBABA_OPERATOR_REGISTRY"))
 
 		By("ensuring that the chart is re-installed to the latest/upgraded version", func() {
 			helpers.WaitUntilOperatorChartInstallation(upgradedChartVersion, "", 0)
 		})
+	})
+
+	By("making a change(adding a nodepool) to the cluster to validate functionality after re-install", func() {
+		currentNodePoolNumber := len(cluster.AliConfig.NodePools)
+		var err error
+		cluster, err = helper.AddNodePool(cluster, ctx.RancherAdminClient, 1, "", false, false)
+		Expect(err).To(BeNil())
 
 		err = clusters.WaitClusterToBeUpgraded(ctx.RancherAdminClient, cluster.ID)
 		Expect(err).To(BeNil())
 
+		// Check if the desired config has been applied in Rancher
 		Eventually(func() int {
-			GinkgoLogr.Info("Waiting for the total nodepool count to increase in GKEStatus.UpstreamSpec ...")
 			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return len(*cluster.GKEStatus.UpstreamSpec.NodePools)
-		}, tools.SetTimeout(12*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodePoolNumber+1))
-
+			return len(cluster.AliStatus.UpstreamSpec.NodePools)
+		}, tools.SetTimeout(20*time.Minute), 10*time.Second).Should(BeNumerically("==", currentNodePoolNumber+1))
 	})
-
 }

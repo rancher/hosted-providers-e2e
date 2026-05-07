@@ -1,6 +1,6 @@
 # This workflow calls the main workflow with custom variables
 name: Alibaba-E2E
-run-name: Alibaba on Rancher ${{ inputs.rancher_version || 'head/2.14' }} deployed on ${{ inputs.k3s_version || 'v1.35.1+k3s1' }}
+run-name: Alibaba on Rancher ${{ inputs.rancher_version || 'head/2.14' }} deployed on ${{ inputs.k3s_version || 'v1.35.4+k3s1' }}
 permissions:
   contents: read
 on:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch: # Allow running manually on demand
     inputs:
       rancher_version:
-        description: Rancher version channel/version/head_version latest/latest, latest/2.9.3[-rc2], prime/2.9.3, prime/devel/2.9, prime-optimus/2.9.3-rc2
+        description: Rancher version channel/version/head_version (e.g., prime/2.13.3, head/2.14)
         required: true
         type: string
         default: head/2.14
@@ -18,7 +18,7 @@ on:
         description: k3s version of local cluster
         required: true
         type: string
-        default: v1.34.1+k3s1
+        default: v1.35.4+k3s1
       runner_template:
         description: Runner template to use
         default: hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v3
@@ -28,11 +28,6 @@ on:
         default: true
         required: true
         type: boolean
-      chart_version:
-        description: Alibaba operator chart version
-        required: false
-        type: string
-        default: 108.2.0+up1.13.2-rc.1
       destroy_runner:
         description: Destroy the auto-generated self-hosted runner
         default: true
@@ -50,7 +45,7 @@ on:
         default: 'hostname/password'
         type: string
       tests_to_run:
-        description: Tests to run (p0_provisioning/p0_import/sync_provisioning/sync_import)
+        description: Tests to run (p0_provisioning/p0_import/p1_provisioning/p1_import/sync_provisioning/sync_import/k8s_chart_support_provisioning/k8s_chart_support_import/k8s_chart_support_upgrade_provisioning/k8s_chart_support_upgrade_import)
         type: string
         required: true
         default: p0_provisioning
@@ -66,9 +61,9 @@ jobs:
     with:
       hosted_provider: alibaba
       rancher_version: ${{ inputs.rancher_version || 'head/2.14' }}
-      k3s_version: ${{ inputs.k3s_version || 'v1.35.1+k3s1' }}
+      k3s_version: ${{ inputs.k3s_version || 'v1.35.4+k3s1' }}
       operator_nightly_chart: ${{ inputs.operator_nightly_chart == true || (github.event_name == 'schedule' && true) }}
-      chart_version: ${{ inputs.chart_version || '108.2.0+up1.13.2-rc.1' }}
+      chart_version: ${{ inputs.chart_version }}
       tests_to_run: ${{ inputs.tests_to_run || (github.event.schedule == '0 1 1,15 * *' && 'p0_provisioning/p0_import') || (github.event.schedule == '0 1 2,16 * *' && 'sync_provisioning/sync_import') }}
       destroy_runner: ${{ inputs.destroy_runner ==true || (github.event_name == 'schedule' && true) }}
       runner_template: ${{ inputs.runner_template || 'hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v3' }}

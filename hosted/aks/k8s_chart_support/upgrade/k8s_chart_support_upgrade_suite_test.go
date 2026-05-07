@@ -124,9 +124,13 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
 		})
 		By("ensuring the rancher client is connected", func() {
-			isConnected, err := ctx.RancherAdminClient.IsConnected()
-			Expect(err).To(BeNil())
-			Expect(isConnected).To(BeTrue())
+			Eventually(func() bool {
+				isConnected, err := ctx.RancherAdminClient.IsConnected()
+				if err != nil || !isConnected {
+					return false
+				}
+				return true
+			}, tools.SetTimeout(2*time.Minute), 10*time.Second).Should(BeTrue(), "Rancher client not connected after upgrade")
 		})
 	})
 

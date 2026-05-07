@@ -67,6 +67,7 @@ env:
   ALIBABA_ACCESS_KEY_ID: ${{ secrets.ALIBABA_ACCESS_KEY_ID }}
   ALIBABA_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_ACCESS_KEY_SECRET }}
   ALIBABA_OPERATOR_VERSION: ${{ inputs.chart_version }}
+  ALIBABA_OPERATOR_REGISTRY: ${{ secrets.ALIBABA_OPERATOR_REGISTRY }}
   ALIBABA_RESOURCE_GROUP_ID: ${{ secrets.ALIBABA_RESOURCE_GROUP_ID }}
   GCP_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
   AKS_CLIENT_ID: ${{ secrets.AKS_CLIENT_ID }}
@@ -471,11 +472,17 @@ jobs:
             OPERATOR_RELEASE_NAME="rancher-${{ inputs.hosted_provider }}-operator"
           fi
           
-          OPERATOR_HELM_VERSION=$(helm get metadata ${OPERATOR_RELEASE_NAME} -n cattle-system -o json 2>/dev/null | jq -r .version)
+          OPERATOR_HELM_VERSION=$(helm get metadata ${OPERATOR_RELEASE_NAME} -n cattle-system -o json 2>/dev/null | jq -r .version || true)
           if [[ -n "$OPERATOR_HELM_VERSION" && "$OPERATOR_HELM_VERSION" != "null" ]]; then
             echo "Installed ${OPERATOR_RELEASE_NAME} chart version: $OPERATOR_HELM_VERSION" >> ${GITHUB_STEP_SUMMARY}
           else
-            echo "Operator chart not found or not installed" >> ${GITHUB_STEP_SUMMARY}
+            # For upgrade tests, the operator is uninstalled during cleanup; check helm history for the last known version
+            OPERATOR_HELM_VERSION=$(helm history ${OPERATOR_RELEASE_NAME} -n cattle-system -o json 2>/dev/null | jq -r '.[-1].chart' || true)
+            if [[ -n "$OPERATOR_HELM_VERSION" && "$OPERATOR_HELM_VERSION" != "null" ]]; then
+              echo "Last known ${OPERATOR_RELEASE_NAME} chart: $OPERATOR_HELM_VERSION (uninstalled during test cleanup)" >> ${GITHUB_STEP_SUMMARY}
+            else
+              echo "Operator chart not found or not installed" >> ${GITHUB_STEP_SUMMARY}
+            fi
           fi
           
           if [[ ${{ inputs.tests_to_run }} =~ "backup_restore" ]]; then
