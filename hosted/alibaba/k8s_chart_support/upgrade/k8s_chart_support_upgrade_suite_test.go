@@ -196,19 +196,21 @@ func commonchecks(ctx *helpers.RancherContext, cluster *management.Cluster, clus
 		Expect(err).To(BeNil())
 	})
 
-	By("provisioning a new cluster to validate provisioning works after the upgrade", func() {
-		newClusterName := namegen.AppendRandomString(helpers.ClusterNamePrefix)
-		GinkgoLogr.Info(fmt.Sprintf("Provisioning new cluster %s with K8s version %s", newClusterName, *latestVersion))
+	if !helpers.IsImport {
+		By("provisioning a new cluster to validate provisioning works after the upgrade", func() {
+			newClusterName := namegen.AppendRandomString(helpers.ClusterNamePrefix)
+			GinkgoLogr.Info(fmt.Sprintf("Provisioning new cluster %s with K8s version %s", newClusterName, *latestVersion))
 
-		newCluster, err := helper.CreateAlibabaHostedCluster(ctx.RancherAdminClient, newClusterName, ctx.CloudCredID, *latestVersion, region, nil)
-		Expect(err).To(BeNil())
-		newCluster, err = helpers.WaitUntilClusterIsReady(newCluster, ctx.RancherAdminClient)
-		Expect(err).To(BeNil())
-		helpers.ClusterIsReadyChecks(newCluster, ctx.RancherAdminClient, newClusterName)
+			newCluster, err := helper.CreateAlibabaHostedCluster(ctx.RancherAdminClient, newClusterName, ctx.CloudCredID, *latestVersion, region, nil)
+			Expect(err).To(BeNil())
+			newCluster, err = helpers.WaitUntilClusterIsReady(newCluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+			helpers.ClusterIsReadyChecks(newCluster, ctx.RancherAdminClient, newClusterName)
 
-		err = helper.DeleteACKHostCluster(newCluster, ctx.RancherAdminClient)
-		Expect(err).To(BeNil())
-	})
+			err = helper.DeleteACKHostCluster(newCluster, ctx.RancherAdminClient)
+			Expect(err).To(BeNil())
+		})
+	}
 
 	var downgradeVersion string
 	By("fetching a value to downgrade to", func() {
