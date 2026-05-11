@@ -3,6 +3,7 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -82,7 +83,15 @@ func WaitUntilOperatorChartInstallation(chartVersion, comparator string, compare
 // UpdateOperatorChartsVersion updates the operator charts to a given chart version and validates that the current version is same as provided
 func UpdateOperatorChartsVersion(updateChartVersion string) {
 	for _, chart := range ListOperatorChart() {
-		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name), "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
+		var chartSource string
+		if Provider == "alibaba" {
+			registry := getAlibabaOCIRegistry()
+			Expect(registry).ToNot(BeEmpty(), "ALIBABA_OPERATOR_REGISTRY environment variable is not set")
+			chartSource = fmt.Sprintf("%s/%s", registry, chart.Name)
+		} else {
+			chartSource = fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name)
+		}
+		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, chartSource, "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
 		if err != nil {
 			Expect(err).To(BeNil(), "UpdateOperatorChartsVersion Failed")
 		}
@@ -103,7 +112,12 @@ func UninstallOperatorCharts() {
 
 // ListOperatorChart lists the installed provider charts for a provider in cattle-system; it fetches the provider value using Provider
 func ListOperatorChart() (operatorCharts []HelmChart) {
-	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", Provider))
+	// The Alibaba chart is named rancher-ali-operator, not rancher-alibaba-operator
+	providerFilter := Provider
+	if Provider == "alibaba" {
+		providerFilter = "ali"
+	}
+	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", providerFilter))
 	output, err := cmd.Output()
 	Expect(err).To(BeNil(), "Failed to list chart %s", Provider)
 	ginkgo.GinkgoLogr.Info(string(output))
@@ -117,12 +131,41 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 
 // ListChartVersions lists all the available the chart version for a given chart name
 func ListChartVersions(chartName string) (charts []HelmChart) {
+	if Provider == "alibaba" {
+		return listAlibabaChartVersions(chartName)
+	}
 	cmd := exec.Command("helm", "search", "repo", chartName, "--versions", "-ojson", "--devel")
 	output, err := cmd.Output()
 	Expect(err).To(BeNil())
 	ginkgo.GinkgoLogr.Info(string(output))
 	err = json.Unmarshal(output, &charts)
 	Expect(err).To(BeNil())
+	return
+}
+
+// listAlibabaChartVersions queries the OCI registry for available versions of an Alibaba chart.
+// It probes multiple major version ranges (based on Rancher minor versions) to find available versions.
+func listAlibabaChartVersions(chartName string) (charts []HelmChart) {
+	registry := getAlibabaOCIRegistry()
+	if registry == "" {
+		ginkgo.GinkgoLogr.Info("ALIBABA_OPERATOR_REGISTRY environment variable is not set; cannot list chart versions")
+		return
+	}
+
+	chartRef := fmt.Sprintf("%s/%s", registry, chartName)
+
+	// Probe chart major versions 108-112 (corresponding to Rancher 2.13-2.17)
+	for major := 112; major >= 108; major-- {
+		versionConstraint := fmt.Sprintf("~%d", major)
+		version := fetchOCIChartVersion(chartRef, versionConstraint)
+		if version != "" {
+			charts = append(charts, HelmChart{
+				Name:           chartName,
+				DerivedVersion: version,
+			})
+		}
+	}
+	ginkgo.GinkgoLogr.Info(fmt.Sprintf("Alibaba chart versions found: %v", charts))
 	return
 }
 
@@ -137,4 +180,65 @@ func VersionCompare(v, o string) int {
 	oldVer, err := semver.ParseTolerant(o)
 	Expect(err).To(BeNil())
 	return latestVer.Compare(oldVer)
+}
+
+// GetAlibabaChartVersionForRancher fetches the appropriate Alibaba chart version for the current Rancher version.
+// It queries the OCI registry for the chart version matching the Rancher minor version.
+// Chart versions follow the pattern: 108.x.x+up1.13.x (for Rancher 2.13), 109.x.x+up1.14.x (for Rancher 2.14), etc.
+// The chart major version = Rancher minor version + 95 (e.g., 2.13 → 108, 2.14 → 109).
+func GetAlibabaChartVersionForRancher() string {
+	registry := getAlibabaOCIRegistry()
+	if registry == "" {
+		ginkgo.GinkgoLogr.Info("ALIBABA_OPERATOR_REGISTRY environment variable is not set; cannot auto-detect chart version")
+		return ""
+	}
+
+	_, rancherVersion, rancherHeadVersion := GetRancherVersions(RancherFullVersion)
+
+	ver := rancherVersion
+	if rancherHeadVersion != "" {
+		ver = rancherHeadVersion
+	}
+
+	parsedVer, err := semver.ParseTolerant(ver)
+	if err != nil {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Unable to parse Rancher version %q: %v", ver, err))
+		return ""
+	}
+
+	// Calculate chart major version: Rancher minor + 95 (e.g., 2.13 → 108, 2.14 → 109)
+	chartMajor := int(parsedVer.Minor) + 95
+
+	ginkgo.GinkgoLogr.Info(fmt.Sprintf("Rancher version: %s, chart major version: %d", ver, chartMajor))
+
+	chartRef := fmt.Sprintf("%s/rancher-ali-operator", registry)
+	versionConstraint := fmt.Sprintf("~%d", chartMajor)
+
+	version := fetchOCIChartVersion(chartRef, versionConstraint)
+	if version != "" {
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Found matching chart version %s for Rancher %s", version, ver))
+	}
+	return version
+}
+
+// getAlibabaOCIRegistry returns the Alibaba OCI registry URL from the ALIBABA_OPERATOR_REGISTRY env var.
+func getAlibabaOCIRegistry() string {
+	return os.Getenv("ALIBABA_OPERATOR_REGISTRY")
+}
+
+// fetchOCIChartVersion runs helm show chart against an OCI reference with a version constraint
+// and returns the chart version, or empty string on failure.
+func fetchOCIChartVersion(chartRef, versionConstraint string) string {
+	cmd := exec.Command("helm", "show", "chart", chartRef, "--version", versionConstraint)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "version:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "version:"))
+		}
+	}
+	return ""
 }

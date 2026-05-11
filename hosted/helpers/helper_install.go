@@ -198,6 +198,7 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 		extraEnvIndex++
 		extraFlags = append(extraFlags, alibabaFlags...)
 	}
+
 	err := rancherEle.DeployRancherManager(rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, "none", proxyEnabled, extraFlags)
 	Expect(err).To(Not(HaveOccurred()))
 
@@ -363,16 +364,23 @@ func RestartRancher(k *kubectl.Kubectl) {
 *
 Install Alibaba operator charts
   - @param k kubectl structure
-  - @param chartVersion version of the operator charts (optional, uses default if empty)
+  - @param chartVersion version of the operator charts (optional, auto-detects latest if empty)
   - @param chartRegistry OCI registry URL (optional, uses default if empty)
   - @returns Nothing, the function will fail through Ginkgo in case of issue
 */
 func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistry string) {
-	if chartVersion == "" {
-		chartVersion = "108.1.0+up1.13.1-rc.1"
-	}
 	if chartRegistry == "" {
-		chartRegistry = "oci://stgregistry.suse.com/rancher/charts"
+		chartRegistry = getAlibabaOCIRegistry()
+	}
+
+	Expect(chartRegistry).ToNot(BeEmpty(), "ALIBABA_OPERATOR_REGISTRY environment variable is not set and no registry was provided")
+
+	if chartVersion == "" {
+		By("Fetching appropriate Alibaba operator chart version for Rancher", func() {
+			chartVersion = GetAlibabaChartVersionForRancher()
+			Expect(chartVersion).ToNot(BeEmpty(), "Failed to auto-detect Alibaba chart version for Rancher %s; ensure ALIBABA_OPERATOR_REGISTRY is set or set ALIBABA_OPERATOR_VERSION explicitly", RancherFullVersion)
+			GinkgoLogr.Info(fmt.Sprintf("Auto-detected Alibaba chart version: %s", chartVersion))
+		})
 	}
 
 	GinkgoLogr.Info(fmt.Sprintf("Installing Alibaba operator charts version %s from %s", chartVersion, chartRegistry))
@@ -386,10 +394,17 @@ func InstallAlibabaOperatorCharts(k *kubectl.Kubectl, chartVersion, chartRegistr
 	})
 
 	By("Installing rancher-ali-operator chart", func() {
-		RunHelmCmdWithRetry("install", "rancher-ali-operator",
+		args := []string{"install", "rancher-ali-operator",
 			"-n", "cattle-system",
-			chartRegistry+"/rancher-ali-operator",
-			"--version", chartVersion)
+			chartRegistry + "/rancher-ali-operator",
+			"--version", chartVersion,
+		}
+		// Override the image registry when SYSTEM_DEFAULT_REGISTRY is set
+		// (e.g. when using a staging registry whose images may not yet be available on the production registry).
+		if systemDefaultRegistry := os.Getenv("SYSTEM_DEFAULT_REGISTRY"); systemDefaultRegistry != "" {
+			args = append(args, "--set", "global.cattle.systemDefaultRegistry="+systemDefaultRegistry)
+		}
+		RunHelmCmdWithRetry(args...)
 		GinkgoLogr.Info("rancher-ali-operator chart installed successfully")
 	})
 

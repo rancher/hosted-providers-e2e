@@ -500,7 +500,10 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 		Eventually(func() bool {
 			ginkgo.GinkgoLogr.Info("Waiting for the node count change to appear in AliStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
-			Expect(err).To(BeNil())
+			if err != nil {
+				ginkgo.GinkgoLogr.Info(fmt.Sprintf("Error fetching cluster: %v, retrying...", err))
+				return false
+			}
 			upstreamNodePools := cluster.AliStatus.UpstreamSpec.NodePools
 			for i := range upstreamNodePools {
 				if np := upstreamNodePools[i]; *np.DesiredSize != nodeCount {
