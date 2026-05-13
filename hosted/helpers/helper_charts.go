@@ -82,16 +82,15 @@ func WaitUntilOperatorChartInstallation(chartVersion, comparator string, compare
 
 // UpdateOperatorChartsVersion updates the operator charts to a given chart version and validates that the current version is same as provided
 func UpdateOperatorChartsVersion(updateChartVersion string) {
+	var chartReg = catalog.RancherChartRepo
+	if Provider == "alibaba" {
+		chartReg = getAlibabaOCIRegistry()
+		Expect(chartReg).ToNot(BeEmpty(), "ALIBABA_OPERATOR_REGISTRY environment variable is not set")
+	}
+
 	for _, chart := range ListOperatorChart() {
-		var chartSource string
-		if Provider == "alibaba" {
-			registry := getAlibabaOCIRegistry()
-			Expect(registry).ToNot(BeEmpty(), "ALIBABA_OPERATOR_REGISTRY environment variable is not set")
-			chartSource = fmt.Sprintf("%s/%s", registry, chart.Name)
-		} else {
-			chartSource = fmt.Sprintf("%s/%s", catalog.RancherChartRepo, chart.Name)
-		}
-		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, chartSource, "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
+		err := kubectl.RunHelmBinaryWithCustomErr("upgrade", "--install", chart.Name, fmt.Sprintf("%s/%s", chartReg, chart.Name), "--namespace", CattleSystemNS, "--version", updateChartVersion, "--wait")
+
 		if err != nil {
 			Expect(err).To(BeNil(), "UpdateOperatorChartsVersion Failed")
 		}
