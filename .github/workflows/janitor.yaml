@@ -84,18 +84,191 @@ jobs:
       - name: List clusters (dry-run)
         continue-on-error: true
         run: |
-          echo "Listing all ACK clusters with prefix 'auto-alibaba-gh-runner-hp-ci':"
-          aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\")) | \"Name: \(.name), ID: \(.cluster_id), Created: \(.created)\"" 2> /dev/null || echo "No clusters found or error listing clusters"
+          echo "Listing all ACK clusters in resource group 'hosted-provider-tests':"
+          RG_ID=$(aliyun resourcemanager ListResourceGroups --endpoint resourcemanager.aliyuncs.com --header "Content-Type=application/json" | jq -r '.ResourceGroups.ResourceGroup[] | select(.Name == "hosted-provider-tests") | .Id' 2> /dev/null)
+          if [ -n "$RG_ID" ]; then
+            aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.resource_group_id == \"$RG_ID\") | \"Name: \(.name), ID: \(.cluster_id), Created: \(.created)\"" 2> /dev/null || echo "No clusters found or error listing clusters"
+          else
+            echo "Resource group 'hosted-provider-tests' not found"
+          fi
 
       - name: Cleanup
         continue-on-error: true
         run: |
           # Get the ACK clusters by prefix
-          echo "Starting cleanup of ACK clusters with prefix 'auto-alibaba-gh-runner-hp-ci'..."
+          echo "Starting cleanup of ACK clusters with prefixes 'auto-alibaba-gh-runner-hp-ci' and 'auto-alibaba-hp-ci'..."
           CLUSTER_COUNT=0
-          for cl in $(aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\")) | .cluster_id" 2> /dev/null); do
+          for cl in $(aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.name | startswith(\"auto-alibaba-gh-runner-hp-ci\") or startswith(\"auto-alibaba-hp-ci\")) | .cluster_id" 2> /dev/null); do
             echo "Deleting ACK cluster ID: $cl"
             aliyun cs DELETE /clusters/$cl --header "Content-Type=application/json" && echo "Successfully deleted cluster $cl" || echo "Failed to delete cluster $cl"
             CLUSTER_COUNT=$((CLUSTER_COUNT + 1))
           done
           echo "Cleanup complete. Total clusters processed: $CLUSTER_COUNT"
+
+          # Delete all ACK clusters in the hosted-provider-tests resource group
+          echo "Fetching resource group ID for 'hosted-provider-tests'..."
+          RG_ID=$(aliyun resourcemanager ListResourceGroups --endpoint resourcemanager.aliyuncs.com --header "Content-Type=application/json" | jq -r '.ResourceGroups.ResourceGroup[] | select(.Name == "hosted-provider-tests") | .Id' 2> /dev/null)
+          if [ -n "$RG_ID" ]; then
+            echo "Found resource group ID: $RG_ID"
+            for cl in $(aliyun cs GET /clusters --header "Content-Type=application/json" | jq -r ".[] | select(.resource_group_id == \"$RG_ID\" and .state != \"deleting\") | .cluster_id" 2> /dev/null); do
+              echo "Deleting ACK cluster ID: $cl from resource group hosted-provider-tests (not already deleting)"
+              aliyun cs DELETE /clusters/$cl --header "Content-Type=application/json" && echo "Successfully deleted cluster $cl" || echo "Failed to delete cluster $cl"
+            done
+          else
+            echo "Resource group 'hosted-provider-tests' not found or no clusters to clean up"
+          fi
+
+          if [ -z "$RG_ID" ]; then
+            echo "Resource group 'hosted-provider-tests' not found; skipping VPC resource cleanup to avoid affecting other resource groups."
+          else
+            # Delete NAT Gateways (and their SNAT entries) in the hosted-provider-tests resource group
+            echo "Deleting NAT Gateways in resource group 'hosted-provider-tests'..."
+            for ngw in $(aliyun vpc DescribeNatGateways --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.NatGateways.NatGateway[] | .NatGatewayId' 2> /dev/null); do
+              echo "Deleting NAT Gateway: $ngw"
+              aliyun vpc DeleteNatGateway --NatGatewayId "$ngw" --Force true && echo "Successfully deleted NAT Gateway $ngw" || echo "Failed to delete NAT Gateway $ngw"
+            done
+
+            # Delete SLB instances in the hosted-provider-tests resource group
+            echo "Deleting SLB instances in resource group 'hosted-provider-tests'..."
+            for slb in $(aliyun slb DescribeLoadBalancers --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.LoadBalancers.LoadBalancer[] | .LoadBalancerId' 2> /dev/null); do
+              echo "Deleting SLB: $slb"
+              aliyun slb SetLoadBalancerDeleteProtection --LoadBalancerId "$slb" --DeleteProtection off 2> /dev/null || true
+              aliyun slb DeleteLoadBalancer --LoadBalancerId "$slb" && echo "Successfully deleted SLB $slb" || echo "Failed to delete SLB $slb"
+            done
+
+            # Release EIPs in the hosted-provider-tests resource group
+            echo "Releasing EIPs in resource group 'hosted-provider-tests'..."
+            for eip in $(aliyun vpc DescribeEipAddresses --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.EipAddresses.EipAddress[] | select(.Status == "Available") | .AllocationId' 2> /dev/null); do
+              echo "Releasing EIP: $eip"
+              aliyun vpc ReleaseEipAddress --AllocationId "$eip" && echo "Successfully released EIP $eip" || echo "Failed to release EIP $eip"
+            done
+
+            # Delete Network Interfaces (ENIs) in the hosted-provider-tests resource group
+            echo "Deleting Network Interfaces in resource group 'hosted-provider-tests'..."
+            for vsw in $(aliyun vpc DescribeVSwitches --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.VSwitches.VSwitch[] | .VSwitchId' 2> /dev/null); do
+              ENI_RESPONSE=$(aliyun ecs DescribeNetworkInterfaces --VSwitchId "$vsw" --PageSize 50 2> /dev/null)
+              if ! echo "$ENI_RESPONSE" | jq empty 2> /dev/null; then
+                echo "Skipping ENI listing for VSwitch $vsw: invalid API response"
+                continue
+              fi
+              while IFS= read -r eni_json; do
+                eni=$(echo "$eni_json" | jq -r '.NetworkInterfaceId')
+                status=$(echo "$eni_json" | jq -r '.Status')
+                instance_id=$(echo "$eni_json" | jq -r '.InstanceId // empty')
+                echo "Processing ENI: $eni (Status: $status, VSwitch: $vsw)"
+                if [ "$status" = "InUse" ]; then
+                  if [ -z "$instance_id" ]; then
+                    echo "ENI $eni is InUse but has no attached instance (may be attached to a non-ECS resource); skipping"
+                    continue
+                  fi
+                  echo "Detaching ENI $eni from instance $instance_id"
+                  if ! aliyun ecs DetachNetworkInterface --NetworkInterfaceId "$eni" --InstanceId "$instance_id" 2>&1; then
+                    echo "Failed to detach ENI $eni (instance may be in transitional state); skipping"
+                    continue
+                  fi
+                  echo "Successfully detached ENI $eni"
+                  sleep 5
+                fi
+                aliyun ecs DeleteNetworkInterface --NetworkInterfaceId "$eni" && echo "Successfully deleted ENI $eni" || echo "Failed to delete ENI $eni"
+              done < <(echo "$ENI_RESPONSE" | jq -c '.NetworkInterfaceSets.NetworkInterfaceSet[] | select(.Type != "Primary" and .ServiceManaged != true)' 2> /dev/null)
+            done
+
+            # Delete Security Groups in the hosted-provider-tests resource group
+            echo "Deleting Security Groups in resource group 'hosted-provider-tests'..."
+            for sg in $(aliyun ecs DescribeSecurityGroups --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.SecurityGroups.SecurityGroup[] | .SecurityGroupId' 2> /dev/null); do
+              echo "Deleting Security Group: $sg"
+              aliyun ecs ModifySecurityGroupAttribute --SecurityGroupId "$sg" --DeletionProtection false 2> /dev/null || true
+              aliyun ecs DeleteSecurityGroup --SecurityGroupId "$sg" && echo "Successfully deleted Security Group $sg" || echo "Failed to delete Security Group $sg"
+            done
+
+            # Delete VSwitches in the hosted-provider-tests resource group.
+            # Service-managed ENIs (e.g. CloudMonitor) injected by ACK are skipped here — they are
+            # released asynchronously by Alibaba Cloud after cluster deletion completes. Any VSwitches
+            # still blocked by them will be retried inside the VPC deletion loop below.
+            echo "Deleting VSwitches in resource group 'hosted-provider-tests'..."
+            for vsw in $(aliyun vpc DescribeVSwitches --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.VSwitches.VSwitch[] | .VSwitchId' 2> /dev/null); do
+              echo "Deleting VSwitch: $vsw"
+              VSW_ENI_RESPONSE=$(aliyun ecs DescribeNetworkInterfaces --VSwitchId "$vsw" --PageSize 50 2> /dev/null)
+              # Skip if service-managed ENIs (e.g. CloudMonitor) are still present — they will be
+              # released asynchronously by Alibaba Cloud; retry is handled in the VPC deletion loop.
+              SERVICE_MANAGED_VSW=$(echo "$VSW_ENI_RESPONSE" | jq '[.NetworkInterfaceSets.NetworkInterfaceSet[] | select(.ServiceManaged == true)] | length' 2>/dev/null)
+              if [ "${SERVICE_MANAGED_VSW:-0}" -gt 0 ]; then
+                echo "VSwitch $vsw still has ${SERVICE_MANAGED_VSW} service-managed ENI(s) pending async release; skipping (will retry in VPC deletion loop)"
+                continue
+              fi
+              # Skip if any non-service-managed ENIs are still blocking this VSwitch
+              BLOCKING_ENIS=$(echo "$VSW_ENI_RESPONSE" \
+                | jq -r '.NetworkInterfaceSets.NetworkInterfaceSet[] | select(.Type != "Primary" and .ServiceManaged != true) | .NetworkInterfaceId' 2> /dev/null)
+              if [ -n "$BLOCKING_ENIS" ]; then
+                echo "VSwitch $vsw has non-service-managed ENIs still attached, skipping: $BLOCKING_ENIS"
+                continue
+              fi
+              aliyun vpc DeleteVSwitch --VSwitchId "$vsw" && echo "Successfully deleted VSwitch $vsw" || echo "Failed to delete VSwitch $vsw"
+            done
+
+            # Delete custom Route Tables in the hosted-provider-tests resource group
+            echo "Deleting Route Tables in resource group 'hosted-provider-tests'..."
+            for rt in $(aliyun vpc DescribeRouteTables --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.RouteTables.RouteTable[] | select(.RouteTableType == "Custom") | .RouteTableId' 2> /dev/null); do
+              echo "Deleting Route Table: $rt"
+              aliyun vpc DeleteRouteTable --RouteTableId "$rt" && echo "Successfully deleted Route Table $rt" || echo "Failed to delete Route Table $rt"
+            done
+
+            # Delete VPCs in the hosted-provider-tests resource group.
+            # Before each VPC deletion, enumerate its remaining VSwitches and attempt to delete them —
+            # this catches VSwitches that were skipped above due to service-managed ENIs that have since
+            # been released by Alibaba Cloud after ACK cluster deletion completed.
+            echo "Deleting VPCs in resource group 'hosted-provider-tests'..."
+            for vpc in $(aliyun vpc DescribeVpcs --ResourceGroupId "$RG_ID" --PageSize 50 2> /dev/null | jq -r '.Vpcs.Vpc[] | .VpcId' 2> /dev/null); do
+              echo "Deleting VPC: $vpc"
+              SKIP_VPC=false
+              for vsw in $(aliyun vpc DescribeVSwitches --VpcId "$vpc" --PageSize 50 2> /dev/null | jq -r '.VSwitches.VSwitch[] | .VSwitchId' 2> /dev/null); do
+                echo "  Cleaning up ENIs for remaining VSwitch $vsw in VPC $vpc"
+                ENI_RESPONSE=$(aliyun ecs DescribeNetworkInterfaces --VSwitchId "$vsw" --PageSize 50 2> /dev/null)
+                if echo "$ENI_RESPONSE" | jq empty 2> /dev/null; then
+                  SKIP_VSW=false
+                  while IFS= read -r eni_json; do
+                    eni=$(echo "$eni_json" | jq -r '.NetworkInterfaceId')
+                    status=$(echo "$eni_json" | jq -r '.Status')
+                    instance_id=$(echo "$eni_json" | jq -r '.InstanceId // empty')
+                    echo "    Processing ENI: $eni (Status: $status)"
+                    if [ "$status" = "InUse" ]; then
+                      if [ -z "$instance_id" ]; then
+                        echo "    ENI $eni is InUse but has no attached instance (may be attached to a non-ECS resource); skipping"
+                        SKIP_VSW=true
+                        continue
+                      fi
+                      if ! aliyun ecs DetachNetworkInterface --NetworkInterfaceId "$eni" --InstanceId "$instance_id" 2>&1; then
+                        echo "    Failed to detach ENI $eni (instance may be in transitional state); skipping"
+                        SKIP_VSW=true
+                        continue
+                      fi
+                      echo "    Detached ENI $eni"
+                      sleep 5
+                    fi
+                    aliyun ecs DeleteNetworkInterface --NetworkInterfaceId "$eni" && echo "    Deleted ENI $eni" || { echo "    Failed to delete ENI $eni"; SKIP_VSW=true; }
+                  done < <(echo "$ENI_RESPONSE" | jq -c '.NetworkInterfaceSets.NetworkInterfaceSet[] | select(.Type != "Primary" and .ServiceManaged != true)' 2> /dev/null)
+                  # Skip VSwitch deletion if service-managed ENIs (e.g. CloudMonitor) are still present;
+                  # they are released asynchronously by Alibaba Cloud after ACK cluster deletion completes.
+                  SERVICE_MANAGED_COUNT=$(echo "$ENI_RESPONSE" | jq '[.NetworkInterfaceSets.NetworkInterfaceSet[] | select(.ServiceManaged == true)] | length' 2>/dev/null)
+                  if [ "${SERVICE_MANAGED_COUNT:-0}" -gt 0 ]; then
+                    echo "  VSwitch $vsw still has ${SERVICE_MANAGED_COUNT} service-managed ENI(s) pending async release by Alibaba Cloud; skipping deletion"
+                    SKIP_VPC=true
+                    continue
+                  fi
+                  if [ "$SKIP_VSW" = true ]; then
+                    echo "  VSwitch $vsw still has ENIs that could not be removed; skipping deletion"
+                    SKIP_VPC=true
+                    continue
+                  fi
+                fi
+                sleep 5
+                echo "  Deleting remaining VSwitch $vsw in VPC $vpc"
+                aliyun vpc DeleteVSwitch --VSwitchId "$vsw" && echo "  Successfully deleted VSwitch $vsw" || { echo "  Failed to delete VSwitch $vsw"; SKIP_VPC=true; }
+              done
+              if [ "$SKIP_VPC" = true ]; then
+                echo "Skipping VPC $vpc deletion — one or more VSwitches could not be removed"
+              else
+                aliyun vpc DeleteVpc --VpcId "$vpc" && echo "Successfully deleted VPC $vpc" || echo "Failed to delete VPC $vpc"
+              fi
+            done
+          fi
