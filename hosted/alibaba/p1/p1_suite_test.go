@@ -80,7 +80,11 @@ func syncK8sVersionUpgradeFromRancher(cluster *management.Cluster, csClient *cs.
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
-			clusterResp, err := helper.CheckClusterK8sVersionOnAlibaba(csClient, cluster.ID)
+			aliClusterID, err := helper.GetAlibabaClusterID(cluster)
+			if err != nil {
+				return false
+			}
+			clusterResp, err := helper.CheckClusterK8sVersionOnAlibaba(csClient, aliClusterID)
 			Expect(err).NotTo(HaveOccurred())
 			current := clusterResp
 			GinkgoLogr.Info("Waiting for upgraded k8s version to sync on alibaba...")
@@ -99,7 +103,9 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, csClient *cs.Client
 			return
 		}
 		GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster on alibaba console to K8s version %s", upgradeToVersion))
-		err = helper.UpgradeACKOnAlibaba(csClient, cluster.ID, upgradeToVersion)
+		aliClusterID, err := helper.GetAlibabaClusterID(cluster)
+		Expect(err).To(BeNil())
+		err = helper.UpgradeACKOnAlibaba(csClient, aliClusterID, upgradeToVersion)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
@@ -115,8 +121,8 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, csClient *cs.Client
 
 func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, rancherClient *rancher.Client, upgradeToVersion string) {
 	GinkgoLogr.Info(fmt.Sprintf("Syncing nodepool changes from Alibaba to Rancher for cluster %s", cluster.Name))
-	clusterID := cluster.ID
-	var err error
+	aliClusterID, err := helper.GetAlibabaClusterID(cluster)
+	Expect(err).To(BeNil())
 
 	if upgradeToVersion != "" {
 		By("upgrading the control plane k8s version", func() {
@@ -127,7 +133,7 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 				GinkgoLogr.Info("Cluster already at target version " + upgradeToVersion + ", skipping upgrade")
 				return
 			}
-			err = helper.UpgradeACKOnAlibaba(csClient, clusterID, upgradeToVersion)
+			err = helper.UpgradeACKOnAlibaba(csClient, aliClusterID, upgradeToVersion)
 			Expect(err).To(BeNil())
 
 			Eventually(func() bool {
@@ -147,7 +153,7 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 	currentNPCount := len(cluster.AliStatus.UpstreamSpec.NodePools)
 
 	By("Adding a nodepool", func() {
-		_, err := helper.AddNodePoolOnAlibaba(csClient, npName, clusterID, nodeCount, cluster.AliStatus.UpstreamSpec.ResourceGroupID, cluster.AliStatus.UpstreamSpec.VSwitchIDs)
+		_, err := helper.AddNodePoolOnAlibaba(csClient, npName, aliClusterID, nodeCount, cluster.AliStatus.UpstreamSpec.ResourceGroupID, cluster.AliStatus.UpstreamSpec.VSwitchIDs)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
@@ -168,12 +174,12 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 	})
 
 	var npID string
-	npID, err = helper.GetNodePoolIDByName(csClient, clusterID, npName)
+	npID, err = helper.GetNodePoolIDByName(csClient, aliClusterID, npName)
 	Expect(err).To(BeNil())
 	Expect(npID).ToNot(BeEmpty(), "Could not find ID for new nodepool")
 	By("Scaling the nodepool", func() {
 		const scaleCount = nodeCount + 1
-		err := helper.ScaleNodePoolOnAlibaba(csClient, clusterID, scaleCount, npID)
+		err := helper.ScaleNodePoolOnAlibaba(csClient, aliClusterID, scaleCount, npID)
 		Expect(err).To(BeNil())
 		Eventually(func() bool {
 			cluster, err = rancherClient.Management.Cluster.ByID(cluster.ID)
@@ -190,12 +196,12 @@ func aliNodePoolSyncCheck(cluster *management.Cluster, csClient *cs.Client, ranc
 
 		// Wait for nodepool to be active on Alibaba before proceeding
 		Eventually(func() bool {
-			return helper.IsNodePoolActive(csClient, clusterID, npID)
+			return helper.IsNodePoolActive(csClient, aliClusterID, npID)
 		}, "10m", "10s").Should(BeTrue(), "Timed out waiting for nodepool to become active after scaling")
 	})
 
 	By("Deleting a nodepool", func() {
-		err := helper.DeleteNodePoolOnAlibaba(csClient, clusterID, npID)
+		err := helper.DeleteNodePoolOnAlibaba(csClient, aliClusterID, npID)
 		Expect(err).To(BeNil())
 
 		Eventually(func() bool {
