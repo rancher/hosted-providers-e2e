@@ -636,7 +636,10 @@ func updateTagsAndLabels(cluster *management.Cluster, client *rancher.Client) {
 		"testCaseID": "142-99-145",
 	}
 
-	originalClusterTags := *cluster.EKSConfig.Tags
+	originalClusterTags := make(map[string]string)
+	if cluster.EKSConfig.Tags != nil {
+		maps.Copy(originalClusterTags, *cluster.EKSConfig.Tags)
+	}
 	// updatedTags must contain both the original and the new tags
 	updatedTags := make(map[string]string)
 	maps.Copy(updatedTags, originalClusterTags)
@@ -649,19 +652,26 @@ func updateTagsAndLabels(cluster *management.Cluster, client *rancher.Client) {
 
 	By("Removing cluster tags", func() {
 		cluster, err = helper.UpdateClusterTags(cluster, client, originalClusterTags, true)
+		Expect(err).To(BeNil())
 		for key, value := range tags {
 			Expect(*cluster.EKSConfig.Tags).ToNot(HaveKeyWithValue(key, value))
 		}
 	})
 
 	configNodeGroups := *cluster.EKSConfig.NodeGroups
-	originalNGLabels := *configNodeGroups[0].Labels
-	// updatedNGLabels must contain both the original and the new tags
+	originalNGLabels := make(map[string]string)
+	if configNodeGroups[0].Labels != nil {
+		maps.Copy(originalNGLabels, *configNodeGroups[0].Labels)
+	}
+	// updatedNGLabels must contain both the original and the new labels
 	updatedNGLabels := make(map[string]string)
 	maps.Copy(updatedNGLabels, originalNGLabels)
 	maps.Copy(updatedNGLabels, labels)
 
-	originalNGTags := *configNodeGroups[0].Tags
+	originalNGTags := make(map[string]string)
+	if configNodeGroups[0].Tags != nil {
+		maps.Copy(originalNGTags, *configNodeGroups[0].Tags)
+	}
 	// updatedNGTags must contain both the original and the new tags
 	updatedNGTags := make(map[string]string)
 	maps.Copy(updatedNGTags, originalNGTags)
@@ -674,6 +684,7 @@ func updateTagsAndLabels(cluster *management.Cluster, client *rancher.Client) {
 
 	By("Removing Nodegroup tags & labels", func() {
 		cluster, err = helper.UpdateNodegroupMetadata(cluster, client, originalNGTags, originalNGLabels, true)
+		Expect(err).To(BeNil())
 		for _, ng := range *cluster.EKSConfig.NodeGroups {
 			for key, value := range tags {
 				Expect(*ng.Tags).ToNot(HaveKeyWithValue(key, value))
