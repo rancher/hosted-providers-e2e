@@ -38,6 +38,11 @@ func CreateEKSHostedCluster(client *rancher.Client, displayName, cloudCredential
 	if updateFunc != nil {
 		updateFunc(&eksClusterConfig)
 	}
+
+	if eksClusterConfig.NodeGroupsConfig == nil || len(*eksClusterConfig.NodeGroupsConfig) == 0 {
+		return nil, fmt.Errorf("must have at least one nodegroup")
+	}
+
 	return eks.CreateEKSHostedCluster(client, displayName, cloudCredentialID, eksClusterConfig, false, false, false, false, nil)
 }
 
@@ -413,10 +418,18 @@ func UpdateClusterTags(cluster *management.Cluster, client *rancher.Client, tags
 // if wait is set to true, it waits until the update is complete; if checkClusterConfig is true, it validates the update
 func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client, tags, labels map[string]string, checkClusterConfig bool) (*management.Cluster, error) {
 	upgradedCluster := cluster
-	configNodeGroups := *upgradedCluster.EKSConfig.NodeGroups
-	for i := range configNodeGroups {
-		*configNodeGroups[i].Tags = tags
-		*configNodeGroups[i].Labels = labels
+	nodeGroups := upgradedCluster.EKSConfig.NodeGroups
+	for i := range *nodeGroups {
+		if (*nodeGroups)[i].Tags == nil {
+			emptyMap := make(map[string]string)
+			(*nodeGroups)[i].Tags = &emptyMap
+		}
+		*(*nodeGroups)[i].Tags = tags
+		if (*nodeGroups)[i].Labels == nil {
+			emptyMap := make(map[string]string)
+			(*nodeGroups)[i].Labels = &emptyMap
+		}
+		*(*nodeGroups)[i].Labels = labels
 	}
 
 	var err error
@@ -440,7 +453,15 @@ func UpdateNodegroupMetadata(cluster *management.Cluster, client *rancher.Client
 			Expect(err).To(BeNil())
 
 			for _, ng := range *cluster.EKSStatus.UpstreamSpec.NodeGroups {
-				if maps.Equal(tags, *ng.Tags) && maps.Equal(labels, *ng.Labels) {
+				ngTags := make(map[string]string)
+				if ng.Tags != nil {
+					ngTags = *ng.Tags
+				}
+				ngLabels := make(map[string]string)
+				if ng.Labels != nil {
+					ngLabels = *ng.Labels
+				}
+				if maps.Equal(tags, ngTags) && maps.Equal(labels, ngLabels) {
 					return true
 				}
 			}
@@ -455,6 +476,10 @@ func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFu
 	upgradedCluster := cluster
 
 	updateFunc(upgradedCluster)
+
+	if upgradedCluster.EKSConfig != nil && upgradedCluster.EKSConfig.NodeGroups != nil && len(*upgradedCluster.EKSConfig.NodeGroups) == 0 {
+		return nil, fmt.Errorf("must have at least one nodegroup")
+	}
 
 	return client.Management.Cluster.Update(cluster, &upgradedCluster)
 }

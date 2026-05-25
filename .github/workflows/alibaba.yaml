@@ -53,14 +53,6 @@ on:
         description: Qase run ID where the results will be reported (auto|none|existing_run_id)
         default: none
         type: string
-      rancher_upgrade_version:
-        description: Rancher upgrade version (use head/<minor> for head versions)
-        type: string
-        default: head/2.14
-      k8s_upgrade_minor_version:
-        description: K8s minor version to test for upgrade
-        type: string
-        default: "1.35"
 
 jobs:
   alibaba-e2e:

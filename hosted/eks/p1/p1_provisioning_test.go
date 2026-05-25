@@ -53,14 +53,9 @@ var _ = Describe("P1Provisioning", func() {
 			}
 
 			var err error
-			cluster, err = helper.CreateEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, region, updateFunc)
-			Expect(err).To(BeNil())
-
-			Eventually(func() bool {
-				cluster, err := ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
-				Expect(err).To(BeNil())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Cluster must have at least one managed nodegroup or one self-managed node")
-			}, "10m", "30s").Should(BeTrue())
+			_, err = helper.CreateEKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, region, updateFunc)
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(ContainSubstring("must have at least one nodegroup"))
 
 		})
 
@@ -159,6 +154,7 @@ var _ = Describe("P1Provisioning", func() {
 	It("should successfully Provision EKS with secrets encryption (KMS)", func() {
 		testCaseID = 149
 		createFunc := func(clusterConfig *eks.ClusterConfig) {
+			clusterConfig.SecretsEncryption = pointer.Bool(true)
 			clusterConfig.KmsKey = pointer.String(os.Getenv("AWS_KMS_KEY"))
 		}
 		var err error
@@ -182,7 +178,7 @@ var _ = Describe("P1Provisioning", func() {
 			gpuNG := nodeGroups[0]
 			gpuNG.Gpu = pointer.Bool(true)
 			gpuNG.NodegroupName = &gpuNodeName
-			gpuNG.InstanceType = pointer.String("p2.xlarge")
+			gpuNG.InstanceType = pointer.String("g4dn.xlarge")
 			nodeGroups = append(nodeGroups, gpuNG)
 			clusterConfig.NodeGroupsConfig = &nodeGroups
 		}

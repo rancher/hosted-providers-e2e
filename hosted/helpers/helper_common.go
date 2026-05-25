@@ -177,10 +177,9 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 
 	err = wait.WatchWait(watchInterface, watchFunc)
 	if err != nil {
-		if err.Error() == wait.WatchConnectionError {
-			ginkgo.GinkgoLogr.Info("Watch connection error, falling back to polling...")
-			err = pollUntilClusterReady(cluster.ID, client)
-		}
+		// Fall back to polling for any watch-related error (connection issues, timeouts, schema errors, etc.)
+		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Watch error (%s), falling back to polling...", err.Error()))
+		err = pollUntilClusterReady(cluster.ID, client)
 		if err != nil {
 			return cluster, err
 		}
@@ -224,6 +223,9 @@ func pollUntilClusterReady(clusterID string, client *rancher.Client) error {
 			if err != nil {
 				ginkgo.GinkgoLogr.Info(fmt.Sprintf("Error polling cluster %s: %v", clusterID, err))
 				continue
+			}
+			if c.Transitioning == "error" {
+				return fmt.Errorf("cluster %s transitioned to error state: %s", clusterID, c.TransitioningMessage)
 			}
 			for _, cond := range c.Conditions {
 				if cond.Type == "Ready" && cond.Status == "True" {
