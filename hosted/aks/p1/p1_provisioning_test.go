@@ -672,7 +672,7 @@ var _ = Describe("P1Provisioning", func() {
 		Eventually(func() bool {
 			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Availability zone is not supported in region")
+			return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "availability zones are not supported in region")
 		}, "2m", "2s").Should(BeTrue(), "Timed out while waiting for cluster to error out")
 	})
 
