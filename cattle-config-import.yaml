@@ -72,7 +72,7 @@ eksClusterConfig:
     subnets: []
     tags: {}
     userData: ""
-  region: ap-south-1
+  region: us-east-2
 gkeClusterConfig:
   projectID: <project>
   zone: asia-south2-c
