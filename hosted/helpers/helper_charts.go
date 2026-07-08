@@ -116,15 +116,24 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 	if Provider == "alibaba" {
 		providerFilter = "ali"
 	}
-	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json", "--filter", fmt.Sprintf("%s-operator", providerFilter))
+	// List all charts and filter in Go to avoid relying on helm's --filter regex
+	// behavior, which changed between Helm v3 (substring) and Helm v4 (anchored).
+	cmd := exec.Command("helm", "list", "--namespace", CattleSystemNS, "-o", "json")
 	output, err := cmd.Output()
-	Expect(err).To(BeNil(), "Failed to list chart %s", Provider)
+	Expect(err).To(BeNil(), "Failed to list charts in namespace %s", CattleSystemNS)
 	ginkgo.GinkgoLogr.Info(string(output))
-	err = json.Unmarshal(output, &operatorCharts)
-	Expect(err).To(BeNil(), "Failed to unmarshal chart %s", Provider)
-	for i := range operatorCharts {
-		operatorCharts[i].DerivedVersion = strings.TrimPrefix(operatorCharts[i].Chart, fmt.Sprintf("%s-", operatorCharts[i].Name))
+	var allCharts []HelmChart
+	err = json.Unmarshal(output, &allCharts)
+	Expect(err).To(BeNil(), "Failed to unmarshal charts in namespace %s", CattleSystemNS)
+	for i := range allCharts {
+		// Match charts ending with "{providerFilter}-operator" to handle both
+		// "aks-operator" and "rancher-aks-operator" release naming conventions.
+		if strings.HasSuffix(allCharts[i].Name, providerFilter+"-operator") {
+			allCharts[i].DerivedVersion = strings.TrimPrefix(allCharts[i].Chart, fmt.Sprintf("%s-", allCharts[i].Name))
+			operatorCharts = append(operatorCharts, allCharts[i])
+		}
 	}
+	Expect(operatorCharts).ToNot(BeEmpty())
 	return
 }
 

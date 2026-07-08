@@ -167,6 +167,9 @@ func InstallRancherManager(k *kubectl.Kubectl, rancherHostname, rancherChannel, 
 	}
 
 	var extraFlags []string
+
+	extraFlags = append(extraFlags, "--set", "agentTLSMode=system-store")
+
 	// Ensure proper extraEnv index sequence for helm rendering
 	// Head versions require an extraEnv index of 2
 	// See https://github.com/rancher-sandbox/ele-testhelpers/blob/main/rancher/install.go
