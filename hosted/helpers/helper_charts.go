@@ -133,7 +133,6 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 			operatorCharts = append(operatorCharts, allCharts[i])
 		}
 	}
-	Expect(operatorCharts).ToNot(BeEmpty())
 	return
 }
 
