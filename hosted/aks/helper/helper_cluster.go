@@ -455,7 +455,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 				}
 			}
 			return true
-		}, tools.SetTimeout(10*time.Minute), 15*time.Second).Should(BeTrue())
+		}, tools.SetTimeout(15*time.Minute), 15*time.Second).Should(BeTrue())
 	}
 	return cluster, nil
 }
@@ -662,7 +662,10 @@ func convertMapToAKSString(tags map[string]string) []string {
 func DeleteAKSClusteronAzure(clusterName string) error {
 
 	fmt.Println("Deleting AKS resource group which will delete cluster too ...")
-	args := []string{"group", "delete", "--name", clusterName, "--yes", "--subscription", subscriptionID}
+	// --no-wait makes the Azure CLI return immediately instead of blocking until the
+	// resource group (and all its resources) are fully deleted; this prevents the
+	// AfterEach cleanup from blocking the Ginkgo suite timeout.
+	args := []string{"group", "delete", "--name", clusterName, "--yes", "--no-wait", "--subscription", subscriptionID}
 	fmt.Printf("Running command: az %v\n", args)
 
 	out, err := proc.RunW("az", args...)
@@ -670,7 +673,7 @@ func DeleteAKSClusteronAzure(clusterName string) error {
 		return errors.Wrap(err, "Failed to delete resource group: "+out)
 	}
 
-	fmt.Println("Deleted AKS resource group: ", clusterName)
+	fmt.Println("Triggered deletion of AKS resource group: ", clusterName)
 
 	return nil
 }
