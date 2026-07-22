@@ -395,7 +395,7 @@ func updateNodePoolModeCheck(cluster *management.Cluster, client *rancher.Client
 			}
 		}
 		return true
-	}, "10m", "15s").Should(BeTrue(), "Failed while upstream nodepool mode update")
+	}, "15m", "15s").Should(BeTrue(), "Failed while upstream nodepool mode update")
 }
 
 // Qase ID: 221 and 292

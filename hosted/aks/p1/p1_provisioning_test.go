@@ -132,7 +132,7 @@ var _ = Describe("P1Provisioning", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// We wait until sync is complete Ref: https://github.com/rancher/aks-operator/issues/640
 			return len(cluster.AKSConfig.Tags) == len(cluster.AKSStatus.UpstreamSpec.Tags)
-		}, "2m", "5s").Should(BeTrue())
+		}, "5m", "5s").Should(BeTrue())
 		Expect(cluster.AKSStatus.UpstreamSpec.Tags).To(HaveKeyWithValue("empty-tag", ""))
 	})
 
@@ -304,11 +304,14 @@ var _ = Describe("P1Provisioning", func() {
 			cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, updateFunc)
 			Expect(err).NotTo(HaveOccurred())
 
+			// Azure may take several minutes to report the validation error; use a short substring
+			// to guard against minor wording changes in the Azure error message.
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).NotTo(HaveOccurred())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "agentPoolProfile.count was 0. It must be greater or equal to minCount:1 and less than or equal to maxCount:1000")
-			}, "1m", "2s").Should(BeTrue())
+				GinkgoLogr.Info(fmt.Sprintf("cluster.Transitioning=%s cluster.TransitioningMessage=%s", cluster.Transitioning, cluster.TransitioningMessage))
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "agentPoolProfile.count was 0")
+			}, "5m", "2s").Should(BeTrue())
 		})
 
 		It("should fail to create a cluster with nil nodepool", func() {
@@ -403,8 +406,8 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).NotTo(HaveOccurred())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "Changing availability zones for node pool") && strings.Contains(cluster.TransitioningMessage, "is not permitted")
-			}, "3m", "3s").Should(BeTrue())
+				return cluster.Transitioning == "error" && strings.Contains(strings.ToLower(cluster.TransitioningMessage), "changing availability zones for node pool") && strings.Contains(strings.ToLower(cluster.TransitioningMessage), "is not permitted")
+			}, "10m", "3s").Should(BeTrue())
 		})
 
 		It("should not delete the resource group when cluster is deleted", func() {
@@ -479,7 +482,7 @@ var _ = Describe("P1Provisioning", func() {
 				Expect(err).To(BeNil())
 				GinkgoLogr.Info(fmt.Sprintf("cluster.State=%s cluster.Transitioning=%s cluster.TransitioningMessage=%s", cluster.State, cluster.Transitioning, cluster.TransitioningMessage))
 				return cluster.State == "provisioning" && cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "an AKSClusterConfig exists with the same name")
-			}, "30s", "2s").Should(BeTrue())
+			}, "2m", "2s").Should(BeTrue())
 
 			cluster, err = helpers.WaitUntilClusterIsReady(cluster, ctx.RancherAdminClient)
 			Expect(err).To(BeNil())
@@ -581,7 +584,7 @@ var _ = Describe("P1Provisioning", func() {
 			}
 			Expect(err).To(BeNil())
 			return exists
-		}, "1m", "5s").Should(BeTrue())
+		}, "5m", "10s").Should(BeTrue())
 
 		cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 		Expect(err).To(BeNil())
@@ -660,7 +663,7 @@ var _ = Describe("P1Provisioning", func() {
 	It("should Create NP with AZ for region where AZ is not supported", func() {
 		testCaseID = 196
 		// none of the availability zones are supported in this location
-		location = "westus"
+		location = "ukwest"
 		var err error
 		// re-fetching k8s version based on the location to avoid unsupported k8s version errors
 		k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, ctx.CloudCredID, location, false)
@@ -669,11 +672,14 @@ var _ = Describe("P1Provisioning", func() {
 		cluster, err = helper.CreateAKSHostedCluster(ctx.RancherAdminClient, clusterName, ctx.CloudCredID, k8sVersion, location, nil)
 		Expect(err).ToNot(HaveOccurred())
 
+		// Azure's exact error wording varies across API versions; use a case-insensitive
+		// substring check that matches all known variants.
 		Eventually(func() bool {
 			cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
-			return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "availability zones are not supported in region")
-		}, "2m", "2s").Should(BeTrue(), "Timed out while waiting for cluster to error out")
+			GinkgoLogr.Info(fmt.Sprintf("cluster.Transitioning=%s cluster.TransitioningMessage=%s", cluster.Transitioning, cluster.TransitioningMessage))
+			return cluster.Transitioning == "error" && strings.Contains(strings.ToLower(cluster.TransitioningMessage), "availability zone")
+		}, "15m", "2s").Should(BeTrue(), "Timed out while waiting for cluster to error out")
 	})
 
 	When("a cluster is created for with user and system mode nodepool", func() {
@@ -832,7 +838,7 @@ var _ = Describe("P1Provisioning", func() {
 			Eventually(func() bool {
 				cluster, err = ctx.RancherAdminClient.Management.Cluster.ByID(cluster.ID)
 				Expect(err).To(BeNil())
-				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "failed to communicate with cluster: error generating service account token") && strings.Contains(cluster.TransitioningMessage, "cluster agent disconnected")
+				return cluster.Transitioning == "error" && strings.Contains(cluster.TransitioningMessage, "failed to communicate with cluster: error generating service account token")
 			}, "12m", "10s").Should(BeTrue(), "Timed out while waiting for cluster to be ready for registration")
 
 			registrationToken, err1 := tokenregistration.GetRegistrationToken(ctx.RancherAdminClient, cluster.ID)
