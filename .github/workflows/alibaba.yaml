@@ -1,6 +1,6 @@
 # This workflow calls the main workflow with custom variables
 name: Alibaba-E2E
-run-name: Alibaba on Rancher ${{ inputs.rancher_version || 'head/2.14' }} deployed on ${{ inputs.k3s_version || 'v1.35.4+k3s1' }}
+run-name: Alibaba on Rancher ${{ inputs.rancher_version || 'head/2.15' }} deployed on ${{ inputs.k3s_version || 'v1.36.1+k3s1' }}
 permissions:
   contents: read
 on:
@@ -13,12 +13,12 @@ on:
         description: Rancher version channel/version/head_version (e.g., prime/2.13.3, head/2.14)
         required: true
         type: string
-        default: head/2.14
+        default: head/2.15
       k3s_version:
         description: k3s version of local cluster
         required: true
         type: string
-        default: v1.35.4+k3s1
+        default: v1.36.1+k3s1
       runner_template:
         description: Runner template to use
         default: hosted-prov-e2e-ci-runner-spot-n2-highmem-16-gl-template-v3
@@ -60,8 +60,8 @@ jobs:
     secrets: inherit
     with:
       hosted_provider: alibaba
-      rancher_version: ${{ inputs.rancher_version || 'head/2.14' }}
-      k3s_version: ${{ inputs.k3s_version || 'v1.35.4+k3s1' }}
+      rancher_version: ${{ inputs.rancher_version || 'head/2.15' }}
+      k3s_version: ${{ inputs.k3s_version || 'v1.36.1+k3s1' }}
       operator_nightly_chart: ${{ inputs.operator_nightly_chart == true || (github.event_name == 'schedule' && true) }}
       chart_version: ${{ inputs.chart_version }}
       tests_to_run: ${{ inputs.tests_to_run || (github.event.schedule == '0 1 1,15 * *' && 'p0_provisioning/p0_import') || (github.event.schedule == '0 1 2,16 * *' && 'sync_provisioning/sync_import') }}
@@ -71,5 +71,5 @@ jobs:
       downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup == true || (github.event_name == 'schedule' && true) }}
       proxy: ${{ inputs.proxy == true }}
       qase_run_id: ${{ inputs.qase_run_id || 'auto' }}
-      rancher_upgrade_version: ${{ inputs.rancher_upgrade_version || 'head/2.14' }}
+      rancher_upgrade_version: ${{ inputs.rancher_upgrade_version || 'head/2.15' }}
       k8s_upgrade_minor_version: ${{ inputs.k8s_upgrade_minor_version || '1.35' }}
