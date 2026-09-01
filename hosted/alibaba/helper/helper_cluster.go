@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -17,10 +18,10 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters"
 
-	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
-	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
-	util "github.com/alibabacloud-go/tea-utils/v2/service"
-	"github.com/alibabacloud-go/tea/tea"
+	cs "github.com/rancher/muchang/cs/client"
+	openapi "github.com/rancher/muchang/darabonba-openapi/client"
+	"github.com/rancher/muchang/utils/tea"
+	"github.com/rancher/muchang/utils/tea/dara"
 	"github.com/rancher/shepherd/extensions/cloudcredentials"
 	"github.com/rancher/shepherd/pkg/config"
 	"k8s.io/utils/pointer"
@@ -164,7 +165,7 @@ func CreateACKClusterOnAlibaba(csClient *cs.Client, region string, clusterName s
 	// Optional: set additional parameters using setters
 	req.SetTimeoutMins(20)
 
-	resp, err := csClient.CreateCluster(req)
+	resp, err := csClient.CreateClusterWithContext(context.Background(), req, map[string]*string{}, &dara.RuntimeOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -192,11 +193,11 @@ func waitForClusterReady(csClient *cs.Client, clusterID string, timeoutMinutes i
 			return fmt.Errorf("timeout reached waiting for cluster %s to be ready", clusterID)
 
 		case <-ticker.C:
-			req := &cs.DescribeClustersV1Request{
+			req := &cs.DescribeClustersForRegionRequest{
 				ClusterId: tea.String(clusterID),
 			}
 
-			resp, err := csClient.DescribeClustersV1(req)
+			resp, err := csClient.DescribeClustersForRegionWithContext(context.Background(), csClient.RegionId, req, map[string]*string{}, &dara.RuntimeOptions{})
 			if err != nil {
 				log.Printf("Error describing cluster: %v", err)
 				continue
@@ -222,7 +223,7 @@ func waitForClusterReady(csClient *cs.Client, clusterID string, timeoutMinutes i
 			}
 
 			// Once cluster is running, check nodepools
-			nodePoolsResp, err := csClient.DescribeClusterNodePools(tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{})
+			nodePoolsResp, err := csClient.DescribeClusterNodePoolsWithContext(context.Background(), tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{}, map[string]*string{}, &dara.RuntimeOptions{})
 			if err != nil {
 				log.Printf("Error describing node pools: %v", err)
 				continue
@@ -270,11 +271,11 @@ func waitForClusterDeletion(csClient *cs.Client, clusterID string, timeoutMinute
 		case <-timeout:
 			return fmt.Errorf("timeout reached waiting for cluster %s to be deleted", clusterID)
 		case <-ticker.C:
-			req := &cs.DescribeClustersV1Request{
+			req := &cs.DescribeClustersForRegionRequest{
 				ClusterId: tea.String(clusterID),
 			}
 
-			resp, err := csClient.DescribeClustersV1(req)
+			resp, err := csClient.DescribeClustersForRegionWithContext(context.Background(), csClient.RegionId, req, map[string]*string{}, &dara.RuntimeOptions{})
 			if err != nil {
 				log.Printf("Error describing cluster: %v", err)
 				continue
@@ -341,11 +342,12 @@ func mapAliAddons(addons []ali.Addon) []management.AliAddon {
 }
 
 func DeleteACKClusterOnAlibaba(csClient *cs.Client, clusterId string) error {
-	_, err := csClient.DeleteClusterWithOptions(
+	_, err := csClient.DeleteClusterWithContext(
+		context.Background(),
 		tea.String(clusterId),
 		&cs.DeleteClusterRequest{},
 		map[string]*string{},
-		&util.RuntimeOptions{},
+		&dara.RuntimeOptions{},
 	)
 	if err != nil {
 		return (fmt.Errorf("failed to delete cluster: %w", err))
@@ -614,7 +616,7 @@ func ListALIAllVersions(client *rancher.Client) (allVersions []string, err error
 		Mode:        tea.String("creatable"),
 	}
 
-	resp, err := csClient.DescribeKubernetesVersionMetadata(req)
+	resp, err := csClient.DescribeKubernetesVersionMetadataWithContext(context.Background(), req, map[string]*string{}, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Kubernetes version metadata: %w", err)
 	}
@@ -662,7 +664,7 @@ func GetK8sVersion(client *rancher.Client, forUpgrade bool) (string, error) {
 
 // GetNodePoolIDByName retrieves the ID of a nodepool by its name within a given cluster.
 func GetNodePoolIDByName(csClient *cs.Client, clusterID, nodepoolName string) (string, error) {
-	resp, err := csClient.DescribeClusterNodePools(tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{})
+	resp, err := csClient.DescribeClusterNodePoolsWithContext(context.Background(), tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{}, map[string]*string{}, &dara.RuntimeOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to describe cluster nodepools: %w", err)
 	}
@@ -682,12 +684,17 @@ func GetNodePoolIDByName(csClient *cs.Client, clusterID, nodepoolName string) (s
 
 // IsNodePoolActive checks if a specific nodepool is in an "active" state.
 func IsNodePoolActive(csClient *cs.Client, clusterID, nodepoolID string) bool {
-	resp, err := csClient.DescribeClusterNodePoolDetail(tea.String(clusterID), tea.String(nodepoolID))
+	resp, err := csClient.DescribeClusterNodePoolsWithContext(context.Background(), tea.String(clusterID), &cs.DescribeClusterNodePoolsRequest{}, map[string]*string{}, &dara.RuntimeOptions{})
 	if err != nil {
 		ginkgo.GinkgoLogr.Error(err, fmt.Sprintf("Error describing nodepool %s in cluster %s", nodepoolID, clusterID))
 		return false
 	}
-	return tea.StringValue(resp.Body.Status.State) == "active"
+	for _, nodePool := range resp.Body.Nodepools {
+		if nodePool != nil && tea.StringValue(nodePool.NodepoolInfo.NodepoolId) == nodepoolID {
+			return tea.StringValue(nodePool.Status.State) == "active"
+		}
+	}
+	return false
 }
 
 // UpgradeACKOnAlibaba upgrade the ACK cluster using alibaba sdk client
@@ -695,7 +702,7 @@ func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion
 	upgradeClusterRequest := &cs.UpgradeClusterRequest{
 		NextVersion: tea.String(upgradeToVersion),
 	}
-	runtime := &util.RuntimeOptions{}
+	runtime := &dara.RuntimeOptions{}
 	headers := make(map[string]*string)
 	tryErr := func() (_e error) {
 		defer func() {
@@ -703,7 +710,7 @@ func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion
 				_e = r
 			}
 		}()
-		_, _err := csClient.UpgradeClusterWithOptions(tea.String(clusterId), upgradeClusterRequest, headers, runtime)
+		_, _err := csClient.UpgradeClusterWithContext(context.Background(), tea.String(clusterId), upgradeClusterRequest, headers, runtime)
 		if _err != nil {
 			return _err
 		}
@@ -718,7 +725,7 @@ func UpgradeACKOnAlibaba(csClient *cs.Client, clusterId string, upgradeToVersion
 
 // CheckClusterK8sVersionOnAlibaba checks the ACK cluster version using alibaba sdk client
 func CheckClusterK8sVersionOnAlibaba(csClient *cs.Client, clusterId string) (k8sVersion string, err error) {
-	runtime := &util.RuntimeOptions{}
+	runtime := &dara.RuntimeOptions{}
 	headers := make(map[string]*string)
 	var resp *cs.DescribeClusterDetailResponse
 
@@ -730,7 +737,8 @@ func CheckClusterK8sVersionOnAlibaba(csClient *cs.Client, clusterId string) (k8s
 		}()
 
 		var err error
-		resp, err = csClient.DescribeClusterDetailWithOptions(
+		resp, err = csClient.DescribeClusterDetailWithContext(
+			context.Background(),
 			tea.String(clusterId),
 			headers,
 			runtime,
@@ -775,9 +783,10 @@ func AddNodePoolOnAlibaba(csClient *cs.Client, npName, clusterId string, nodeCou
 		},
 	}
 	headers := make(map[string]*string)
-	runtime := &util.RuntimeOptions{}
+	runtime := &dara.RuntimeOptions{}
 
-	resp, err := csClient.CreateClusterNodePoolWithOptions(
+	resp, err := csClient.CreateClusterNodePoolWithContext(
+		context.Background(),
 		tea.String(clusterId),
 		req,
 		headers,
@@ -799,9 +808,9 @@ func ScaleNodePoolOnAlibaba(csClient *cs.Client, clusterId string, desiredSize i
 			DesiredSize: tea.Int64(desiredSize),
 		},
 	}
-	runtime := &util.RuntimeOptions{}
+	runtime := &dara.RuntimeOptions{}
 	headers := make(map[string]*string)
-	_, err := csClient.ModifyClusterNodePoolWithOptions(tea.String(clusterId), tea.String(nodepoolId),
+	_, err := csClient.ModifyClusterNodePoolWithContext(context.Background(), tea.String(clusterId), tea.String(nodepoolId),
 		modifyClusterNodePoolRequest,
 		headers,
 		runtime,
@@ -824,10 +833,10 @@ func DeleteNodePoolOnAlibaba(csClient *cs.Client, clusterId, nodepoolId string) 
 	modifyClusterNodePoolRequest := &cs.ModifyClusterNodePoolRequest{
 		ScalingGroup: scalingGroup,
 	}
-	runtime := &util.RuntimeOptions{}
+	runtime := &dara.RuntimeOptions{}
 	headers := make(map[string]*string)
 
-	_, err := csClient.ModifyClusterNodePoolWithOptions(tea.String(clusterId), tea.String(nodepoolId), modifyClusterNodePoolRequest, headers, runtime)
+	_, err := csClient.ModifyClusterNodePoolWithContext(context.Background(), tea.String(clusterId), tea.String(nodepoolId), modifyClusterNodePoolRequest, headers, runtime)
 	if err != nil {
 		return err
 	}
@@ -836,14 +845,21 @@ func DeleteNodePoolOnAlibaba(csClient *cs.Client, clusterId, nodepoolId string) 
 
 	// Step 2: Wait until node pool is empty using Eventually
 	Eventually(func() bool {
-		resp, err := csClient.DescribeClusterNodePoolDetailWithOptions(tea.String(clusterId), tea.String(nodepoolId), headers, runtime)
+		resp, err := csClient.DescribeClusterNodePoolsWithContext(context.Background(), tea.String(clusterId), &cs.DescribeClusterNodePoolsRequest{}, headers, runtime)
 		if err != nil {
 			fmt.Println("Error describing node pool:", err)
 			return false
 		}
 
-		totalNodes := tea.Int64Value(resp.Body.Status.TotalNodes)
-		state := tea.StringValue(resp.Body.Status.State)
+		var totalNodes int64
+		var state string
+		for _, nodePool := range resp.Body.Nodepools {
+			if nodePool != nil && tea.StringValue(nodePool.NodepoolInfo.NodepoolId) == nodepoolId {
+				totalNodes = tea.Int64Value(nodePool.Status.TotalNodes)
+				state = tea.StringValue(nodePool.Status.State)
+				break
+			}
+		}
 
 		fmt.Printf("NodePool state=%s totalNodes=%d\n", state, totalNodes)
 
@@ -859,7 +875,8 @@ func DeleteNodePoolOnAlibaba(csClient *cs.Client, clusterId, nodepoolId string) 
 
 	// Step 3: Delete the node pool
 	deleteRequest := &cs.DeleteClusterNodepoolRequest{}
-	_, err = csClient.DeleteClusterNodepoolWithOptions(
+	_, err = csClient.DeleteClusterNodepoolWithContext(
+		context.Background(),
 		tea.String(clusterId),
 		tea.String(nodepoolId),
 		deleteRequest,

@@ -21,18 +21,9 @@ require (
 
 require github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 
-require (
-	github.com/alibabacloud-go/cs-20151215/v5 v5.9.8
-	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.11
-	github.com/alibabacloud-go/tea v1.3.11
-	github.com/alibabacloud-go/tea-utils/v2 v2.0.7
-)
+require github.com/rancher/muchang v0.1.0
 
 require (
-	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
-	github.com/alibabacloud-go/debug v1.0.1 // indirect
-	github.com/alibabacloud-go/tea-utils v1.3.9 // indirect
-	github.com/aliyun/credentials-go v1.4.7 // indirect
 	github.com/antihax/optional v1.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.8 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -124,7 +115,6 @@ require (
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.36.1 // indirect
