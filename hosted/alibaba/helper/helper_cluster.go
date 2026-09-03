@@ -690,7 +690,7 @@ func IsNodePoolActive(csClient *cs.Client, clusterID, nodepoolID string) bool {
 		return false
 	}
 	for _, nodePool := range resp.Body.Nodepools {
-		if nodePool != nil && tea.StringValue(nodePool.NodepoolInfo.NodepoolId) == nodepoolID {
+		if nodePool != nil && nodePool.NodepoolInfo != nil && tea.StringValue(nodePool.NodepoolInfo.NodepoolId) == nodepoolID {
 			return tea.StringValue(nodePool.Status.State) == "active"
 		}
 	}
@@ -854,7 +854,7 @@ func DeleteNodePoolOnAlibaba(csClient *cs.Client, clusterId, nodepoolId string) 
 		var totalNodes int64
 		var state string
 		for _, nodePool := range resp.Body.Nodepools {
-			if nodePool != nil && tea.StringValue(nodePool.NodepoolInfo.NodepoolId) == nodepoolId {
+			if nodePool != nil && nodePool.NodepoolInfo != nil && tea.StringValue(nodePool.NodepoolInfo.NodepoolId) == nodepoolId {
 				totalNodes = tea.Int64Value(nodePool.Status.TotalNodes)
 				state = tea.StringValue(nodePool.Status.State)
 				break

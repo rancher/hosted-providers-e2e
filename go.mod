@@ -11,6 +11,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20260121133442-5e31628d3dc7
 	github.com/rancher-sandbox/qase-ginkgo v1.0.1
+	github.com/rancher/muchang v0.1.1
 	github.com/rancher/rancher/pkg/apis v0.0.0 // indirect
 	github.com/rancher/shepherd v0.0.0-20260610155525-6d926c75d49a
 	github.com/rancher/tests/actions v0.0.0-20260626193311-0ff18e052f06
@@ -20,8 +21,6 @@ require (
 )
 
 require github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-
-require github.com/rancher/muchang v0.1.0
 
 require (
 	github.com/antihax/optional v1.0.0 // indirect
