@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
-	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
-	"github.com/alibabacloud-go/tea/tea"
+	cs "github.com/rancher/muchang/cs/client"
+	openapi "github.com/rancher/muchang/darabonba-openapi/client"
+	"github.com/rancher/muchang/utils/tea"
 
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

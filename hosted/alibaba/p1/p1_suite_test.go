@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"testing"
 
-	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rancher-sandbox/qase-ginkgo"
+	cs "github.com/rancher/muchang/cs/client"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"

@@ -26,9 +26,9 @@ import (
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
-	cs "github.com/alibabacloud-go/cs-20151215/v5/client"
 	"github.com/rancher/hosted-providers-e2e/hosted/alibaba/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
+	cs "github.com/rancher/muchang/cs/client"
 )
 
 const (
