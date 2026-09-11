@@ -453,6 +453,33 @@ func DefaultK8sVersion(descVersions []string, forUpgrade bool) (string, error) {
 	return descVersions[1], nil
 }
 
+// HighestK8sVersion returns the highest semantic version from the provided version list.
+func HighestK8sVersion(versions []string) (string, error) {
+	if len(versions) == 0 {
+		return "", fmt.Errorf("no versions available to select from")
+	}
+
+	highestVersion := versions[0]
+	highestSemver, err := semver.NewVersion(highestVersion)
+	if err != nil {
+		return "", err
+	}
+
+	for _, version := range versions[1:] {
+		candidateSemver, err := semver.NewVersion(version)
+		if err != nil {
+			continue
+		}
+
+		if candidateSemver.GreaterThan(highestSemver) {
+			highestVersion = version
+			highestSemver = candidateSemver
+		}
+	}
+
+	return highestVersion, nil
+}
+
 func CreateCloudCredentials(client *rancher.Client) (string, error) {
 	var (
 		err                   error

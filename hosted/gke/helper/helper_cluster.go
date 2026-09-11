@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 
-	"github.com/rancher/shepherd/extensions/clusters"
 	"github.com/rancher/shepherd/extensions/clusters/gke"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 
@@ -110,7 +109,7 @@ func UpgradeKubernetesVersion(cluster *management.Cluster, upgradeToVersion stri
 		}
 	}
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {
@@ -169,7 +168,7 @@ func UpgradeNodeKubernetesVersion(cluster *management.Cluster, upgradeToVersion 
 	}
 
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 
@@ -236,7 +235,7 @@ func AddNodePool(cluster *management.Cluster, client *rancher.Client, increaseBy
 	}
 
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 
@@ -281,7 +280,7 @@ func DeleteNodePool(cluster *management.Cluster, client *rancher.Client, wait, c
 		}
 	}
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {
@@ -325,7 +324,7 @@ func ScaleNodePool(cluster *management.Cluster, client *rancher.Client, nodeCoun
 	}
 
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 
@@ -367,7 +366,7 @@ func UpdateMonitoringAndLoggingService(cluster *management.Cluster, client *ranc
 		Expect(*cluster.GKEConfig.LoggingService).To(BeEquivalentTo(loggingService))
 	}
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {
@@ -404,7 +403,7 @@ func UpdateAutoScaling(cluster *management.Cluster, client *rancher.Client, enab
 		}
 	}
 	if wait {
-		err = clusters.WaitClusterToBeUpgraded(client, cluster.ID)
+		cluster, err = helpers.WaitUntilClusterIsReady(cluster, client)
 		Expect(err).To(BeNil())
 	}
 	if checkClusterConfig {

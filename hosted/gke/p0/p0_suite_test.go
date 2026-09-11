@@ -79,7 +79,8 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Clie
 	versions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
-	upgradeToVersion := versions[0]
+	upgradeToVersion, err := helpers.HighestK8sVersion(versions)
+	Expect(err).To(BeNil())
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", upgradeToVersion))
 
 	// Upgrading controlplane and nodepool sequentially
