@@ -70,7 +70,7 @@ var _ = BeforeSuite(func() {
 	// Extract environment variables
 	rancherHostname = os.Getenv("RANCHER_HOSTNAME")
 	Expect(rancherHostname).ToNot(BeEmpty(), "RANCHER_HOSTNAME environment variable is required")
-	rancherVersion = os.Getenv("RANCHER_VERSION")
+	rancherVersion = strings.TrimSpace(os.Getenv("RANCHER_VERSION"))
 	Expect(rancherVersion).ToNot(BeEmpty(), "RANCHER_VERSION environment variable is required")
 	kubeConfig = os.Getenv("KUBECONFIG")
 	Expect(kubeConfig).ToNot(BeEmpty(), "KUBECONFIG environment variable is required")

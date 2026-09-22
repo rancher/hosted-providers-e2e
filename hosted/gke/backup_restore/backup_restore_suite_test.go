@@ -27,7 +27,6 @@ import (
 
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -67,7 +66,7 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 var _ = BeforeEach(func() {
-	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	clusterName = helpers.GenerateGKEClusterName(helpers.ClusterNamePrefix)
 	k8sVersion, err := helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", false)
 	Expect(err).NotTo(HaveOccurred())
 	GinkgoLogr.Info(fmt.Sprintf("Using K8s version %s for cluster %s", k8sVersion, clusterName))

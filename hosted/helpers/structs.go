@@ -23,6 +23,13 @@ var (
 	Provider          = os.Getenv("PROVIDER")
 	testuser, _       = user.Current()
 	clusterCleanup, _ = strconv.ParseBool(os.Getenv("DOWNSTREAM_CLUSTER_CLEANUP"))
+	GKEReleaseChannel = func() string {
+		if channel := os.Getenv("GKE_RELEASE_CHANNEL"); channel != "" {
+			return channel
+		}
+
+		return "rapid"
+	}()
 	ClusterNamePrefix = func() string {
 		if clusterCleanup {
 			return fmt.Sprintf("%s-hp-ci", Provider)
@@ -30,8 +37,8 @@ var (
 			return fmt.Sprintf("%s-%s-hp-ci", Provider, testuser.Username)
 		}
 	}()
-	RancherFullVersion        = os.Getenv("RANCHER_VERSION")
-	RancherUpgradeFullVersion = os.Getenv("RANCHER_UPGRADE_VERSION")
+	RancherFullVersion        = strings.TrimSpace(os.Getenv("RANCHER_VERSION"))
+	RancherUpgradeFullVersion = strings.TrimSpace(os.Getenv("RANCHER_UPGRADE_VERSION"))
 	Kubeconfig                = os.Getenv("KUBECONFIG")
 	DownstreamKubeconfig      = func(clusterName string) string {
 		return fmt.Sprintf("%s_KUBECONFIG", clusterName)

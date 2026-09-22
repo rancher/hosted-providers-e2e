@@ -17,7 +17,6 @@ import (
 	nodestat "github.com/rancher/shepherd/extensions/nodes"
 	"github.com/rancher/shepherd/extensions/workloads/pods"
 	"github.com/rancher/shepherd/pkg/config"
-	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -71,7 +70,7 @@ var _ = BeforeEach(func() {
 		ctx.RancherAdminClient = rancherAdminClient
 	})
 
-	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	clusterName = helpers.GenerateGKEClusterName(helpers.ClusterNamePrefix)
 
 	var err error
 	// For k8s chart support upgrade we want to begin with the default k8s version; we will upgrade rancher and then upgrade k8s to the default available there.

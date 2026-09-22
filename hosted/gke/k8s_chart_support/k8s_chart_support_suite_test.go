@@ -10,7 +10,6 @@ import (
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 	"github.com/rancher-sandbox/ele-testhelpers/tools"
 	"github.com/rancher/shepherd/clients/rancher"
-	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	. "github.com/rancher-sandbox/qase-ginkgo"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
@@ -48,7 +47,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 var _ = BeforeEach(func() {
 	var err error
-	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	clusterName = helpers.GenerateGKEClusterName(helpers.ClusterNamePrefix)
 
 	k8sVersion, err = helper.GetK8sVersion(ctx.RancherAdminClient, project, ctx.CloudCredID, zone, "", false)
 	Expect(err).To(BeNil())

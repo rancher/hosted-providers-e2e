@@ -94,7 +94,7 @@ gkeClusterConfig:
     initialNodeCount: 1
     management:
       autoRepair: true
-      autoUpgrade: true
+      autoUpgrade: false
     maxPodsConstraint: 110
     version: 1.27.3-gke.100
 googleCredentials:
