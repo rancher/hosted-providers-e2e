@@ -22,8 +22,8 @@ install-helm: ## Install Helm binary
 	sudo mv /tmp/linux-${TARGETARCH}/helm /usr/local/bin/helm
 
 deps: ## Install the Go dependencies
-	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.28.1
-	go get github.com/onsi/gomega@v1.39.0
+	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.29.0
+	go get github.com/onsi/gomega@v1.41.0
 	go mod tidy
 
 e2e-import-tests: deps	## Run the 'P0Import' test suite for a given ${PROVIDER}

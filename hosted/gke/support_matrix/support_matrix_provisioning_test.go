@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -38,7 +37,7 @@ var _ = Describe("SupportMatrixProvisioning", func() {
 				cluster     *management.Cluster
 			)
 			BeforeEach(func() {
-				clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+				clusterName = helpers.GenerateGKEClusterName(helpers.ClusterNamePrefix)
 				var err error
 				cluster, err = helper.CreateGKEHostedCluster(ctx.StdUserClient, clusterName, ctx.CloudCredID, version, zone, "", project, nil)
 				Expect(err).To(BeNil())

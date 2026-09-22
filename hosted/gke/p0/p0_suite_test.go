@@ -24,7 +24,6 @@ import (
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
 	"github.com/rancher/shepherd/extensions/clusters/gke"
-	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/gke/helper"
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -57,7 +56,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 var _ = BeforeEach(func() {
 	// Setting this to nil ensures we do not use the `cluster` variable value from another test running in parallel with this one.
 	cluster = nil
-	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	clusterName = helpers.GenerateGKEClusterName(helpers.ClusterNamePrefix)
 	zone = helpers.GetGKEZone()
 	region = helpers.GetGKERegion()
 	project = helpers.GetGKEProjectID()
@@ -79,7 +78,8 @@ func p0upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Clie
 	versions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
-	upgradeToVersion := versions[0]
+	upgradeToVersion, err := helpers.HighestK8sVersion(versions)
+	Expect(err).To(BeNil())
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", upgradeToVersion))
 
 	// Upgrading controlplane and nodepool sequentially

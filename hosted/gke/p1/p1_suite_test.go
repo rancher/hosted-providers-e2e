@@ -61,7 +61,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 var _ = BeforeEach(func() {
 	// Setting this to nil ensures we do not use the `cluster` variable value from another test running in parallel with this one.
 	cluster = nil
-	clusterName = namegen.AppendRandomString(helpers.ClusterNamePrefix)
+	clusterName = helpers.GenerateGKEClusterName(helpers.ClusterNamePrefix)
 })
 
 var _ = ReportBeforeEach(func(report SpecReport) {
@@ -97,7 +97,8 @@ func updateAutoScaling(cluster *management.Cluster, client *rancher.Client, auto
 func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Client) {
 	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
-	upgradeToVersion := availableVersions[0]
+	upgradeToVersion, err := helpers.HighestK8sVersion(availableVersions)
+	Expect(err).To(BeNil())
 	GinkgoLogr.Info("Upgrading to version " + upgradeToVersion)
 
 	By("upgrading control plane", func() {
@@ -137,7 +138,9 @@ func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Cli
 	By("upgrading the node pool", func() {
 		for _, np := range *cluster.GKEStatus.UpstreamSpec.NodePools {
 			// The cluster errors out and becomes unavailable at some point due to the upgrade , so we wait until the cluster is ready
-			_ = helper.UpgradeGKEClusterOnGCloud(zone, clusterName, project, upgradeToVersion, true, *np.Name)
+			if err := helper.UpgradeGKEClusterOnGCloud(zone, clusterName, project, upgradeToVersion, true, *np.Name); err != nil {
+				GinkgoLogr.Info(fmt.Sprintf("Node pool %s upgrade command failed, relying on Eventually check below to catch persistent failures: %v", *np.Name, err))
+			}
 		}
 
 		Eventually(func() bool {
@@ -212,6 +215,7 @@ func syncNodepoolsCheck(cluster *management.Cluster, client *rancher.Client) {
 
 		// The cluster does not go into updating state, so we simply wait until the number of nodepools decreases
 		Eventually(func() int {
+			GinkgoLogr.Info("Waiting for the total nodepool count to decrease in GKEStatus.UpstreamSpec ...")
 			cluster, err = client.Management.Cluster.ByID(cluster.ID)
 			Expect(err).To(BeNil())
 			return len(*cluster.GKEStatus.UpstreamSpec.NodePools)
@@ -251,7 +255,8 @@ func updateClusterInUpdatingState(cluster *management.Cluster, client *rancher.C
 	}
 	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
-	upgradeK8sVersion := availableVersions[0]
+	upgradeK8sVersion, err := helpers.HighestK8sVersion(availableVersions)
+	Expect(err).To(BeNil())
 
 	currentNodePoolCount := len(*cluster.GKEConfig.NodePools)
 	cluster, err = helper.UpgradeKubernetesVersion(cluster, upgradeK8sVersion, client, false, false, false)
@@ -364,7 +369,8 @@ func upgradeK8sVersionChecks(cluster *management.Cluster, client *rancher.Client
 	versions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
 	Expect(err).To(BeNil())
 	Expect(versions).ToNot(BeEmpty())
-	upgradeToVersion := versions[0]
+	upgradeToVersion, err := helpers.HighestK8sVersion(versions)
+	Expect(err).To(BeNil())
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading cluster to GKE version %s", upgradeToVersion))
 
 	By("upgrading the ControlPlane & Nodepools", func() {

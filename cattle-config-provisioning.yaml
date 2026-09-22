@@ -148,7 +148,7 @@ gkeClusterConfig:
     initialNodeCount: 1
     management:
       autoRepair: true
-      autoUpgrade: true
+      autoUpgrade: false
     maxPodsConstraint: 110
     name: np
     version: 1.29.8-gke.1211000

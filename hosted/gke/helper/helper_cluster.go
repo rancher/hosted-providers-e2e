@@ -495,7 +495,9 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	helpers.SetTempKubeConfig(clusterName)
 
 	fmt.Println("Creating GKE cluster ...")
-	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks"}
+	// --no-enable-autoupgrade keeps the default node pool pinned to the requested version;
+	// otherwise GKE can auto-upgrade nodes mid-test independent of the release channel, racing with explicit version checks.
+	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", helpers.GKEReleaseChannel, "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks", "--no-enable-autoupgrade"}
 	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)
@@ -532,7 +534,7 @@ func AddNodePoolOnGCloud(clusterName, zone, project, npName string, extraArgs ..
 	}
 
 	fmt.Println("Adding nodepool to the GKE cluster ...")
-	args := []string{"container", "node-pools", "create", npName, "--cluster", clusterName, "--project", project, "--zone", zone, "--num-nodes", "1", "--enable-autoscaling", "--max-nodes", "1", "--min-nodes", "0"}
+	args := []string{"container", "node-pools", "create", npName, "--cluster", clusterName, "--project", project, "--zone", zone, "--num-nodes", "1", "--enable-autoscaling", "--max-nodes", "1", "--min-nodes", "0", "--no-enable-autoupgrade"}
 
 	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)

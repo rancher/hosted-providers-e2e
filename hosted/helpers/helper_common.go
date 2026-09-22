@@ -1,9 +1,12 @@
 package helpers
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -167,25 +170,34 @@ func CreateStdUserClient(ctx *RancherContext) {
 // For e.g. once the cluster has been updated, it contains information such as Version.GitVersion which it does not have before it's ready
 // If the cluster is imported; it also updates the ProviderConfig with ProviderStatus.UpstreamSpec data
 func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client) (*management.Cluster, error) {
-	opts := metav1.ListOptions{FieldSelector: "metadata.name=" + cluster.ID, TimeoutSeconds: &defaults.WatchTimeoutSeconds}
-	watchInterface, err := client.GetManagementWatchInterface(management.ClusterType, opts)
-	if err != nil {
-		return cluster, err
-	}
-
-	watchFunc := shepherdclusters.IsHostedProvisioningClusterReady
-
-	err = wait.WatchWait(watchInterface, watchFunc)
-	if err != nil {
-		// Fall back to polling for any watch-related error (connection issues, timeouts, schema errors, etc.)
-		ginkgo.GinkgoLogr.Info(fmt.Sprintf("Watch error (%s), falling back to polling...", err.Error()))
-		err = pollUntilClusterReady(cluster.ID, client)
+	// For GKE we skip shepherd's WatchWait and go straight to polling: the watch has no way to detect a
+	// stuck-create name-collision state (it just waits the full timeout on any non-Ready state), which
+	// prevents pollUntilClusterReady's auto-recovery hook from kicking in until 30min have already elapsed.
+	if Provider == "gke" {
+		if err := pollUntilClusterReady(cluster.ID, client); err != nil {
+			return cluster, err
+		}
+	} else {
+		opts := metav1.ListOptions{FieldSelector: "metadata.name=" + cluster.ID, TimeoutSeconds: &defaults.WatchTimeoutSeconds}
+		watchInterface, err := client.GetManagementWatchInterface(management.ClusterType, opts)
 		if err != nil {
 			return cluster, err
 		}
+
+		watchFunc := shepherdclusters.IsHostedProvisioningClusterReady
+
+		err = wait.WatchWait(watchInterface, watchFunc)
+		if err != nil {
+			// Fall back to polling for any watch-related error (connection issues, timeouts, schema errors, etc.)
+			ginkgo.GinkgoLogr.Info(fmt.Sprintf("Watch error (%s), falling back to polling...", err.Error()))
+			err = pollUntilClusterReady(cluster.ID, client)
+			if err != nil {
+				return cluster, err
+			}
+		}
 	}
 	var updatedCluster *management.Cluster
-	updatedCluster, err = client.Management.Cluster.ByID(cluster.ID)
+	updatedCluster, err := client.Management.Cluster.ByID(cluster.ID)
 	if err != nil {
 		// returning the value as returned via ByID().
 		return updatedCluster, err
@@ -209,14 +221,30 @@ func WaitUntilClusterIsReady(cluster *management.Cluster, client *rancher.Client
 }
 
 // pollUntilClusterReady polls the cluster status until it is ready or times out.
+// Transient "error" transitioning states (e.g. gke-operator briefly reporting a stale/duplicate name before
+// self-healing on its next reconcile) are tolerated the same way the primary watch-based path already does;
+// only a persistent error at timeout is surfaced. The "cluster ... exists with the same name" error is given a
+// much shorter grace period since it rarely self-heals and otherwise wastes the full timeout waiting on it.
+const nameCollisionErrGracePeriod = 5 * time.Minute
+
+// maxGKENameCollisionRecoveryAttempts caps how many times we try to recover a stuck-create from GKE
+// by deleting the orphaned cluster on GCP; if it fails this many times, we give up and surface the error.
+const maxGKENameCollisionRecoveryAttempts = 2
+
 func pollUntilClusterReady(clusterID string, client *rancher.Client) error {
 	timeout := time.After(time.Duration(defaults.WatchTimeoutSeconds) * time.Second)
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
+	var lastErrMsg string
+	var nameCollisionSince time.Time
+	var gkeRecoveryAttempts int
 	for {
 		select {
 		case <-timeout:
+			if lastErrMsg != "" {
+				return fmt.Errorf("timeout waiting for cluster %s to become ready, last error state: %s", clusterID, lastErrMsg)
+			}
 			return fmt.Errorf("timeout waiting for cluster %s to become ready", clusterID)
 		case <-ticker.C:
 			c, err := client.Management.Cluster.ByID(clusterID)
@@ -224,18 +252,95 @@ func pollUntilClusterReady(clusterID string, client *rancher.Client) error {
 				ginkgo.GinkgoLogr.Info(fmt.Sprintf("Error polling cluster %s: %v", clusterID, err))
 				continue
 			}
-			if c.Transitioning == "error" {
-				return fmt.Errorf("cluster %s transitioned to error state: %s", clusterID, c.TransitioningMessage)
-			}
+			// Check Ready first: a cluster can legitimately have Transitioning=="error" (e.g. spec-vs-upstream
+			// version mismatch after an out-of-band gcloud upgrade) while its Ready condition is still True.
+			// Shepherd's watchFunc treats such a cluster as ready, so we match that behavior.
 			for _, cond := range c.Conditions {
 				if cond.Type == "Ready" && cond.Status == "True" {
 					ginkgo.GinkgoLogr.Info(fmt.Sprintf("Cluster %s is active (via polling)", clusterID))
 					return nil
 				}
 			}
+			if c.Transitioning == "error" {
+				lastErrMsg = c.TransitioningMessage
+				if strings.Contains(lastErrMsg, "a cluster in GKE exists with the same name") {
+					if nameCollisionSince.IsZero() {
+						nameCollisionSince = time.Now()
+					} else if time.Since(nameCollisionSince) > nameCollisionErrGracePeriod {
+						if Provider == "gke" && gkeRecoveryAttempts < maxGKENameCollisionRecoveryAttempts {
+							gkeRecoveryAttempts++
+							ginkgo.GinkgoLogr.Info(fmt.Sprintf("Attempting GKE stuck-create recovery (attempt %d/%d) for cluster %s by deleting the orphaned GCP cluster %q", gkeRecoveryAttempts, maxGKENameCollisionRecoveryAttempts, clusterID, c.Name))
+							if recoveryErr := recoverStuckGKECreate(c.Name); recoveryErr != nil {
+								ginkgo.GinkgoLogr.Info(fmt.Sprintf("GKE recovery attempt failed: %v; will keep polling", recoveryErr))
+							} else {
+								ginkgo.GinkgoLogr.Info("GKE recovery succeeded, operator's next reconcile should now be able to create the cluster cleanly")
+							}
+							nameCollisionSince = time.Time{}
+							continue
+						}
+						return fmt.Errorf("cluster %s stuck for over %s with a name collision that isn't self-resolving, likely a gke-operator reconcile bug retrying its own create call: %s", clusterID, nameCollisionErrGracePeriod, lastErrMsg)
+					}
+				} else {
+					nameCollisionSince = time.Time{}
+				}
+				ginkgo.GinkgoLogr.Info(fmt.Sprintf("Cluster %s reported a transient error, waiting to see if it self-resolves: %s", clusterID, lastErrMsg))
+				continue
+			}
 			ginkgo.GinkgoLogr.Info(fmt.Sprintf("Cluster %s not ready yet, transitioning: %s", clusterID, c.Transitioning))
 		}
 	}
+}
+
+// recoverStuckGKECreate deletes an orphaned GKE cluster on GCP whose Rancher CR is stuck retrying its own Create
+// call after the operator lost track of the initial success (typically because a reconcile context was cancelled
+// mid-flight). Deleting the orphaned GCP cluster synchronously unblocks the operator: on its next reconcile,
+// GKE will report "cluster does not exist" and Create will succeed cleanly. clusterDisplayName is the GKE
+// cluster name (which matches Rancher's cluster.Name for provisioned clusters). Zone and project come from env.
+func recoverStuckGKECreate(clusterDisplayName string) error {
+	zone := GetGKEZone()
+	project := GetGKEProjectID()
+	if zone == "" || project == "" {
+		return fmt.Errorf("cannot recover: GKE zone (%q) or project (%q) not set in env", zone, project)
+	}
+	// Point KUBECONFIG at a writable temp file so gcloud's post-delete kubeconfig cleanup doesn't fail
+	// trying to write /etc/rancher/k3s/k3s.yaml (which the CI runner can't write to).
+	tmpKube, err := os.CreateTemp("", "gke-recovery-kubeconfig-*")
+	if err != nil {
+		return fmt.Errorf("cannot create temp kubeconfig for recovery: %w", err)
+	}
+	tmpKubePath := tmpKube.Name()
+	_ = tmpKube.Close()
+	defer os.Remove(tmpKubePath)
+
+	cmd := exec.Command("gcloud", "container", "clusters", "delete", clusterDisplayName, "--zone", zone, "--project", project, "--quiet")
+	cmd.Env = append(os.Environ(), "KUBECONFIG="+tmpKubePath)
+	out, gcloudErr := cmd.CombinedOutput()
+	outStr := string(out)
+
+	// Verify actual GCP state rather than trusting exit code: gcloud sometimes returns non-zero after a
+	// successful delete due to post-delete kubeconfig write issues (e.g. "Unable to create private file")
+	// which are unrelated to whether the cluster was actually removed.
+	stillExists, checkErr := gkeClusterExists(clusterDisplayName, zone, project)
+	if checkErr != nil {
+		if gcloudErr != nil {
+			return fmt.Errorf("gcloud delete for %q returned %v (output: %s) and post-delete verify also failed: %v", clusterDisplayName, gcloudErr, strings.TrimSpace(outStr), checkErr)
+		}
+		return fmt.Errorf("post-delete verify for %q failed: %v", clusterDisplayName, checkErr)
+	}
+	if stillExists {
+		return fmt.Errorf("cluster %q still exists on GCP after delete attempt (gcloud err: %v, output: %s)", clusterDisplayName, gcloudErr, strings.TrimSpace(outStr))
+	}
+	return nil
+}
+
+// gkeClusterExists checks whether a GKE cluster with the given name exists on GCP in any state.
+func gkeClusterExists(clusterName, zone, project string) (bool, error) {
+	cmd := exec.Command("gcloud", "container", "clusters", "list", "--filter", "name="+clusterName, "--project", project, "--zone", zone, "--format", "value(name)")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("gcloud list failed: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+	return strings.TrimSpace(string(out)) != "", nil
 }
 
 // ClusterIsReadyChecks runs the basic checks on a cluster such as cluster name, service account, nodes and pods check
@@ -403,6 +508,24 @@ func SetTempKubeConfig(clusterName string) {
 	_ = os.Setenv("KUBECONFIG", downstreamKubeconfig)
 }
 
+// GenerateGKEClusterName returns a unique GKE cluster name with a stronger random suffix.
+func GenerateGKEClusterName(prefix string) string {
+	return fmt.Sprintf("auto-%s-%s", prefix, randomLowerString(8))
+}
+
+func randomLowerString(length int) string {
+	letters := []byte("abcdefghijklmnopqrstuvwxyz")
+	result := make([]byte, length)
+	for i := range result {
+		index, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		if err != nil {
+			panic(err)
+		}
+		result[i] = letters[index.Int64()]
+	}
+	return string(result)
+}
+
 // HighestK8sMinorVersionSupportedByUI returns the highest k8s version supported by UI
 // TODO(pvala): Use this by default when fetching a list of k8s version for all the downstream providers.
 func HighestK8sMinorVersionSupportedByUI(client *rancher.Client) (value string) {
@@ -451,6 +574,33 @@ func DefaultK8sVersion(descVersions []string, forUpgrade bool) (string, error) {
 		return "", fmt.Errorf("no versions available for upgrade; available versions: %s; try changing the location/region", strings.Join(descVersions, ", "))
 	}
 	return descVersions[1], nil
+}
+
+// HighestK8sVersion returns the highest available version.
+func HighestK8sVersion(versions []string) (string, error) {
+	if len(versions) == 0 {
+		return "", fmt.Errorf("no versions available to select from")
+	}
+
+	highestVersion := versions[0]
+	highestSemver, err := semver.NewVersion(highestVersion)
+	if err != nil {
+		return "", err
+	}
+
+	for _, version := range versions[1:] {
+		candidateSemver, err := semver.NewVersion(version)
+		if err != nil {
+			continue
+		}
+
+		if candidateSemver.GreaterThan(highestSemver) {
+			highestVersion = version
+			highestSemver = candidateSemver
+		}
+	}
+
+	return highestVersion, nil
 }
 
 func CreateCloudCredentials(client *rancher.Client) (string, error) {
@@ -504,7 +654,7 @@ func ContainsString(slice []string, item string) bool {
 func GetRancherVersions(rancherFullVersion string) (string, string, string) {
 	var rancherChannel, rancherVersion, rancherHeadVersion string
 	// Extract Rancher Manager channel/version to install
-	s := strings.Split(rancherFullVersion, "/")
+	s := strings.Split(strings.TrimSpace(rancherFullVersion), "/")
 	Expect(len(s)).To(BeNumerically(">=", 2), "RANCHER_VERSION must contain at least two strings separated by '/'")
 	rancherChannel = s[0]
 	rancherVersion = s[1] // This can be either a string like "2.9.3[-rc4]", "devel", or "latest"

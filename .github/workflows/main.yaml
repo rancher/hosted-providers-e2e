@@ -54,6 +54,10 @@ on:
       k8s_upgrade_minor_version:
         description: K8s minor version to test
         type: string
+      gke_release_channel:
+        description: GKE release channel to use for cluster creation
+        type: string
+        default: rapid
       chart_version:
         description: Alibaba operator chart version
         required: false
@@ -87,6 +91,7 @@ env:
   RANCHER_LOG_COLLECTOR: ${{ github.workspace }}/.github/scripts/collect-rancher-logs.sh
   GCP_RUNNER_ZONE: us-west1-c
   DOWNSTREAM_CLUSTER_CLEANUP: ${{ inputs.downstream_cluster_cleanup }}
+  GKE_RELEASE_CHANNEL: ${{ inputs.gke_release_channel }}
   QASE_HELPER: ${{ github.workspace }}/hosted/helpers/qase/helper_qase.go
   SECONDARY_GCP_CREDENTIALS: ${{ secrets.SECONDARY_GOOGLE_APPLICATION_CREDENTIALS }}
 jobs:
@@ -469,6 +474,7 @@ jobs:
           echo "## General information" >> ${GITHUB_STEP_SUMMARY}
           echo "Rancher Manager Version: ${{ inputs.rancher_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "K3s on Rancher Manager: ${{ inputs.k3s_version }}" >> ${GITHUB_STEP_SUMMARY}
+          echo "GKE release channel: ${{ inputs.gke_release_channel || 'rapid' }}" >> ${GITHUB_STEP_SUMMARY}
           echo "Tests run: ${{ inputs.tests_to_run }}" >> ${GITHUB_STEP_SUMMARY}
           
           # Handle Alibaba provider which uses 'ali' instead of 'alibaba' in release name
