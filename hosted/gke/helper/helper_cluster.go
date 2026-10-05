@@ -37,6 +37,20 @@ func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 	gkeClusterConfig.Region = region
 	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
 	gkeClusterConfig.KubernetesVersion = &k8sVersion
+	var releaseChannel string
+	switch strings.ToLower(helpers.GKEReleaseChannel) {
+	case "rapid":
+		releaseChannel = "Rapid"
+	case "regular":
+		releaseChannel = "Regular"
+	case "stable":
+		releaseChannel = "Stable"
+	case "extended":
+		releaseChannel = "Extended"
+	default:
+		return nil, fmt.Errorf("unsupported GKE release channel %q", helpers.GKEReleaseChannel)
+	}
+	gkeClusterConfig.ReleaseChannel = &releaseChannel
 
 	if updateFunc != nil {
 		updateFunc(&gkeClusterConfig)
@@ -495,7 +509,7 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	helpers.SetTempKubeConfig(clusterName)
 
 	fmt.Println("Creating GKE cluster ...")
-	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks"}
+	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", strings.ToLower(helpers.GKEReleaseChannel), "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks"}
 	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)

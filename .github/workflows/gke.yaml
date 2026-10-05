@@ -53,6 +53,15 @@ on:
         description: Qase run ID where the results will be reported (auto|none|existing_run_id)
         default: none
         type: string
+      gke_release_channel:
+        description: GKE release channel for cluster creation
+        default: rapid
+        type: choice
+        options:
+          - rapid
+          - regular
+          - stable
+          - extended
 
 jobs:
   gke-e2e:
@@ -70,3 +79,4 @@ jobs:
       downstream_cluster_cleanup: ${{ inputs.downstream_cluster_cleanup == true || (github.event_name == 'schedule' && true) }}
       proxy: ${{ inputs.proxy == true }}
       qase_run_id: ${{ inputs.qase_run_id || 'auto' }}
+      gke_release_channel: ${{ inputs.gke_release_channel || 'rapid' }}

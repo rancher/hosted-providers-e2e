@@ -23,6 +23,13 @@ var (
 	Provider          = os.Getenv("PROVIDER")
 	testuser, _       = user.Current()
 	clusterCleanup, _ = strconv.ParseBool(os.Getenv("DOWNSTREAM_CLUSTER_CLEANUP"))
+	GKEReleaseChannel = func() string {
+		if channel := os.Getenv("GKE_RELEASE_CHANNEL"); channel != "" {
+			return channel
+		}
+
+		return "rapid"
+	}()
 	ClusterNamePrefix = func() string {
 		if clusterCleanup {
 			return fmt.Sprintf("%s-hp-ci", Provider)
