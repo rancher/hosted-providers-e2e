@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -491,6 +492,73 @@ func GetK8sVersionVariantGKE(minorVersion string, client *rancher.Client, projec
 		}
 	}
 	return "", fmt.Errorf("version %s not found", minorVersion)
+}
+
+// GetGKEChannelUpgradeTarget returns the latest patch for the next Kubernetes minor in the configured release channel.
+func GetGKEChannelUpgradeTarget(currentVersion, projectID, zone, region string) (string, error) {
+	current, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		return "", fmt.Errorf("parse current GKE version %q: %w", currentVersion, err)
+	}
+
+	args := []string{"container", "get-server-config", "--project", projectID, "--format=json"}
+	if zone != "" {
+		args = append(args, "--zone", zone)
+	} else if region != "" {
+		args = append(args, "--region", region)
+	} else {
+		return "", fmt.Errorf("either zone or region must be provided")
+	}
+
+	output, err := proc.RunW("gcloud", args...)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get GKE server config: "+output)
+	}
+
+	var serverConfig struct {
+		Channels []struct {
+			Channel       string   `json:"channel"`
+			ValidVersions []string `json:"validVersions"`
+		} `json:"channels"`
+	}
+	if err := json.Unmarshal([]byte(output), &serverConfig); err != nil {
+		return "", fmt.Errorf("parse GKE server config: %w", err)
+	}
+
+	channel := strings.ToUpper(helpers.GKEReleaseChannel)
+	var channelVersions []string
+	for _, releaseChannel := range serverConfig.Channels {
+		if releaseChannel.Channel != channel {
+			continue
+		}
+		channelVersions = releaseChannel.ValidVersions
+		break
+	}
+
+	target, err := selectNextMinorVersion(current, channelVersions)
+	if err != nil {
+		return "", fmt.Errorf("no Kubernetes %d.%d versions available in GKE %s release channel: %w", current.Major(), current.Minor()+1, helpers.GKEReleaseChannel, err)
+	}
+
+	return target, nil
+}
+
+func selectNextMinorVersion(current *semver.Version, versions []string) (string, error) {
+	nextMinor := current.Minor() + 1
+	var target *semver.Version
+	for _, version := range versions {
+		candidate, err := semver.NewVersion(version)
+		if err != nil || candidate.Major() != current.Major() || candidate.Minor() != nextMinor {
+			continue
+		}
+		if target == nil || candidate.GreaterThan(target) {
+			target = candidate
+		}
+	}
+	if target == nil {
+		return "", fmt.Errorf("no versions found")
+	}
+	return target.String(), nil
 }
 
 // <==============================================================================GCLOUD CLI==============================>

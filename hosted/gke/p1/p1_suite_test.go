@@ -95,14 +95,14 @@ func updateAutoScaling(cluster *management.Cluster, client *rancher.Client, auto
 }
 
 func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Client) {
-	availableVersions, err := helper.ListGKEAvailableVersions(client, cluster.ID)
+	cluster, err := client.Management.Cluster.ByID(cluster.ID)
 	Expect(err).To(BeNil())
-	upgradeToVersion := availableVersions[0]
-	GinkgoLogr.Info("Upgrading to version " + upgradeToVersion)
+	currentVersion := cluster.Version.GitVersion
+	upgradeToVersion, err := helper.GetGKEChannelUpgradeTarget(currentVersion, project, zone, "")
+	Expect(err).To(BeNil())
+	GinkgoLogr.Info(fmt.Sprintf("Upgrading from %s to %s in the %s release channel", currentVersion, upgradeToVersion, helpers.GKEReleaseChannel))
 
 	By("upgrading control plane", func() {
-		currentVersion := cluster.GKEConfig.KubernetesVersion
-
 		err = helper.UpgradeGKEClusterOnGCloud(zone, clusterName, project, upgradeToVersion, false, "")
 		Expect(err).To(BeNil())
 		// The cluster errors out and becomes unavailable at some point due to the upgrade , so we wait until the cluster is ready
