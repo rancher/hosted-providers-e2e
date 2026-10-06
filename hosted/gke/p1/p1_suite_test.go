@@ -97,7 +97,7 @@ func updateAutoScaling(cluster *management.Cluster, client *rancher.Client, auto
 func syncK8sVersionUpgradeCheck(cluster *management.Cluster, client *rancher.Client) {
 	cluster, err := client.Management.Cluster.ByID(cluster.ID)
 	Expect(err).To(BeNil())
-	currentVersion := cluster.Version.GitVersion
+	currentVersion := strings.TrimPrefix(cluster.Version.GitVersion, "v")
 	upgradeToVersion, err := helper.GetGKEChannelUpgradeTarget(currentVersion, project, zone, "")
 	Expect(err).To(BeNil())
 	GinkgoLogr.Info(fmt.Sprintf("Upgrading from %s to %s in the %s release channel", currentVersion, upgradeToVersion, helpers.GKEReleaseChannel))
