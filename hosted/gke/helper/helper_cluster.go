@@ -501,7 +501,7 @@ func GetGKEChannelUpgradeTarget(currentVersion, projectID, zone, region string) 
 		return "", fmt.Errorf("parse current GKE version %q: %w", currentVersion, err)
 	}
 
-	args := []string{"container", "get-server-config", "--project", projectID, "--format=json"}
+	args := []string{"container", "get-server-config", "--project", projectID, "--format=json", "--quiet"}
 	if zone != "" {
 		args = append(args, "--zone", zone)
 	} else if region != "" {
@@ -515,13 +515,8 @@ func GetGKEChannelUpgradeTarget(currentVersion, projectID, zone, region string) 
 		return "", errors.Wrap(err, "failed to get GKE server config: "+output)
 	}
 
-	var serverConfig struct {
-		Channels []struct {
-			Channel       string   `json:"channel"`
-			ValidVersions []string `json:"validVersions"`
-		} `json:"channels"`
-	}
-	if err := json.Unmarshal([]byte(output), &serverConfig); err != nil {
+	var serverConfig gkeServerConfig
+	if err := parseGKEServerConfig(output, &serverConfig); err != nil {
 		return "", fmt.Errorf("parse GKE server config: %w", err)
 	}
 
@@ -541,6 +536,22 @@ func GetGKEChannelUpgradeTarget(currentVersion, projectID, zone, region string) 
 	}
 
 	return target, nil
+}
+
+type gkeServerConfig struct {
+	Channels []struct {
+		Channel       string   `json:"channel"`
+		ValidVersions []string `json:"validVersions"`
+	} `json:"channels"`
+}
+
+func parseGKEServerConfig(output string, serverConfig *gkeServerConfig) error {
+	start := strings.IndexByte(output, '{')
+	end := strings.LastIndexByte(output, '}')
+	if start == -1 || end < start {
+		return fmt.Errorf("JSON object not found in gcloud output")
+	}
+	return json.Unmarshal([]byte(output[start:end+1]), serverConfig)
 }
 
 func selectNextMinorVersion(current *semver.Version, versions []string) (string, error) {

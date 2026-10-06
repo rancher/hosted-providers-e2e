@@ -36,3 +36,14 @@ func TestSelectNextMinorVersionWithoutNextMinor(t *testing.T) {
 		t.Fatal("expected an error when no version exists for the next minor")
 	}
 }
+
+func TestParseGKEServerConfigWithProgressOutput(t *testing.T) {
+	var config gkeServerConfig
+	output := "Fetching server config...\n{\"channels\":[{\"channel\":\"RAPID\",\"validVersions\":[\"1.36.4-gke.2046000\"]}]}\n"
+	if err := parseGKEServerConfig(output, &config); err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Channels) != 1 || config.Channels[0].Channel != "RAPID" {
+		t.Fatalf("unexpected channels parsed: %#v", config.Channels)
+	}
+}
