@@ -112,8 +112,7 @@ jobs:
             RANCHER_VERSION="${RANCHER_UPGRADE_VERSION}"
           fi
 
-          VERSION="${RANCHER_VERSION#*/}"
-          VERSION="${VERSION#devel/}"
+          VERSION="${RANCHER_VERSION##*/}"
 
           # Keeps only the leading major.minor[.patch]: 2.15.1-rc2 -> 2.15.1, v2.15-head -> 2.15
           if [[ ! "${VERSION}" =~ ^v?([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
