@@ -112,6 +112,7 @@ gkeClusterConfig:
     servicesSecondaryRangeName: ""
     subnetworkName: ""
     useIpAliases: true
+  releaseChannel: Rapid
   kubernetesVersion: 1.29.8-gke.1211000
   labels: {}
   locations: []
