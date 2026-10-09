@@ -77,6 +77,7 @@ gkeClusterConfig:
   projectID: <project>
   zone: asia-south2-c
   imported: true
+  releaseChannel: Rapid
   nodePools:
   - autoscaling: {}
     config:

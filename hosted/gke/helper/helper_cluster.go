@@ -1,7 +1,10 @@
 package helper
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -21,11 +24,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rancher/shepherd/clients/rancher"
 	management "github.com/rancher/shepherd/clients/rancher/generated/management/v3"
-	"github.com/rancher/shepherd/extensions/clusters/kubernetesversions"
 	"github.com/rancher/shepherd/pkg/config"
 	namegen "github.com/rancher/shepherd/pkg/namegenerator"
 	"k8s.io/utils/pointer"
 )
+
+const gkeReleaseChannel = "Rapid"
 
 // CreateGKEHostedCluster creates the GKE cluster
 func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredentialID, k8sVersion, zone, region, project string, updateFunc func(clusterConfig *gke.ClusterConfig)) (*management.Cluster, error) {
@@ -37,6 +41,7 @@ func CreateGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 	gkeClusterConfig.Region = region
 	gkeClusterConfig.Labels = helpers.GetCommonMetadataLabels()
 	gkeClusterConfig.KubernetesVersion = &k8sVersion
+	gkeClusterConfig.ReleaseChannel = pointer.String(gkeReleaseChannel)
 
 	if updateFunc != nil {
 		updateFunc(&gkeClusterConfig)
@@ -53,6 +58,7 @@ func ImportGKEHostedCluster(client *rancher.Client, displayName, cloudCredential
 			GoogleCredentialSecret: cloudCredentialID,
 			ClusterName:            displayName,
 			Imported:               true,
+			ReleaseChannel:         pointer.String(gkeReleaseChannel),
 			Zone:                   zone,
 			ProjectID:              project,
 		},
@@ -433,22 +439,111 @@ func UpdateCluster(cluster *management.Cluster, client *rancher.Client, updateFu
 
 // ListGKEAvailableVersions is a function to list and return only available GKE versions for a specific cluster.
 func ListGKEAvailableVersions(client *rancher.Client, clusterID string) ([]string, error) {
-	// kubernetesversions.ListGKEAvailableVersions expects cluster.Version.GitVersion to be available, which it is not sometimes, so we fetch the cluster again to ensure it has all the available data
 	cluster, err := client.Management.Cluster.ByID(clusterID)
 	if err != nil {
 		return nil, err
 	}
-	availableVersions, err := kubernetesversions.ListGKEAvailableVersions(client, cluster)
+	if cluster.GKEConfig == nil || cluster.Version == nil {
+		return nil, fmt.Errorf("cluster %s is missing GKE config or Kubernetes version", cluster.Name)
+	}
+
+	releaseChannel := gkeReleaseChannel
+	if cluster.GKEConfig.ReleaseChannel != nil && *cluster.GKEConfig.ReleaseChannel != "" {
+		releaseChannel = *cluster.GKEConfig.ReleaseChannel
+	}
+
+	channelVersions, err := ListGKEChannelVersions(client, cluster.GKEConfig.ProjectID, cluster.GKEConfig.GoogleCredentialSecret, cluster.GKEConfig.Zone, cluster.GKEConfig.Region, releaseChannel)
+	if err != nil {
+		return nil, err
+	}
+	availableVersions, err := filterGKEUpgradeVersions(channelVersions, cluster.Version.GitVersion)
 	if err != nil {
 		return nil, err
 	}
 	return helpers.FilterUIUnsupportedVersions(availableVersions, client), nil
 }
 
+// ListGKEChannelVersions returns the GKE versions of a release channel, as reported by Rancher's /meta/gkeVersions endpoint.
+func ListGKEChannelVersions(client *rancher.Client, projectID, cloudCredentialID, zone, region, releaseChannel string) ([]string, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/meta/gkeVersions", client.RancherConfig.Host), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Bearer "+client.RancherConfig.AdminToken)
+
+	q := req.URL.Query()
+	q.Add("cloudCredentialId", cloudCredentialID)
+	if zone != "" {
+		q.Add("zone", zone)
+	} else if region != "" {
+		q.Add("region", region)
+	}
+	q.Add("projectId", projectID)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Management.APIBaseClient.Ops.Client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get GKE versions from Rancher")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get GKE versions from Rancher: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return parseGKEChannelVersions(body, releaseChannel)
+}
+
+func parseGKEChannelVersions(serverConfig []byte, releaseChannel string) ([]string, error) {
+	var config struct {
+		Channels []struct {
+			Channel       string   `json:"channel"`
+			ValidVersions []string `json:"validVersions"`
+		} `json:"channels"`
+	}
+	if err := json.Unmarshal(serverConfig, &config); err != nil {
+		return nil, errors.Wrap(err, "failed to parse GKE server config")
+	}
+	for _, channel := range config.Channels {
+		if strings.EqualFold(channel.Channel, releaseChannel) {
+			if len(channel.ValidVersions) == 0 {
+				return nil, fmt.Errorf("GKE release channel %q has no available versions", releaseChannel)
+			}
+			return channel.ValidVersions, nil
+		}
+	}
+	return nil, fmt.Errorf("GKE release channel %q was not found in server config", releaseChannel)
+}
+
+func filterGKEUpgradeVersions(versions []string, currentVersion string) ([]string, error) {
+	current, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		return nil, fmt.Errorf("invalid current GKE Kubernetes version %q: %w", currentVersion, err)
+	}
+
+	var available []string
+	for _, version := range versions {
+		parsed, err := semver.NewVersion(version)
+		if err != nil {
+			continue
+		}
+		if parsed.Major() == current.Major() && parsed.Minor() > current.Minor() && parsed.Minor() <= current.Minor()+1 {
+			available = append(available, version)
+		}
+	}
+	if len(available) == 0 {
+		return nil, fmt.Errorf("no upgrade versions available for %s in the cluster's release channel", currentVersion)
+	}
+	return available, nil
+}
+
 // ListSingleVariantGKEAvailableVersions returns a list of single variants of minor versions
 // For e.g 1.27.5-gke.1700, 1.26.6-gke.2100, 1.25.8-gke.200
 func ListSingleVariantGKEAvailableVersions(client *rancher.Client, projectID, cloudCredentialID, zone, region string) (availableVersions []string, err error) {
-	availableVersions, err = kubernetesversions.ListGKEAllVersions(client, projectID, cloudCredentialID, zone, region)
+	availableVersions, err = ListGKEChannelVersions(client, projectID, cloudCredentialID, zone, region, gkeReleaseChannel)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +590,7 @@ func CreateGKEClusterOnGCloud(zone string, clusterName string, project string, k
 	helpers.SetTempKubeConfig(clusterName)
 
 	fmt.Println("Creating GKE cluster ...")
-	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", "None", "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks"}
+	args := []string{"container", "clusters", "create", clusterName, "--project", project, "--zone", zone, "--cluster-version", k8sVersion, "--labels", labelsAsString, "--network", "default", "--release-channel", strings.ToLower(gkeReleaseChannel), "--machine-type", "n2-standard-2", "--disk-size", "100", "--num-nodes", "1", "--no-enable-master-authorized-networks"}
 	args = append(args, extraArgs...)
 	fmt.Printf("Running command: gcloud %v\n", args)
 	out, err := proc.RunW("gcloud", args...)

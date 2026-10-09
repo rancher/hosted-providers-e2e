@@ -22,9 +22,7 @@ install-helm: ## Install Helm binary
 	sudo mv /tmp/linux-${TARGETARCH}/helm /usr/local/bin/helm
 
 deps: ## Install the Go dependencies
-	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.28.1
-	go get github.com/onsi/gomega@v1.39.0
-	go mod tidy
+	go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo@v2.32.0
 
 e2e-import-tests: deps	## Run the 'P0Import' test suite for a given ${PROVIDER}
 	ginkgo ${STANDARD_TEST_OPTIONS} --nodes 2 --focus "P0Import" ./hosted/${PROVIDER}/p0/
