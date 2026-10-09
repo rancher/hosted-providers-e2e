@@ -90,6 +90,100 @@ env:
   QASE_HELPER: ${{ github.workspace }}/hosted/helpers/qase/helper_qase.go
   SECONDARY_GCP_CREDENTIALS: ${{ secrets.SECONDARY_GOOGLE_APPLICATION_CREDENTIALS }}
 jobs:
+  determine-milestone:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      milestone: ${{ steps.milestone.outputs.milestone }}
+      milestone_id: ${{ steps.milestone.outputs.milestone_id }}
+    steps:
+      - name: Determine milestone from latest matching Rancher release
+        id: milestone
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QASE_RUN_ID: ${{ inputs.qase_run_id }}
+          RANCHER_VERSION: ${{ inputs.rancher_version }}
+          RANCHER_UPGRADE_VERSION: ${{ inputs.rancher_upgrade_version }}
+          TESTS_TO_RUN: ${{ inputs.tests_to_run }}
+        run: |
+          # Upgrade tests validate the Rancher version being upgraded to
+          if [[ "${TESTS_TO_RUN}" == *k8s_chart_support_upgrade* && -n "${RANCHER_UPGRADE_VERSION}" ]]; then
+            RANCHER_VERSION="${RANCHER_UPGRADE_VERSION}"
+          fi
+
+          VERSION="${RANCHER_VERSION##*/}"
+
+          # Keeps only the leading major.minor[.patch]: 2.15.1-rc2 -> 2.15.1, v2.15-head -> 2.15
+          if [[ ! "${VERSION}" =~ ^v?([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+            echo "Unable to derive a milestone from Rancher version '${RANCHER_VERSION}', skipping"
+            exit 0
+          fi
+          VERSION="${BASH_REMATCH[1]}"
+
+          # Only major.minor (e.g. 2.15) needs the next patch version to be calculated
+          if [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            LATEST=$(gh api --paginate "repos/rancher/rancher/releases?per_page=100" \
+              --jq '.[] | select(.prerelease == false) | .tag_name' | \
+              { grep "^v${VERSION}\." || true; } | sort -V | tail -n 1)
+            if [[ -z "${LATEST}" ]]; then
+              LATEST_PATCH=-1
+            else
+              LATEST_PATCH="${LATEST##*.}"
+            fi
+            MILESTONE_TITLE="v${VERSION}.$((LATEST_PATCH + 1))"
+          else
+            MILESTONE_TITLE="v${VERSION}"
+          fi
+
+          echo "milestone=${MILESTONE_TITLE}" >> "${GITHUB_OUTPUT}"
+          echo "Rancher milestone: ${MILESTONE_TITLE}"
+
+          if [[ -z "${QASE_RUN_ID}" || "${QASE_RUN_ID}" == "none" ]]; then
+            exit 0
+          fi
+
+          find_milestone_id() {
+            curl --silent --show-error --fail --get \
+              "https://api.qase.io/v1/milestone/${QASE_PROJECT_CODE}" \
+              --header "Token: ${QASE_API_TOKEN}" \
+              --header "accept: application/json" \
+              --data-urlencode "search=${MILESTONE_TITLE}" \
+              --data-urlencode "limit=100" | \
+              jq -r --arg title "${MILESTONE_TITLE}" '[.result.entities[]? | select(.title == $title) | .id] | min // empty'
+          }
+
+          MILESTONE_ID=$(find_milestone_id)
+
+          if [[ -z "${MILESTONE_ID}" ]]; then
+            echo "Creating new milestone ${MILESTONE_TITLE} in Qase"
+            CREATED_ID=$(curl --silent --show-error --fail \
+              --request POST \
+              --url "https://api.qase.io/v1/milestone/${QASE_PROJECT_CODE}" \
+              --header "Token: ${QASE_API_TOKEN}" \
+              --header "Content-Type: application/json" \
+              --header "accept: application/json" \
+              --data "$(jq -n --arg title "${MILESTONE_TITLE}" '{title: $title, description: $title}')" | \
+              jq -r '.result.id // empty')
+
+            # Parallel matrix jobs may race to create it; keep the oldest and drop our duplicate
+            MILESTONE_ID=$(find_milestone_id)
+            if [[ -n "${CREATED_ID}" && -n "${MILESTONE_ID}" && "${CREATED_ID}" != "${MILESTONE_ID}" ]]; then
+              curl --silent --show-error --request DELETE \
+                --url "https://api.qase.io/v1/milestone/${QASE_PROJECT_CODE}/${CREATED_ID}" \
+                --header "Token: ${QASE_API_TOKEN}" \
+                --header "accept: application/json" > /dev/null || true
+            fi
+            MILESTONE_ID="${MILESTONE_ID:-${CREATED_ID}}"
+          fi
+
+          if [[ -z "${MILESTONE_ID}" ]]; then
+            echo "Unable to find or create Qase milestone ${MILESTONE_TITLE}" >&2
+            exit 1
+          fi
+
+          echo "milestone_id=${MILESTONE_ID}" >> "${GITHUB_OUTPUT}"
+
   create-runner:
     runs-on: ubuntu-latest
     outputs:
@@ -133,7 +227,7 @@ jobs:
 
   installation-and-e2e-tests:
     runs-on: ${{ needs.create-runner.outputs.uuid }}
-    needs: create-runner
+    needs: [create-runner, determine-milestone]
     env:
       # For some reason the go doesn't link by default against system libresolv library
       CGO_LDFLAGS: -O2 -g -lresolv
@@ -225,6 +319,27 @@ jobs:
               echo "qase_run_id=${{ inputs.qase_run_id }}" >> ${GITHUB_OUTPUT}
               ;;
           esac
+
+      - name: Set Qase run milestone
+        if: ${{ steps.qase.outputs.qase_run_id != '' && needs.determine-milestone.outputs.milestone_id != '' }}
+        shell: bash
+        env:
+          QASE_RUN_ID: ${{ steps.qase.outputs.qase_run_id }}
+          QASE_MILESTONE_ID: ${{ needs.determine-milestone.outputs.milestone_id }}
+          QASE_MILESTONE: ${{ needs.determine-milestone.outputs.milestone }}
+        run: |
+          STATUS=$(curl --silent --show-error --fail \
+            --request PATCH \
+            --url "https://api.qase.io/v1/run/${QASE_PROJECT_CODE}/${QASE_RUN_ID}" \
+            --header "Token: ${QASE_API_TOKEN}" \
+            --header "Content-Type: application/json" \
+            --header "accept: application/json" \
+            --data "$(jq -n --argjson milestone_id "${QASE_MILESTONE_ID}" '{milestone_id: $milestone_id}')" | \
+            jq -r '.status // empty') || true
+
+          if [[ "${STATUS}" != "true" ]]; then
+            echo "Failed to set Qase milestone ${QASE_MILESTONE} (${QASE_MILESTONE_ID}) for run ${QASE_RUN_ID}" >&2
+          fi
 
       - name: Install k3s / Helm / CertManager / Rancher
         id: prepare-rancher
@@ -468,6 +583,9 @@ jobs:
           # Add summary
           echo "## General information" >> ${GITHUB_STEP_SUMMARY}
           echo "Rancher Manager Version: ${{ inputs.rancher_version }}" >> ${GITHUB_STEP_SUMMARY}
+          if [[ -n "${{ needs.determine-milestone.outputs.milestone }}" ]]; then
+            echo "Rancher Manager Milestone: ${{ needs.determine-milestone.outputs.milestone }}" >> ${GITHUB_STEP_SUMMARY}
+          fi
           echo "K3s on Rancher Manager: ${{ inputs.k3s_version }}" >> ${GITHUB_STEP_SUMMARY}
           echo "Tests run: ${{ inputs.tests_to_run }}" >> ${GITHUB_STEP_SUMMARY}
           
