@@ -519,17 +519,22 @@ func ListEKSAvailableVersions(client *rancher.Client, cluster *management.Cluste
 // this is a separate static list maintained by hosted-providers-e2e, similar to the  UI lists:
 // https://raw.githubusercontent.com/rancher/dashboard/refs/heads/master/pkg/eks/assets/data/eks-versions.js and
 // https://raw.githubusercontent.com/rancher/ui/master/lib/shared/addon/utils/amazon.js
-// the static list only contains officially supported EKS versions, i.e. 1.24 to 1.32;
-// refer: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html.
+// Keep this list in sync with the officially supported EKS versions in the Rancher UI and AWS:
+// https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html.
 func ListEKSAllVersions(client *rancher.Client) (allVersions []string, err error) {
 	serverVersion, err := helpers.GetRancherServerVersion(client)
 	if err != nil {
 		return
 	}
 
-	allVersions = []string{"1.35", "1.34", "1.33"}
-
-	if strings.Contains(serverVersion, "2.13") {
+	allVersions = []string{"1.37", "1.36", "1.35", "1.34", "1.33"}
+	if strings.Contains(serverVersion, "2.16") {
+		allVersions = []string{"1.37", "1.36", "1.35"}
+	} else if strings.Contains(serverVersion, "2.15") {
+		allVersions = []string{"1.36", "1.35", "1.34"}
+	} else if strings.Contains(serverVersion, "2.14") {
+		allVersions = []string{"1.35", "1.34", "1.33"}
+	} else if strings.Contains(serverVersion, "2.13") {
 		allVersions = []string{"1.34", "1.33", "1.32"}
 	} else if strings.Contains(serverVersion, "2.12") {
 		allVersions = []string{"1.33", "1.32", "1.31"}
