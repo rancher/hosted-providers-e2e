@@ -76,18 +76,13 @@ var _ = ReportAfterEach(func(report SpecReport) {
 })
 
 func commonchecks(client *rancher.Client, cluster *management.Cluster) {
-	if len(helpers.ListOperatorChart()) == 0 {
-		By("verifying the operator pod, as no operator Helm release exists", func() {
-			Eventually(func() error {
-				return kubectl.New().WaitForNamespaceWithPod(helpers.CattleSystemNS, fmt.Sprintf("ke.cattle.io/operator=%s", helpers.Provider))
-			}, tools.SetTimeout(4*time.Minute), 30*time.Second).Should(BeNil())
-		})
-		Skip("Operator is not installed as a Helm release; skipping chart downgrade checks")
-	}
-
 	var originalChartVersion string
 
 	By("checking the chart version", func() {
+		// The operator release may not be in 'deployed' state yet when the cluster turns active
+		Eventually(func() []helpers.HelmChart {
+			return helpers.ListOperatorChart()
+		}, tools.SetTimeout(5*time.Minute), 10*time.Second).ShouldNot(BeEmpty(), "operator Helm release not found in "+helpers.CattleSystemNS)
 		originalChartVersion = helpers.GetCurrentOperatorChartVersion()
 		Expect(originalChartVersion).ToNot(BeEmpty())
 		GinkgoLogr.Info("Original chart version: " + originalChartVersion)
