@@ -741,7 +741,11 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 		}
 		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
-			Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(updatedTags)))
+			Eventually(func() bool {
+				cluster, err = client.Management.Cluster.ByID(cluster.ID)
+				Expect(err).NotTo(HaveOccurred())
+				return len(cluster.AKSConfig.Tags) == len(updatedTags)
+			}, "2m", "5s").Should(BeTrue(), "Timed out while waiting for tags addition to appear in AKSConfig...")
 			for key, value := range updatedTags {
 				Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue(key, value))
 			}
@@ -762,7 +766,11 @@ func azureSyncCheck(cluster *management.Cluster, client *rancher.Client, upgrade
 		}
 		// Check AKSConfig if the cluster is Rancher-provisioned
 		if !helpers.IsImport {
-			Expect(len(cluster.AKSConfig.Tags)).To(Equal(len(originalTags)))
+			Eventually(func() bool {
+				cluster, err = client.Management.Cluster.ByID(cluster.ID)
+				Expect(err).NotTo(HaveOccurred())
+				return len(cluster.AKSConfig.Tags) == len(originalTags)
+			}, "2m", "5s").Should(BeTrue(), "Timed out while waiting for tags deletion to appear in AKSConfig...")
 			for key, value := range originalTags {
 				Expect(cluster.AKSConfig.Tags).To(HaveKeyWithValue(key, value))
 			}
