@@ -378,8 +378,8 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.EKS_REGION }}
 
-      - name: Install AWS CLI v2 (if running sync tests)
-        if: ${{!cancelled() && inputs.hosted_provider == 'eks' && contains(inputs.tests_to_run, 'sync_')}}
+      - name: Install AWS CLI v2
+        if: ${{ !cancelled() && inputs.hosted_provider == 'eks' }}
         run:  |
           AWS_CLI_VERSION=2.34.16
           curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip" -o "awscliv2.zip"
