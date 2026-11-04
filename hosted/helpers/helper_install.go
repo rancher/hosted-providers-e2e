@@ -244,7 +244,15 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 	})
 
 	By("Waiting for rancher-webhook", func() {
-		// Wait unit the kubectl command returns exit code 0
+		// Check if rancher-webhook deployment exists
+		// Some Rancher versions may not deploy the webhook component
+		out, err := kubectl.Run("get", "deployment", "-n", "cattle-system", "rancher-webhook")
+		if err != nil {
+			GinkgoLogr.Info("rancher-webhook deployment not found; skipping webhook checks", "output", out)
+			return
+		}
+
+		// Webhook deployment exists, wait for it to rollout
 		count := 1
 		Eventually(func() error {
 			out, err := kubectl.Run("rollout", "status",

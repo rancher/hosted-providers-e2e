@@ -33,6 +33,44 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
+      - name: Disable termination protection for stacks scheduled for deletion
+        env:
+          EKS_REGIONS: ${{ secrets.EKS_REGION }}
+        run: |
+          set -euo pipefail
+
+          IFS=',' read -ra regions <<< "$EKS_REGIONS"
+          for region in "${regions[@]}"; do
+            region="$(echo "$region" | xargs)"
+            [ -n "$region" ] || continue
+            echo "Checking CloudFormation stacks in $region"
+
+            stacks=$(aws cloudformation describe-stacks --region "$region" --output json | jq -r '
+              .Stacks[]
+              | select((.Tags // [] | any(.Key == "janitor-ignore")) | not)
+              | select(
+                  (.Tags // [] | any(.Key == "aws-janitor/marked-for-deletion"))
+                  or
+                  (.StackStatus == "DELETE_FAILED"
+                    or .StackStatus == "ROLLBACK_COMPLETE"
+                    or .StackStatus == "ROLLBACK_FAILED"
+                    or .StackStatus == "DELETE_FAILED"
+                    or .StackStatus == "UPDATE_ROLLBACK_FAILED"
+                    or .StackStatus == "UPDATE_ROLLBACK_COMPLETE")
+                )
+              | .StackName
+            ')
+
+            while IFS= read -r stack; do
+              [ -n "$stack" ] || continue
+              echo "Disabling termination protection for $stack in $region"
+              aws cloudformation update-termination-protection \
+                --stack-name "$stack" \
+                --no-enable-termination-protection \
+                --region "$region"
+            done <<< "$stacks"
+          done
+
       - name: Cleanup
         uses: rancher/aws-janitor@84b177ff822fb41a00b892d4294769fef3815dc5 # v0.3.0
         with:
