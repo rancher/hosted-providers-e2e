@@ -845,22 +845,9 @@ func DeleteEKSClusterOnAWS(region string, clusterName string) error {
 
 	fmt.Println("Deleting EKS cluster ...")
 
-	stackName := "eksctl-" + clusterName + "-cluster"
-	protectionArgs := []string{
-		"cloudformation", "update-termination-protection",
-		"--stack-name", stackName,
-		"--no-enable-termination-protection",
-		"--region", region,
-	}
-	fmt.Printf("Running command: aws %v\n", protectionArgs)
-	out, err := proc.RunW("aws", protectionArgs...)
-	if err != nil {
-		return errors.Wrap(err, "Failed to disable CloudFormation stack termination protection: "+out)
-	}
-
 	args := []string{"delete", "cluster", "--region=" + region, "--name=" + clusterName}
 	fmt.Printf("Running command: eksctl %v\n", args)
-	out, err = proc.RunW("eksctl", args...)
+	out, err := proc.RunW("eksctl", args...)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete cluster: "+out)
 	}
