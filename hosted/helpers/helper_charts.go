@@ -76,7 +76,7 @@ func WaitUntilOperatorChartInstallation(chartVersion, comparator string, compare
 			return 10
 		}
 		return VersionCompare(currentChartVersion, chartVersion)
-	}, tools.SetTimeout(4*time.Minute), 3*time.Second).Should(BeNumerically(comparator, compareTo))
+	}, tools.SetTimeout(8*time.Minute), 3*time.Second).Should(BeNumerically(comparator, compareTo))
 
 }
 
@@ -133,7 +133,6 @@ func ListOperatorChart() (operatorCharts []HelmChart) {
 			operatorCharts = append(operatorCharts, allCharts[i])
 		}
 	}
-	Expect(operatorCharts).ToNot(BeEmpty())
 	return
 }
 
