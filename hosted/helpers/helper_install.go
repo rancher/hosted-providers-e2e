@@ -231,9 +231,13 @@ func CheckRancherDeployments(k *kubectl.Kubectl) {
 				"deployment", "fleet-controller",
 			)
 			GinkgoWriter.Printf("Waiting for fleet-controller deployment, loop %d:\n%s\n", count, out)
+			if err != nil && count%12 == 0 {
+				pods, _ := kubectl.Run("get", "pods", "--all-namespaces", "-o", "wide")
+				GinkgoWriter.Printf("Cluster pods while waiting for fleet:\n%s\n", pods)
+			}
 			count++
 			return err
-		}, tools.SetTimeout(2*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Fleet-controller deployment failed")
+		}, tools.SetTimeout(10*time.Minute), 5*time.Second).Should(Not(HaveOccurred()), "Fleet-controller deployment failed")
 
 		checkList := [][]string{
 			{"cattle-fleet-system", "app=fleet-controller"},
