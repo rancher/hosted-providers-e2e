@@ -16,6 +16,63 @@ import (
 	"github.com/rancher/shepherd/clients/rancher/catalog"
 )
 
+// StagingOperatorChartRegistry is the OCI registry for staged Rancher operator charts.
+const StagingOperatorChartRegistry = "oci://stgregistry.suse.com/rancher/catalog"
+
+// GetStagedOperatorChartVersion returns the staged operator chart version compatible with Rancher.
+func GetStagedOperatorChartVersion(provider, rancherFullVersion string) (string, error) {
+	switch provider {
+	case "aks", "eks", "gke":
+	default:
+		return "", fmt.Errorf("unsupported hosted provider %q for staged operator charts", provider)
+	}
+
+	versionConstraint, err := stagedOperatorChartVersionConstraint(rancherFullVersion)
+	if err != nil {
+		return "", err
+	}
+
+	chartName := fmt.Sprintf("rancher-%s-operator", provider)
+	version, err := fetchOCIChartVersionWithError(fmt.Sprintf("%s/%s", StagingOperatorChartRegistry, chartName), versionConstraint)
+	if err != nil {
+		return "", fmt.Errorf("find staged chart version for %s: %w", chartName, err)
+	}
+
+	crdChartName := chartName + "-crd"
+	crdVersion, err := fetchOCIChartVersionWithError(fmt.Sprintf("%s/%s", StagingOperatorChartRegistry, crdChartName), versionConstraint)
+	if err != nil {
+		return "", fmt.Errorf("find staged CRD chart version for %s: %w", crdChartName, err)
+	}
+	if crdVersion != version {
+		return "", fmt.Errorf("staged chart versions do not match for %s: operator=%s, CRD=%s", chartName, version, crdVersion)
+	}
+
+	return version, nil
+}
+
+func stagedOperatorChartVersionConstraint(rancherFullVersion string) (string, error) {
+	versions := strings.Split(rancherFullVersion, "/")
+	if len(versions) < 2 {
+		return "", fmt.Errorf("RANCHER_VERSION %q must contain a channel and version", rancherFullVersion)
+	}
+
+	rancherVersion := versions[1]
+	if len(versions) > 2 && versions[2] != "" {
+		rancherVersion = versions[2]
+	}
+	if rancherVersion == "latest" {
+		return "", nil
+	}
+
+	parsedVersion, err := semver.ParseTolerant(rancherVersion)
+	if err != nil {
+		return "", fmt.Errorf("parse Rancher version %q to select a staged operator chart: %w", rancherVersion, err)
+	}
+
+	// Staged KEv2 chart majors are 95 greater than the Rancher minor (2.16 -> 111).
+	return fmt.Sprintf("~%d", int(parsedVersion.Minor)+95), nil
+}
+
 // AddRancherCharts adds the repo from which rancher operator charts can be installed
 func AddRancherCharts() {
 	err := kubectl.RunHelmBinaryWithCustomErr("repo", "add", catalog.RancherChartRepo, "https://charts.rancher.io")
@@ -249,4 +306,22 @@ func fetchOCIChartVersion(chartRef, versionConstraint string) string {
 		}
 	}
 	return ""
+}
+
+func fetchOCIChartVersionWithError(chartRef, versionConstraint string) (string, error) {
+	args := []string{"show", "chart", chartRef}
+	if versionConstraint != "" {
+		args = append(args, "--version", versionConstraint)
+	}
+	output, err := exec.Command("helm", args...).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("helm %s failed: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(output)))
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "version:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "version:")), nil
+		}
+	}
+	return "", fmt.Errorf("helm %s returned no chart version", strings.Join(args, " "))
 }

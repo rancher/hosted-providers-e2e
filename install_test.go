@@ -20,6 +20,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/rancher-sandbox/ele-testhelpers/kubectl"
 
 	"github.com/rancher/hosted-providers-e2e/hosted/helpers"
@@ -37,9 +38,15 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 			helpers.InstallCertManager(k, proxy, proxyHost)
 		})
 
+		usesStagedOperatorCharts := providerOperator == "aks" || providerOperator == "eks" || providerOperator == "gke"
 		if skipInstallRancher != "true" {
 			By("Installing Rancher Manager", func() {
-				helpers.InstallRancherManager(k, rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, proxy, nightlyChart)
+				skipHostedChartInstall := nightlyChart == "enabled" || usesStagedOperatorCharts
+				chartInstallMode := ""
+				if skipHostedChartInstall {
+					chartInstallMode = "enabled"
+				}
+				helpers.InstallRancherManager(k, rancherHostname, rancherChannel, rancherVersion, rancherHeadVersion, proxy, chartInstallMode)
 			})
 
 			By("Checking Rancher Deployments", func() {
@@ -62,6 +69,21 @@ var _ = Describe("Provision k3s cluster and Rancher", Label("install"), func() {
 						"oci://ghcr.io/rancher/rancher-"+providerOperator+"-operator-chart/rancher-"+providerOperator+"-operator",
 						"--version", buildDate, "--namespace", "cattle-system")
 				}
+			})
+		} else if usesStagedOperatorCharts {
+			By(fmt.Sprintf("Install staged rancher-%s-operator charts", providerOperator), func() {
+				chartVersion, err := helpers.GetStagedOperatorChartVersion(providerOperator, helpers.RancherFullVersion)
+				Expect(err).NotTo(HaveOccurred())
+				GinkgoLogr.Info(fmt.Sprintf("Installing staged provider charts at version %s", chartVersion))
+
+				operatorChartName := "rancher-" + providerOperator + "-operator"
+				chartRegistry := helpers.StagingOperatorChartRegistry
+				RunHelmCmdWithRetry("upgrade", "--install", operatorChartName+"-crd",
+					chartRegistry+"/"+operatorChartName+"-crd",
+					"--namespace", "cattle-system", "--version", chartVersion, "--wait")
+				RunHelmCmdWithRetry("upgrade", "--install", operatorChartName,
+					chartRegistry+"/"+operatorChartName,
+					"--namespace", "cattle-system", "--version", chartVersion, "--wait")
 			})
 		}
 
